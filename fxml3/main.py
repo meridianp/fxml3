@@ -6,7 +6,12 @@ import os
 import sys
 from typing import List, Optional
 
+import dotenv
+
 from fxml3.config import Config
+
+# Load environment variables at the earliest point
+dotenv.load_dotenv()
 
 
 def setup_logging(log_level: str) -> None:

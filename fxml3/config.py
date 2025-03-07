@@ -1,10 +1,14 @@
 """Configuration settings for the FXML3 project."""
 
 import os
+import dotenv
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 import yaml
+
+# Load environment variables from .env file
+dotenv.load_dotenv()
 
 
 @dataclass
@@ -25,6 +29,12 @@ class DataConfig:
             self.symbols = ["EURUSD", "GBPUSD", "USDJPY"]
         if self.timeframes is None:
             self.timeframes = ["1H", "4H", "1D"]
+            
+        # Load API key from environment if available
+        if self.api_key is None:
+            env_key = os.environ.get("FOREX_API_KEY")
+            if env_key:
+                self.api_key = env_key
 
 
 @dataclass
@@ -51,11 +61,31 @@ class LLMConfig:
 
     model_name: str = "gpt-3.5-turbo"  # Default LLM model
     api_key_env: str = "OPENAI_API_KEY"  # Environment variable for API key
+    api_key: Optional[str] = None  # API key if not from environment
     use_local_model: bool = False  # Whether to use a local model
     local_model_path: Optional[str] = None  # Path to local model
     max_tokens: int = 1024  # Maximum tokens in responses
     temperature: float = 0.7  # Sampling temperature
     knowledge_base_dir: str = "data/knowledge"  # Directory for RAG documents
+    
+    def __post_init__(self):
+        """Initialize values from environment if available."""
+        # Get API key from environment if specified
+        if self.api_key is None:
+            env_key = os.environ.get(self.api_key_env)
+            if env_key:
+                self.api_key = env_key
+                
+        # Check for model override in environment
+        env_model = os.environ.get("LLM_MODEL")
+        if env_model:
+            self.model_name = env_model
+            
+        # Check for local model path in environment
+        if self.use_local_model and self.local_model_path is None:
+            env_path = os.environ.get("LOCAL_MODEL_PATH")
+            if env_path:
+                self.local_model_path = env_path
 
 
 @dataclass
@@ -108,6 +138,39 @@ class Config:
             self.ui = UIConfig()
         if self.project_root is None:
             self.project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+        # Check for environment variables that override config
+        env_log_level = os.environ.get("LOG_LEVEL")
+        if env_log_level:
+            self.log_level = env_log_level
+            
+        # Data source from environment
+        env_data_source = os.environ.get("DATA_SOURCE")
+        if env_data_source:
+            self.data.source = env_data_source
+            
+        # Data cache directory from environment
+        env_cache_dir = os.environ.get("DATA_CACHE_DIR")
+        if env_cache_dir:
+            self.data.cache_dir = env_cache_dir
+            
+        # RL model path from environment
+        env_rl_path = os.environ.get("RL_MODEL_PATH")
+        if env_rl_path:
+            self.rl.model_save_path = env_rl_path
+            
+        # UI port from environment
+        env_ui_port = os.environ.get("UI_PORT")
+        if env_ui_port:
+            try:
+                self.ui.port = int(env_ui_port)
+            except ValueError:
+                pass  # Ignore if not a valid integer
+                
+        # UI debug mode from environment
+        env_ui_debug = os.environ.get("UI_DEBUG")
+        if env_ui_debug:
+            self.ui.debug = env_ui_debug.lower() == "true"
     
     @classmethod
     def from_yaml(cls, yaml_path: str) -> "Config":

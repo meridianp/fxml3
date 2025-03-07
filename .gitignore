@@ -39,3 +39,6 @@ ENV/
 
 # Project specific files
 *.log
+.env
+data/
+models/
