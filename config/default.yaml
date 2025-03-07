@@ -1,0 +1,58 @@
+# Default configuration for FXML3
+
+# General settings
+log_level: INFO
+
+# Data settings
+data:
+  source: yahoo
+  symbols:
+    - EURUSD=X
+    - GBPUSD=X
+    - USDJPY=X
+  timeframes:
+    - 1H
+    - 4H
+    - 1D
+  start_date: 2020-01-01
+  cache_dir: data/cache
+
+# Elliott Wave Analysis settings
+wave:
+  min_wave_size: 0.01
+  max_wave_size: 10.0
+  fib_tolerance: 0.1
+  peak_trough_threshold: 0.5
+  wave_overlap_tolerance: 0.1
+  max_subwave_count: 5
+  validation_methods:
+    - fibonacci
+    - pattern
+    - time
+
+# LLM settings
+llm:
+  model_name: gpt-3.5-turbo
+  api_key_env: OPENAI_API_KEY
+  use_local_model: false
+  max_tokens: 1024
+  temperature: 0.7
+  knowledge_base_dir: data/knowledge
+
+# Reinforcement Learning settings
+rl:
+  algorithm: PPO
+  learning_rate: 0.0003
+  gamma: 0.99
+  buffer_size: 10000
+  batch_size: 64
+  training_epochs: 10
+  model_save_path: models/rl
+
+# UI settings
+ui:
+  framework: streamlit
+  theme: light
+  default_chart_type: candlestick
+  port: 8501
+  debug: false
