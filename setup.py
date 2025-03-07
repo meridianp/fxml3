@@ -9,6 +9,7 @@ setup(
         "numpy>=1.24.0",
         "pandas>=2.0.0",
         "pandas-ta>=0.3.14b0",
+        "python-dotenv>=1.0.0",
         
         # Data acquisition
         "yfinance>=0.2.18",
