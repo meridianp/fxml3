@@ -3,12 +3,15 @@
 import json
 import time
 import uuid
+import threading
+import concurrent.futures
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 from fxml3.llm_integration.llm_client import LLMClient
 from fxml3.llm_integration.rag import RAGEngine
 from fxml3.llm_integration.knowledge_base import ElliotWaveKnowledgeBase
+from fxml3.llm_integration.sentiment_analysis import SentimentAgent
 
 
 class Agent(ABC):
@@ -151,6 +154,7 @@ class WaveDetectionAgent(Agent):
         name: str = "WaveDetectionAgent",
         llm_client: Optional[LLMClient] = None,
         rag_engine: Optional[RAGEngine] = None,
+        knowledge_base: Optional[ElliotWaveKnowledgeBase] = None,
     ):
         """Initialize the wave detection agent.
         
@@ -159,6 +163,7 @@ class WaveDetectionAgent(Agent):
             name: Human-readable name for this agent
             llm_client: LLM client for text generation
             rag_engine: RAG engine for knowledge retrieval
+            knowledge_base: Knowledge base for Elliott Wave theory
         """
         # Define the tools this agent can use
         tools = [
@@ -234,6 +239,7 @@ class WaveDetectionAgent(Agent):
             name=name,
             llm_client=llm_client,
             rag_engine=rag_engine,
+            knowledge_base=knowledge_base,
             description="Detects and validates Elliott Wave patterns in price data",
             tools=tools,
         )
@@ -550,6 +556,291 @@ class WaveDetectionAgent(Agent):
         }
 
 
+class MarketSentimentAgent(Agent):
+    """Agent responsible for market sentiment analysis.
+    
+    This agent specializes in gathering news and analyzing sentiment
+    to provide additional context for Elliott Wave patterns.
+    """
+    
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        name: str = "MarketSentimentAgent",
+        llm_client: Optional[LLMClient] = None,
+        rag_engine: Optional[RAGEngine] = None,
+        knowledge_base: Optional[ElliotWaveKnowledgeBase] = None,
+        cache_dir: Optional[str] = None,
+        use_yahoo: bool = True,
+        use_ibkr: bool = False,
+    ):
+        """Initialize the market sentiment agent.
+        
+        Args:
+            agent_id: Unique identifier for this agent
+            name: Human-readable name for this agent
+            llm_client: LLM client for text generation
+            rag_engine: RAG engine for knowledge retrieval
+            knowledge_base: Knowledge base for Elliott Wave theory
+            cache_dir: Directory to cache sentiment data
+            use_yahoo: Whether to use Yahoo Finance API
+            use_ibkr: Whether to use Interactive Brokers API
+        """
+        # Define the tools this agent can use
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "analyze_market_sentiment",
+                    "description": "Analyze market sentiment for a currency pair",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {
+                                "type": "string",
+                                "description": "Symbol or currency pair (e.g., 'EURUSD')",
+                            },
+                            "days_back": {
+                                "type": "integer",
+                                "description": "Number of days to look back",
+                            },
+                            "timeframe": {
+                                "type": "string",
+                                "description": "Timeframe for aggregation (hourly, daily, weekly)",
+                            },
+                        },
+                        "required": ["symbol"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "validate_wave_with_sentiment",
+                    "description": "Validate a wave pattern using sentiment analysis",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "wave_pattern": {
+                                "type": "object",
+                                "description": "Wave pattern to validate",
+                            },
+                            "symbol": {
+                                "type": "string",
+                                "description": "Symbol or currency pair",
+                            },
+                            "days_back": {
+                                "type": "integer",
+                                "description": "Number of days to look back",
+                            },
+                        },
+                        "required": ["wave_pattern", "symbol"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_sentiment_for_period",
+                    "description": "Get sentiment for a specific time period",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {
+                                "type": "string",
+                                "description": "Symbol or currency pair",
+                            },
+                            "start_date": {
+                                "type": "string",
+                                "description": "Start date (ISO format)",
+                            },
+                            "end_date": {
+                                "type": "string",
+                                "description": "End date (ISO format)",
+                            },
+                        },
+                        "required": ["symbol", "start_date"],
+                    },
+                },
+            },
+        ]
+        
+        # Initialize base class
+        super().__init__(
+            agent_id=agent_id,
+            name=name,
+            llm_client=llm_client,
+            rag_engine=rag_engine,
+            knowledge_base=knowledge_base,
+            description="Analyzes market sentiment from news and social media",
+            tools=tools,
+        )
+        
+        # Initialize sentiment agent
+        self.sentiment_agent = SentimentAgent(
+            cache_dir=cache_dir,
+            use_yahoo=use_yahoo,
+            use_ibkr=use_ibkr,
+            llm_client=llm_client,
+        )
+        
+    def handle_task(
+        self,
+        task: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle a task assigned to this agent.
+        
+        Args:
+            task: Task description dictionary
+            context: Optional context information
+            
+        Returns:
+            Dictionary with the task result
+        """
+        # Extract task details
+        task_type = task.get("type", "")
+        task_data = task.get("data", {})
+        
+        # Log the task
+        self.add_to_history({
+            "event": "task_received",
+            "task_type": task_type,
+            "task_id": task.get("task_id", str(uuid.uuid4())),
+        })
+        
+        # Handle different task types
+        if task_type == "analyze_sentiment":
+            result = self._handle_analyze_sentiment(task_data, context)
+        elif task_type == "validate_wave":
+            result = self._handle_validate_wave(task_data, context)
+        elif task_type == "sentiment_period":
+            result = self._handle_sentiment_period(task_data, context)
+        else:
+            result = {"error": f"Unknown task type: {task_type}"}
+            
+        # Log the result
+        self.add_to_history({
+            "event": "task_completed",
+            "task_type": task_type,
+            "task_id": task.get("task_id", ""),
+            "result_summary": "success" if "error" not in result else "error",
+        })
+            
+        return result
+    
+    def _handle_analyze_sentiment(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle market sentiment analysis task.
+        
+        Args:
+            task_data: Task data with symbol and time parameters
+            context: Optional context information
+            
+        Returns:
+            Dictionary with sentiment analysis results
+        """
+        # Extract parameters
+        symbol = task_data.get("symbol", "")
+        days_back = task_data.get("days_back", 7)
+        timeframe = task_data.get("timeframe", "daily")
+        
+        # Validate parameters
+        if not symbol:
+            return {"error": "Symbol is required"}
+            
+        # Get market sentiment
+        try:
+            sentiment_data = self.sentiment_agent.get_market_sentiment(
+                symbol=symbol,
+                days_back=days_back,
+                timeframe=timeframe,
+            )
+            
+            return sentiment_data
+        except Exception as e:
+            return {"error": f"Error analyzing market sentiment: {str(e)}"}
+    
+    def _handle_validate_wave(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle wave validation with sentiment task.
+        
+        Args:
+            task_data: Task data with wave pattern and symbol
+            context: Optional context information
+            
+        Returns:
+            Dictionary with validation results
+        """
+        # Extract parameters
+        wave_pattern = task_data.get("wave_pattern", {})
+        symbol = task_data.get("symbol", "")
+        days_back = task_data.get("days_back", 7)
+        
+        # Validate parameters
+        if not wave_pattern:
+            return {"error": "Wave pattern is required"}
+            
+        if not symbol:
+            return {"error": "Symbol is required"}
+            
+        # Validate wave with sentiment
+        try:
+            validation = self.sentiment_agent.validate_wave(
+                wave_pattern=wave_pattern,
+                symbol=symbol,
+                days_back=days_back,
+            )
+            
+            return validation
+        except Exception as e:
+            return {"error": f"Error validating wave with sentiment: {str(e)}"}
+    
+    def _handle_sentiment_period(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle sentiment for specific period task.
+        
+        Args:
+            task_data: Task data with symbol and period
+            context: Optional context information
+            
+        Returns:
+            Dictionary with sentiment analysis results
+        """
+        # Extract parameters
+        symbol = task_data.get("symbol", "")
+        start_date = task_data.get("start_date", "")
+        end_date = task_data.get("end_date")
+        
+        # Validate parameters
+        if not symbol:
+            return {"error": "Symbol is required"}
+            
+        if not start_date:
+            return {"error": "Start date is required"}
+            
+        # Get sentiment for period
+        try:
+            sentiment_data = self.sentiment_agent.get_sentiment_for_period(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            
+            return sentiment_data
+        except Exception as e:
+            return {"error": f"Error getting sentiment for period: {str(e)}"}
+
+
 class StrategyAgent(Agent):
     """Agent responsible for developing trading strategies.
     
@@ -563,6 +854,7 @@ class StrategyAgent(Agent):
         name: str = "StrategyAgent",
         llm_client: Optional[LLMClient] = None,
         rag_engine: Optional[RAGEngine] = None,
+        knowledge_base: Optional[ElliotWaveKnowledgeBase] = None,
     ):
         """Initialize the strategy agent.
         
@@ -571,6 +863,7 @@ class StrategyAgent(Agent):
             name: Human-readable name for this agent
             llm_client: LLM client for text generation
             rag_engine: RAG engine for knowledge retrieval
+            knowledge_base: Knowledge base for Elliott Wave theory
         """
         # Define the tools this agent can use
         tools = [
@@ -649,6 +942,7 @@ class StrategyAgent(Agent):
             name=name,
             llm_client=llm_client,
             rag_engine=rag_engine,
+            knowledge_base=knowledge_base,
             description="Develops trading strategies based on Elliott Wave patterns",
             tools=tools,
         )
@@ -947,12 +1241,14 @@ class AgentCoordinator:
         self,
         llm_client: Optional[LLMClient] = None,
         rag_engine: Optional[RAGEngine] = None,
+        max_workers: int = 4,
     ):
         """Initialize the agent coordinator.
         
         Args:
             llm_client: LLM client for text generation
             rag_engine: RAG engine for knowledge retrieval
+            max_workers: Maximum number of worker threads for parallel task execution
         """
         self.llm_client = llm_client or LLMClient()
         self.rag_engine = rag_engine or RAGEngine()
@@ -962,6 +1258,11 @@ class AgentCoordinator:
         
         # Initialize task history
         self.task_history = []
+        
+        # For parallel task execution
+        self.max_workers = max_workers
+        self.thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        self.task_locks = {}
         
     def register_agent(self, agent: Agent) -> None:
         """Register an agent with the coordinator.
@@ -1069,6 +1370,187 @@ class AgentCoordinator:
                 
         # Return the result
         return result
+        
+    def _execute_task_async(
+        self,
+        task_type: str,
+        task_data: Dict,
+        target_agent: Agent,
+    ) -> Tuple[str, Dict]:
+        """Execute a task asynchronously.
+        
+        Args:
+            task_type: Type of task to create
+            task_data: Task data
+            target_agent: Agent to assign the task to
+            
+        Returns:
+            Tuple containing the task ID and result dictionary
+        """
+        # Generate a task ID
+        task_id = str(uuid.uuid4())
+        
+        # Create the task
+        task = {
+            "task_id": task_id,
+            "type": task_type,
+            "data": task_data,
+            "timestamp": time.time(),
+        }
+        
+        # Get lock for this agent to prevent race conditions
+        if target_agent.agent_id not in self.task_locks:
+            self.task_locks[target_agent.agent_id] = threading.Lock()
+            
+        with self.task_locks[target_agent.agent_id]:
+            # Record the task in history
+            self.task_history.append({
+                "task_id": task_id,
+                "type": task_type,
+                "target_agent_id": target_agent.agent_id,
+                "target_agent_name": target_agent.name,
+                "timestamp": task["timestamp"],
+                "status": "created",
+            })
+            
+            # Assign the task to the agent
+            result = target_agent.handle_task(task)
+            
+            # Update task status in history
+            for task_record in self.task_history:
+                if task_record["task_id"] == task_id:
+                    task_record["status"] = "completed"
+                    task_record["completion_time"] = time.time()
+                    break
+        
+        return task_id, result
+        
+    def create_parallel_tasks(
+        self,
+        tasks: List[Dict],
+    ) -> Dict[str, Dict]:
+        """Create and assign multiple tasks to be executed in parallel.
+        
+        Args:
+            tasks: List of task specifications, each containing:
+                - task_type: Type of task to create
+                - task_data: Task data
+                - target_agent_id: Optional ID of the agent to assign the task to
+                - target_agent_name: Optional name of the agent to assign the task to
+            
+        Returns:
+            Dictionary mapping task IDs to task results
+            
+        Raises:
+            ValueError: If any target agent is not found
+        """
+        future_to_task = {}
+        task_to_id = {}
+        
+        # Submit all tasks to the thread pool
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            for i, task_spec in enumerate(tasks):
+                # Extract task specification
+                task_type = task_spec.get("task_type")
+                task_data = task_spec.get("task_data", {})
+                target_agent_id = task_spec.get("target_agent_id")
+                target_agent_name = task_spec.get("target_agent_name")
+                
+                # Find the target agent
+                target_agent = None
+                if target_agent_id:
+                    target_agent = self.get_agent(target_agent_id)
+                elif target_agent_name:
+                    target_agent = self.get_agent_by_name(target_agent_name)
+                    
+                # Ensure we have a target agent
+                if not target_agent:
+                    raise ValueError(f"Target agent not found for task {i}")
+                
+                # Submit the task
+                future = executor.submit(
+                    self._execute_task_async,
+                    task_type,
+                    task_data,
+                    target_agent,
+                )
+                future_to_task[future] = task_spec
+                
+        # Collect results
+        results = {}
+        for future in concurrent.futures.as_completed(future_to_task):
+            task_id, result = future.result()
+            results[task_id] = result
+            
+        return results
+        
+    def execute_agent_function(
+        self,
+        function_name: str,
+        function_args: Dict,
+        agent_names: List[str],
+    ) -> List[Dict]:
+        """Execute a function across multiple agents in parallel.
+        
+        Args:
+            function_name: Name of the function to execute
+            function_args: Arguments to pass to the function
+            agent_names: List of agent names to execute the function on
+            
+        Returns:
+            List of function results from each agent
+            
+        Raises:
+            ValueError: If any agent is not found or function is not supported
+        """
+        # Validate agents and function
+        tasks = []
+        for agent_name in agent_names:
+            agent = self.get_agent_by_name(agent_name)
+            if not agent:
+                raise ValueError(f"Agent not found: {agent_name}")
+                
+            # Map task types to associated function names in tools
+            task_to_function_map = {
+                "entry_strategy": "generate_entry_strategy",
+                "exit_strategy": "generate_exit_strategy",
+                "risk_reward": "calculate_risk_reward",
+                "detect_waves": "detect_elliott_waves",
+                "validate_pattern": "validate_wave_pattern",
+                "predict_movement": "predict_next_move"
+            }
+            
+            # Check if agent supports this function (based on tools or task type)
+            function_supported = False
+            
+            # First check if the task type matches directly with a function
+            if function_name in task_to_function_map:
+                tool_function_name = task_to_function_map[function_name]
+            else:
+                tool_function_name = function_name
+                
+            if agent.tools:
+                for tool in agent.tools:
+                    if tool.get("type") == "function" and tool.get("function", {}).get("name") == tool_function_name:
+                        function_supported = True
+                        break
+                        
+            # Special case: if the agent has a handle_task method that can handle this task type
+            if hasattr(agent, 'handle_task') and hasattr(agent, '_handle_' + function_name.replace('-', '_')):
+                function_supported = True
+                
+            if not function_supported:
+                raise ValueError(f"Function {function_name} not supported by agent {agent_name}")
+                
+            # Create task specification
+            tasks.append({
+                "task_type": function_name,
+                "task_data": function_args,
+                "target_agent_name": agent_name,
+            })
+            
+        # Execute tasks in parallel
+        return list(self.create_parallel_tasks(tasks).values())
     
     def run_workflow(
         self,
@@ -1149,9 +1631,9 @@ class AgentCoordinator:
             
         # Step 4: Create a task for wave detection
         # In a real implementation, this would include actual price data
-        detect_result = self.create_task(
-            task_type="detect_waves",
-            task_data={
+        detect_task = {
+            "task_type": "detect_waves",
+            "task_data": {
                 "symbol": params["symbol"],
                 "timeframe": params["timeframe"],
                 "pattern_type": params["pattern_type"],
@@ -1176,49 +1658,89 @@ class AgentCoordinator:
                     }
                 ],
             },
-            target_agent_id=wave_agent.agent_id,
-        )
+            "target_agent_id": wave_agent.agent_id,
+        }
         
-        # Step 5: Validate the detected pattern
+        # Execute the wave detection task
+        detect_results = self.create_parallel_tasks([detect_task])
+        detect_result = list(detect_results.values())[0] if detect_results else {}
+        
+        # Extract the pattern
         pattern = detect_result.get("detected_patterns", [])[0] if detect_result.get("detected_patterns") else {}
         
-        validate_result = self.create_task(
-            task_type="validate_pattern",
-            task_data={"pattern": pattern},
-            target_agent_id=wave_agent.agent_id,
-        )
+        # Step 5: Create validation task
+        validate_task = {
+            "task_type": "validate_pattern",
+            "task_data": {"pattern": pattern},
+            "target_agent_id": wave_agent.agent_id,
+        }
         
-        # Step 6: Generate entry strategy if pattern is valid
+        # Execute the validation task
+        validate_results = self.create_parallel_tasks([validate_task])
+        validate_result = list(validate_results.values())[0] if validate_results else {}
+        
+        # Step 6: Generate strategy tasks if pattern is valid
         if validate_result.get("is_valid", False):
-            entry_result = self.create_task(
-                task_type="entry_strategy",
-                task_data={
-                    "pattern": pattern,
-                    "risk_tolerance": params["risk_tolerance"],
-                },
-                target_agent_id=strategy_agent.agent_id,
-            )
+            # Create tasks for parallel execution
+            strategy_tasks = [
+                {
+                    "task_type": "entry_strategy",
+                    "task_data": {
+                        "pattern": pattern,
+                        "risk_tolerance": params["risk_tolerance"],
+                    },
+                    "target_agent_id": strategy_agent.agent_id,
+                }
+            ]
             
-            # Step 7: Generate exit strategy
-            exit_result = self.create_task(
-                task_type="exit_strategy",
-                task_data={
-                    "pattern": pattern,
-                    "entry_point": entry_result.get("strategy", {}),
-                },
-                target_agent_id=strategy_agent.agent_id,
-            )
+            # Execute entry strategy task
+            strategy_results = self.create_parallel_tasks(strategy_tasks)
+            entry_result = list(strategy_results.values())[0] if strategy_results else {}
             
-            # Step 8: Calculate risk-reward ratio
-            risk_reward_result = self.create_task(
-                task_type="risk_reward",
-                task_data={
-                    "entry_price": entry_result.get("strategy", {}).get("entry_price", 0),
-                    "stop_loss": entry_result.get("strategy", {}).get("stop_loss", 0),
-                    "take_profit": exit_result.get("exit_strategy", {}).get("take_profit", 0),
+            # Create exit strategy and risk-reward tasks for parallel execution
+            final_tasks = [
+                {
+                    "task_type": "exit_strategy",
+                    "task_data": {
+                        "pattern": pattern,
+                        "entry_point": entry_result.get("strategy", {}),
+                    },
+                    "target_agent_id": strategy_agent.agent_id,
                 },
-                target_agent_id=strategy_agent.agent_id,
-            )
+                {
+                    "task_type": "risk_reward",
+                    "task_data": {
+                        "entry_price": entry_result.get("strategy", {}).get("entry_price", 0),
+                        "stop_loss": entry_result.get("strategy", {}).get("stop_loss", 0),
+                        # We need to estimate take_profit since exit_strategy hasn't run yet
+                        "take_profit": entry_result.get("strategy", {}).get("entry_price", 0) * 1.05,
+                    },
+                    "target_agent_id": strategy_agent.agent_id,
+                }
+            ]
+            
+            # Execute exit strategy and risk-reward tasks in parallel
+            final_results = self.create_parallel_tasks(final_tasks)
+            
+            # Extract results
+            results_list = list(final_results.values())
+            exit_result = next((r for r in results_list if "exit_strategy" in r), {})
+            risk_reward_result = next((r for r in results_list if "risk_reward_ratio" in r), {})
+            
+            # Update risk-reward with actual take profit from exit strategy
+            if "take_profit" in exit_result.get("exit_strategy", {}) and "entry_price" in entry_result.get("strategy", {}):
+                # Recalculate with correct take profit
+                risk_reward_task = {
+                    "task_type": "risk_reward",
+                    "task_data": {
+                        "entry_price": entry_result.get("strategy", {}).get("entry_price", 0),
+                        "stop_loss": entry_result.get("strategy", {}).get("stop_loss", 0),
+                        "take_profit": exit_result.get("exit_strategy", {}).get("take_profit", 0),
+                    },
+                    "target_agent_id": strategy_agent.agent_id,
+                }
+                risk_reward_results = self.create_parallel_tasks([risk_reward_task])
+                risk_reward_result = list(risk_reward_results.values())[0] if risk_reward_results else risk_reward_result
             
             # Compile the final result
             return {
@@ -1230,6 +1752,7 @@ class AgentCoordinator:
                 "exit_strategy": exit_result,
                 "risk_reward": risk_reward_result,
                 "recommendation": risk_reward_result.get("recommendation", ""),
+                "execution_mode": "parallel",
             }
         else:
             # No valid pattern detected
@@ -1239,4 +1762,5 @@ class AgentCoordinator:
                 "wave_detection": detect_result,
                 "pattern_validation": validate_result,
                 "error": "No valid Elliott Wave pattern detected",
+                "execution_mode": "parallel",
             }
