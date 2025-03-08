@@ -83,16 +83,58 @@
 ## Phase 5: Trading Strategy & Signal Generation (Week 9-10)
 
 ### Strategy Module
-- ⬜ Implement entry/exit signal generation based on wave patterns
-- ⬜ Create risk management system (stop loss, take profit)
-- ⬜ Develop position sizing algorithms
+- ⬜ Implement entry signal generation framework
+  - ⬜ Impulse wave entry strategies (Wave 3, Wave 5 completion)
+  - ⬜ Corrective wave entry strategies (A-B-C, Triangle, Flat patterns)
+  - ⬜ Combined pattern recognition (nested waves, multi-timeframe)
+  - ⬜ Fibonacci confluence entry points
+- ⬜ Develop exit signal generation system
+  - ⬜ Fibonacci extension target calculation
+  - ⬜ Pattern completion exit signals
+  - ⬜ Trailing stop algorithms based on wave structure
+  - ⬜ Partial profit taking at key levels
+- ⬜ Create risk management system
+  - ⬜ Dynamic stop loss based on wave structure
+  - ⬜ Volatility-adjusted risk calculation
+  - ⬜ Pattern invalidation detection
+  - ⬜ Multi-timeframe risk assessment
+- ⬜ Implement position sizing algorithms
+  - ⬜ Kelly criterion optimization
+  - ⬜ Volatility-adjusted position sizing
+  - ⬜ Scaling methods (scaling in/out)
 - ⬜ Build portfolio-level strategy logic
+  - ⬜ Multi-currency portfolio construction
+  - ⬜ Correlation-based diversification
+  - ⬜ Maximum exposure rules
 
 ### Advanced Backtesting
-- ⬜ Implement realistic slippage and fee models
-- ⬜ Create equity curve and drawdown analysis
-- ⬜ Add performance metrics (Sharpe, Sortino, win rate)
-- ⬜ Develop Monte Carlo simulation for robustness testing
+- ⬜ Enhance market simulation
+  - ⬜ Realistic slippage based on volatility
+  - ⬜ Bid-ask spread modeling
+  - ⬜ Variable fee structures
+  - ⬜ Market gap handling
+- ⬜ Implement comprehensive performance analysis
+  - ⬜ Interactive equity curve visualization
+  - ⬜ Drawdown analysis and visualization
+  - ⬜ Advanced performance metrics (Sharpe, Sortino, Calmar)
+  - ⬜ Trade-level analytics
+- ⬜ Develop Monte Carlo simulation
+  - ⬜ Trade sequence reshuffling
+  - ⬜ Parameter uncertainty modeling
+  - ⬜ Confidence interval calculation
+- ⬜ Create strategy validation framework
+  - ⬜ Out-of-sample and walk-forward testing
+  - ⬜ Cross-market and cross-timeframe validation
+  - ⬜ Overfitting detection
+
+### Integration & Testing
+- ⬜ Integrate with multi-agent system
+  - ⬜ Strategy agent implementation
+  - ⬜ LLM validation of trade setups
+- ⬜ Implement comprehensive testing
+  - ⬜ Test suite for strategy components
+  - ⬜ Validation pipelines for trade signals
+  - ⬜ Edge case scenario testing
 
 ## Phase 6: UI/Dashboard & Deployment (Week 11-12)
 
