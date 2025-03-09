@@ -140,17 +140,22 @@ class WaveBacktester:
         window_size: int = 100,
         step_size: int = 20,
         prediction_horizon: int = 20,
+        initial_capital: float = 10000.0,
+        use_realistic_simulation: bool = True,
     ) -> Dict[str, Any]:
-        """Run a rolling window backtest on the data.
+        """Run a rolling window backtest on the data with realistic simulation.
         
         Simulates real-time detection by analyzing fixed-size windows of data
         and making predictions about future price movements based on detected patterns.
+        Includes realistic market conditions like slippage and spread when configured.
         
         Args:
             data: DataFrame with price data
             window_size: Size of the rolling window (number of bars)
             step_size: Number of bars to advance the window each iteration
             prediction_horizon: Number of bars to predict into the future
+            initial_capital: Initial capital for performance calculation
+            use_realistic_simulation: Whether to apply realistic market simulation
             
         Returns:
             Dictionary with backtest results
@@ -707,6 +712,484 @@ class WaveBacktester:
             
         # Default case
         return 0.0
+    
+    def run_walk_forward_analysis(
+        self,
+        symbol: str,
+        start_date: Union[str, datetime],
+        end_date: Optional[Union[str, datetime]] = None,
+        timeframe: str = "1D",
+        n_folds: int = 5,
+        window_size: int = 100,
+        validation_size: int = 50,
+        step_size: int = 20,
+        prediction_horizon: int = 20,
+        use_realistic_simulation: bool = True,
+        initial_capital: float = 10000.0,
+    ) -> Dict[str, Any]:
+        """Run walk-forward analysis to validate strategy robustness on out-of-sample data.
+        
+        Walk-forward analysis splits the data into multiple training and validation windows,
+        optimizing parameters on each training window and testing on the subsequent validation window.
+        This approach helps prevent overfitting and ensures the strategy works on unseen data.
+        
+        Args:
+            symbol: Symbol to analyze
+            start_date: Start date for historical data
+            end_date: End date for historical data
+            timeframe: Timeframe to use for analysis
+            n_folds: Number of walk-forward windows
+            window_size: Size of each training window
+            validation_size: Size of each validation window
+            step_size: Step size for rolling window analysis within each training window
+            prediction_horizon: Number of bars to predict into the future
+            use_realistic_simulation: Whether to use realistic market simulation
+            initial_capital: Initial capital for performance calculation
+            
+        Returns:
+            Dictionary with walk-forward analysis results
+        """
+        # Load the full dataset
+        df = self.data_loader.load_data(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+            timeframe=timeframe
+        )
+        
+        if len(df) < (window_size + validation_size) * n_folds:
+            raise ValueError(
+                f"Not enough data for walk-forward analysis with {n_folds} folds. " 
+                f"Need at least {(window_size + validation_size) * n_folds} bars, but got {len(df)}."
+            )
+        
+        # Store results for each fold
+        fold_results = []
+        parameters_by_fold = []
+        cumulative_equity = [initial_capital]
+        current_capital = initial_capital
+        all_trades = []
+        
+        # Calculate fold size (each fold has training + validation)
+        fold_size = (len(df) - (window_size + validation_size)) // (n_folds - 1) if n_folds > 1 else len(df)
+        
+        for fold in range(n_folds):
+            # Calculate window indices for this fold
+            start_idx = fold * fold_size
+            train_end_idx = start_idx + window_size
+            valid_end_idx = min(train_end_idx + validation_size, len(df))
+            
+            # Extract training and validation data
+            train_data = df.iloc[start_idx:train_end_idx].copy()
+            valid_data = df.iloc[train_end_idx:valid_end_idx].copy()
+            
+            # Skip fold if not enough validation data
+            if len(valid_data) < 10:  # Arbitrary minimum size
+                continue
+                
+            # Find optimal parameters on training data
+            optimal_params = self._optimize_parameters(train_data)
+            parameters_by_fold.append(optimal_params)
+            
+            # Apply optimal parameters to the wave analyzer
+            self._apply_parameters(optimal_params)
+            
+            # Backtest on validation (out-of-sample) data
+            backtest_result = self.run_rolling_window_backtest(
+                data=valid_data,
+                window_size=min(window_size // 2, len(valid_data) - prediction_horizon),
+                step_size=step_size,
+                prediction_horizon=prediction_horizon,
+                initial_capital=current_capital,
+                use_realistic_simulation=use_realistic_simulation
+            )
+            
+            # Extract performance metrics
+            if "actual_outcomes" in backtest_result and backtest_result["actual_outcomes"]:
+                trades = backtest_result["actual_outcomes"]
+                all_trades.extend(trades)
+                
+                # Update current capital for next fold
+                if trades and "trade_pnl" in trades[-1]:
+                    for trade in trades:
+                        current_capital += trade.get("trade_pnl", 0)
+                        cumulative_equity.append(current_capital)
+            
+            # Store results for this fold
+            fold_results.append({
+                "fold": fold + 1,
+                "training_period": (train_data.index[0], train_data.index[-1]),
+                "validation_period": (valid_data.index[0], valid_data.index[-1]),
+                "optimal_parameters": optimal_params,
+                "validation_results": backtest_result,
+                "capital_after_fold": current_capital
+            })
+        
+        # Compile overall performance metrics
+        from fxml3.backtesting.performance_metrics import PerformanceMetrics
+        
+        performance_metrics = PerformanceMetrics.calculate_profitability(
+            all_trades, 
+            account_size=initial_capital,
+            use_realistic_costs=use_realistic_simulation
+        )
+        
+        # Calculate parameter stability metrics
+        parameter_stability = self._calculate_parameter_stability(parameters_by_fold)
+        
+        # Compile final results
+        wfa_results = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "start_date": start_date,
+            "end_date": end_date,
+            "n_folds": n_folds,
+            "folds_completed": len(fold_results),
+            "fold_results": fold_results,
+            "parameter_stability": parameter_stability,
+            "performance_metrics": performance_metrics,
+            "equity_curve": cumulative_equity,
+            "final_capital": current_capital,
+            "total_return_pct": ((current_capital / initial_capital) - 1) * 100,
+        }
+        
+        return wfa_results
+    
+    def _optimize_parameters(self, train_data: pd.DataFrame) -> Dict[str, Any]:
+        """Find optimal wave detection parameters on training data.
+        
+        Args:
+            train_data: Training data for optimization
+            
+        Returns:
+            Dictionary with optimal parameters
+        """
+        # Simple implementation - in a real system this would use a more sophisticated
+        # optimization approach like grid search, Bayesian optimization, etc.
+        
+        # Parameters to optimize
+        param_grid = {
+            "peak_distance_min": [3, 5, 8],
+            "trough_distance_min": [3, 5, 8],
+            "wave_threshold": [0.236, 0.382, 0.5],
+            "overlap_threshold": [0.1, 0.2, 0.3]
+        }
+        
+        best_score = -float('inf')
+        best_params = {}
+        
+        # Simple grid search (for illustration - in practice, use a more efficient approach)
+        from itertools import product
+        for peak, trough, wave, overlap in product(
+            param_grid["peak_distance_min"],
+            param_grid["trough_distance_min"],
+            param_grid["wave_threshold"],
+            param_grid["overlap_threshold"]
+        ):
+            # Create a wave analyzer with these parameters
+            wave_analyzer = ElliottWaveAnalyzer(
+                peak_distance_min=peak,
+                trough_distance_min=trough,
+                wave_threshold=wave,
+                overlap_threshold=overlap
+            )
+            
+            # Detect waves
+            wave_points = wave_analyzer.detect_waves(train_data)
+            
+            # Calculate a score (more sophisticated metrics would be used in practice)
+            impulse_patterns = sum(1 for k in wave_points.keys() if k.startswith("impulse_") and k.endswith("_end"))
+            corrective_patterns = sum(1 for k in wave_points.keys() if k.startswith("corrective_") and k.endswith("_end"))
+            
+            # Score is weighted sum of patterns (more sophisticated in practice)
+            score = impulse_patterns * 0.6 + corrective_patterns * 0.4
+            
+            if score > best_score:
+                best_score = score
+                best_params = {
+                    "peak_distance_min": peak,
+                    "trough_distance_min": trough,
+                    "wave_threshold": wave,
+                    "overlap_threshold": overlap,
+                    "score": score
+                }
+        
+        return best_params
+    
+    def _apply_parameters(self, parameters: Dict[str, Any]) -> None:
+        """Apply optimized parameters to the wave analyzer.
+        
+        Args:
+            parameters: Dictionary with parameters to apply
+        """
+        # Create a new wave analyzer with the optimized parameters
+        self.wave_analyzer = ElliottWaveAnalyzer(
+            peak_distance_min=parameters.get("peak_distance_min", 3),
+            trough_distance_min=parameters.get("trough_distance_min", 3),
+            wave_threshold=parameters.get("wave_threshold", 0.382),
+            overlap_threshold=parameters.get("overlap_threshold", 0.2)
+        )
+    
+    def _calculate_parameter_stability(self, parameters_by_fold: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate parameter stability metrics across folds.
+        
+        Args:
+            parameters_by_fold: List of parameter dictionaries for each fold
+            
+        Returns:
+            Dictionary with parameter stability metrics
+        """
+        if not parameters_by_fold:
+            return {}
+            
+        # Extract parameter values across folds
+        param_values = {}
+        for param_name in ["peak_distance_min", "trough_distance_min", "wave_threshold", "overlap_threshold"]:
+            param_values[param_name] = [p.get(param_name, None) for p in parameters_by_fold if param_name in p]
+        
+        # Calculate stability metrics
+        stability_metrics = {}
+        for param_name, values in param_values.items():
+            if not values:
+                continue
+                
+            values = [v for v in values if v is not None]
+            if values:
+                stability_metrics[param_name] = {
+                    "mean": np.mean(values),
+                    "std": np.std(values),
+                    "cv": np.std(values) / np.mean(values) if np.mean(values) > 0 else 0,  # Coefficient of variation
+                    "min": min(values),
+                    "max": max(values),
+                    "range": max(values) - min(values),
+                    "unique_values": len(set(values)),
+                    "most_common": max(set(values), key=values.count),
+                    "stability_score": 1.0 - (np.std(values) / np.mean(values)) if np.mean(values) > 0 else 0
+                }
+        
+        # Calculate overall stability score (higher is more stable)
+        if stability_metrics:
+            overall_stability = np.mean([m["stability_score"] for m in stability_metrics.values()])
+            stability_metrics["overall_stability"] = overall_stability
+        
+        return stability_metrics
+        
+    def run_cross_market_validation(
+        self,
+        symbols: List[str],
+        start_date: Union[str, datetime],
+        end_date: Optional[Union[str, datetime]] = None,
+        timeframe: str = "1D",
+        window_size: int = 100,
+        step_size: int = 20,
+        prediction_horizon: int = 20,
+        use_realistic_simulation: bool = True,
+        initial_capital: float = 10000.0,
+    ) -> Dict[str, Any]:
+        """Run cross-market validation to test strategy robustness across different markets.
+        
+        This method tests the strategy on multiple symbols to verify that it generalizes 
+        well across different markets and is not overfitted to a specific market.
+        
+        Args:
+            symbols: List of symbols to validate on
+            start_date: Start date for historical data
+            end_date: End date for historical data
+            timeframe: Timeframe to use for analysis
+            window_size: Size of the rolling window
+            step_size: Step size for rolling window analysis
+            prediction_horizon: Number of bars to predict into the future
+            use_realistic_simulation: Whether to use realistic market simulation
+            initial_capital: Initial capital for performance calculation
+            
+        Returns:
+            Dictionary with cross-market validation results
+        """
+        if not symbols:
+            return {"error": "No symbols provided for cross-market validation"}
+            
+        # Store results for each market
+        market_results = {}
+        all_trades = []
+        correlation_matrix = []
+        symbols_analyzed = []
+        
+        # Run backtest on each market
+        for symbol in symbols:
+            try:
+                # Load data for this symbol
+                df = self.data_loader.load_data(
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    timeframe=timeframe
+                )
+                
+                if len(df) < window_size + prediction_horizon:
+                    print(f"Not enough data for symbol {symbol}, skipping")
+                    continue
+                    
+                # Run backtest on this symbol
+                backtest_result = self.run_rolling_window_backtest(
+                    data=df,
+                    window_size=window_size,
+                    step_size=step_size,
+                    prediction_horizon=prediction_horizon,
+                    initial_capital=initial_capital,
+                    use_realistic_simulation=use_realistic_simulation
+                )
+                
+                # Calculate performance metrics for this symbol
+                from fxml3.backtesting.performance_metrics import PerformanceMetrics
+                
+                if "actual_outcomes" in backtest_result and backtest_result["actual_outcomes"]:
+                    trades = backtest_result["actual_outcomes"]
+                    all_trades.extend(trades)
+                    
+                    performance_metrics = PerformanceMetrics.calculate_profitability(
+                        trades, 
+                        account_size=initial_capital,
+                        use_realistic_costs=use_realistic_simulation
+                    )
+                    
+                    # Store results for this symbol
+                    market_results[symbol] = {
+                        "backtest_result": backtest_result,
+                        "performance_metrics": performance_metrics,
+                        "trade_count": len(trades),
+                        "win_rate": performance_metrics.get("win_count", 0) / 
+                                   (performance_metrics.get("win_count", 0) + performance_metrics.get("loss_count", 1)),
+                        "profit_factor": performance_metrics.get("profit_factor", 0),
+                        "return_pct": performance_metrics.get("total_return_pct", 0),
+                        "max_drawdown": performance_metrics.get("max_drawdown_pct", 0),
+                    }
+                    
+                    # Add to correlation analysis
+                    if "equity_curve" in performance_metrics:
+                        equity_curve = performance_metrics["equity_curve"]
+                        if len(equity_curve) > 1:  # Need at least two points for returns
+                            # Calculate percentage returns for correlation
+                            returns = np.diff(equity_curve) / equity_curve[:-1]
+                            market_results[symbol]["returns"] = returns
+                            symbols_analyzed.append(symbol)
+            except Exception as e:
+                print(f"Error processing symbol {symbol}: {str(e)}")
+                
+        # Calculate correlation matrix of returns if possible
+        if len(symbols_analyzed) >= 2:
+            returns_data = {}
+            for symbol in symbols_analyzed:
+                if "returns" in market_results[symbol]:
+                    returns_data[symbol] = market_results[symbol]["returns"]
+            
+            if returns_data:
+                # Convert to DataFrame for correlation calculation
+                returns_df = pd.DataFrame(returns_data)
+                correlation_matrix = returns_df.corr().values.tolist()
+                
+        # Calculate overall performance metrics
+        all_metrics = PerformanceMetrics.calculate_profitability(
+            all_trades, 
+            account_size=initial_capital,
+            use_realistic_costs=use_realistic_simulation
+        )
+        
+        # Calculate consistency metrics
+        consistency_metrics = self._calculate_cross_market_consistency(market_results)
+        
+        # Compile final results
+        cross_market_results = {
+            "symbols": symbols,
+            "symbols_analyzed": symbols_analyzed,
+            "timeframe": timeframe,
+            "start_date": start_date,
+            "end_date": end_date,
+            "market_results": market_results,
+            "all_trades_count": len(all_trades),
+            "overall_performance": all_metrics,
+            "correlation_matrix": correlation_matrix,
+            "consistency_metrics": consistency_metrics,
+        }
+        
+        return cross_market_results
+    
+    def _calculate_cross_market_consistency(self, market_results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate consistency metrics for cross-market validation.
+        
+        Args:
+            market_results: Dictionary mapping symbol to market results
+            
+        Returns:
+            Dictionary with consistency metrics
+        """
+        if not market_results:
+            return {}
+            
+        # Extract key metrics across markets
+        win_rates = []
+        profit_factors = []
+        returns = []
+        drawdowns = []
+        
+        for symbol, results in market_results.items():
+            if "win_rate" in results:
+                win_rates.append(results["win_rate"])
+            if "profit_factor" in results:
+                profit_factors.append(results["profit_factor"])
+            if "return_pct" in results:
+                returns.append(results["return_pct"])
+            if "max_drawdown" in results:
+                drawdowns.append(results["max_drawdown"])
+        
+        # Calculate consistency metrics
+        consistency = {}
+        
+        if win_rates:
+            consistency["win_rate"] = {
+                "mean": np.mean(win_rates),
+                "std": np.std(win_rates),
+                "cv": np.std(win_rates) / np.mean(win_rates) if np.mean(win_rates) > 0 else 0,
+                "min": min(win_rates),
+                "max": max(win_rates),
+                "consistency_score": 1.0 - (np.std(win_rates) / np.mean(win_rates)) if np.mean(win_rates) > 0 else 0
+            }
+            
+        if profit_factors:
+            consistency["profit_factor"] = {
+                "mean": np.mean(profit_factors),
+                "std": np.std(profit_factors),
+                "cv": np.std(profit_factors) / np.mean(profit_factors) if np.mean(profit_factors) > 0 else 0,
+                "min": min(profit_factors),
+                "max": max(profit_factors),
+                "consistency_score": 1.0 - (np.std(profit_factors) / np.mean(profit_factors)) if np.mean(profit_factors) > 0 else 0
+            }
+            
+        if returns:
+            consistency["return_pct"] = {
+                "mean": np.mean(returns),
+                "std": np.std(returns),
+                "cv": np.std(returns) / abs(np.mean(returns)) if np.mean(returns) != 0 else 0,
+                "min": min(returns),
+                "max": max(returns),
+                "consistency_score": 1.0 - (np.std(returns) / abs(np.mean(returns))) if np.mean(returns) != 0 else 0
+            }
+            
+        if drawdowns:
+            consistency["max_drawdown"] = {
+                "mean": np.mean(drawdowns),
+                "std": np.std(drawdowns),
+                "cv": np.std(drawdowns) / np.mean(drawdowns) if np.mean(drawdowns) > 0 else 0,
+                "min": min(drawdowns),
+                "max": max(drawdowns),
+                "consistency_score": 1.0 - (np.std(drawdowns) / np.mean(drawdowns)) if np.mean(drawdowns) > 0 else 0
+            }
+        
+        # Calculate overall consistency score (higher is more consistent)
+        if consistency:
+            scores = [metrics["consistency_score"] for metrics in consistency.values()]
+            consistency["overall_score"] = np.mean(scores)
+        
+        return consistency
     
     def run_monte_carlo_simulation(
         self,
