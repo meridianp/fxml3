@@ -430,3 +430,148 @@ def plot_prediction_examples(
         Plotly figure
     """
 ```
+
+## BacktestAgent
+
+A specialized agent for backtesting within the multi-agent system that integrates with other agents to provide comprehensive strategy validation.
+
+```python
+class BacktestAgent:
+    def __init__(
+        self,
+        llm_client: Optional[LLMClient] = None,
+        knowledge_base: Optional[KnowledgeBase] = None,
+        config: Dict = None,
+    ):
+        """Initialize the BacktestAgent with LLM integration.
+        
+        Args:
+            llm_client: Optional LLMClient for analysis enhancement
+            knowledge_base: Optional KnowledgeBase for retrieving relevant information
+            config: Configuration dictionary for agent behavior
+        """
+```
+
+### Key Methods
+
+#### Process Task
+
+```python
+def process_task(
+    self,
+    task: Dict,
+) -> Dict:
+    """Process a backtesting task received from the agent coordinator.
+    
+    Args:
+        task: Dictionary containing task information with structure:
+            {
+                "type": "backtest_request",
+                "data": {
+                    "symbol": "EURUSD",
+                    "timeframe": "H1",
+                    "start_date": "2021-01-01",
+                    "end_date": "2022-12-31",
+                    "strategy": {...},
+                    "validation_methods": ["monte_carlo", "walk_forward"]
+                }
+            }
+            
+    Returns:
+        Dictionary with task results
+    """
+```
+
+#### Run Backtest
+
+```python
+def run_backtest(
+    self,
+    symbol: str,
+    timeframe: str,
+    start_date: Union[str, datetime],
+    end_date: Optional[Union[str, datetime]] = None,
+    strategy: Dict = None,
+    wave_patterns: List[Dict] = None,
+    validation_methods: List[str] = None,
+    capital: float = 10000.0,
+) -> Dict:
+    """Run a comprehensive backtest with statistical validation.
+    
+    Args:
+        symbol: Trading symbol
+        timeframe: Chart timeframe
+        start_date: Backtest start date
+        end_date: Backtest end date
+        strategy: Strategy configuration
+        wave_patterns: Elliott Wave patterns from WaveDetectionAgent
+        validation_methods: List of validation methods to apply
+        capital: Initial capital
+        
+    Returns:
+        Dictionary with comprehensive backtest results
+    """
+```
+
+#### Analyze Results
+
+```python
+def analyze_results(
+    self, 
+    backtest_results: Dict,
+    include_strengths_weaknesses: bool = True,
+    include_improvement_suggestions: bool = True,
+) -> Dict:
+    """Use LLM to analyze backtest results and provide enhanced insights.
+    
+    Args:
+        backtest_results: Backtesting results dictionary
+        include_strengths_weaknesses: Whether to include strengths and weaknesses analysis
+        include_improvement_suggestions: Whether to include strategy improvement suggestions
+        
+    Returns:
+        Dictionary with LLM-enhanced analysis
+    """
+```
+
+#### Generate Strategy Report
+
+```python
+def generate_strategy_report(
+    self,
+    backtest_results: Dict,
+    metrics: Dict,
+    wave_patterns: Optional[List[Dict]] = None,
+    format: str = "markdown",
+) -> str:
+    """Generate a comprehensive strategy performance report.
+    
+    Args:
+        backtest_results: Backtesting results dictionary
+        metrics: Performance metrics dictionary
+        wave_patterns: Optional list of wave patterns used in the strategy
+        format: Output format ('markdown', 'html', 'text')
+        
+    Returns:
+        Formatted strategy report
+    """
+```
+
+#### Validate Against Market Regimes
+
+```python
+def validate_against_market_regimes(
+    self,
+    strategy: Dict,
+    market_regimes: List[Dict],
+) -> Dict:
+    """Validate strategy performance across different market regimes.
+    
+    Args:
+        strategy: Strategy configuration
+        market_regimes: List of market regime periods to test
+        
+    Returns:
+        Dictionary with validation results
+    """
+```
