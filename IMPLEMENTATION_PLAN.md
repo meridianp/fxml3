@@ -102,10 +102,10 @@
   - ✅ Kelly criterion optimization
   - ✅ Volatility-adjusted position sizing
   - ✅ Scaling methods (scaling in/out)
-- ⬜ Build portfolio-level strategy logic
-  - ⬜ Multi-currency portfolio construction
-  - ⬜ Correlation-based diversification
-  - ⬜ Maximum exposure rules
+- ✅ Build portfolio-level strategy logic
+  - ✅ Multi-currency portfolio construction
+  - ✅ Correlation-based diversification
+  - ✅ Maximum exposure rules
 
 ### Advanced Backtesting
 - ⬜ Enhance market simulation
@@ -238,11 +238,10 @@
 ### In Progress
 - Unit tests for data modules
 - Integration of RL agents with multi-agent system
-- Portfolio-level strategy logic implementation
+- Advanced backtesting framework enhancements
 
 ### Next Steps
-- Complete remaining Phase 5 components:
-  - Build portfolio-level strategy logic with multi-currency support
-  - Implement correlation-based diversification
-- Enhance backtesting framework with realistic market simulation
-- Implement Monte Carlo simulation for strategy robustness testing
+- Complete Advanced Backtesting components:
+  - Implement realistic market simulation with slippage and spread
+  - Develop Monte Carlo simulation capabilities
+  - Create comprehensive performance analysis tools
