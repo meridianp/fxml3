@@ -10,3 +10,4 @@ from fxml3.strategy.entry_signals import EntrySignalGenerator, EntrySignal, Sign
 from fxml3.strategy.exit_signals import ExitSignalGenerator, ExitSignal
 from fxml3.strategy.risk_management import RiskManager, InvalidationLevel
 from fxml3.strategy.position_sizing import PositionSizer, PositionSize, PositionSizingMethod
+from fxml3.strategy.portfolio_manager import PortfolioManager, Position, AssetClass, CorrelationType
