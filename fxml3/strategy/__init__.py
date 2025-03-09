@@ -9,3 +9,4 @@ position sizing.
 from fxml3.strategy.entry_signals import EntrySignalGenerator, EntrySignal, SignalType, SignalStrength
 from fxml3.strategy.exit_signals import ExitSignalGenerator, ExitSignal
 from fxml3.strategy.risk_management import RiskManager, InvalidationLevel
+from fxml3.strategy.position_sizing import PositionSizer, PositionSize, PositionSizingMethod

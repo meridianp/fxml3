@@ -98,10 +98,10 @@
   - ✅ Volatility-adjusted risk calculation
   - ✅ Pattern invalidation detection
   - ✅ Multi-timeframe risk assessment
-- ⬜ Implement position sizing algorithms
-  - ⬜ Kelly criterion optimization
+- ✅ Implement position sizing algorithms
+  - ✅ Kelly criterion optimization
   - ✅ Volatility-adjusted position sizing
-  - ⬜ Scaling methods (scaling in/out)
+  - ✅ Scaling methods (scaling in/out)
 - ⬜ Build portfolio-level strategy logic
   - ⬜ Multi-currency portfolio construction
   - ⬜ Correlation-based diversification
@@ -238,11 +238,11 @@
 ### In Progress
 - Unit tests for data modules
 - Integration of RL agents with multi-agent system
-- Position sizing algorithm implementation (Kelly criterion, scaling methods)
+- Portfolio-level strategy logic implementation
 
 ### Next Steps
 - Complete remaining Phase 5 components:
-  - Complete position sizing algorithms (Kelly criterion, scaling methods)
-  - Build portfolio-level strategy logic
+  - Build portfolio-level strategy logic with multi-currency support
+  - Implement correlation-based diversification
 - Enhance backtesting framework with realistic market simulation
 - Implement Monte Carlo simulation for strategy robustness testing
