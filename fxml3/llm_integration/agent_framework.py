@@ -12,6 +12,9 @@ from fxml3.llm_integration.llm_client import LLMClient
 from fxml3.llm_integration.rag import RAGEngine
 from fxml3.llm_integration.knowledge_base import ElliotWaveKnowledgeBase
 from fxml3.llm_integration.sentiment_analysis import SentimentAgent
+from fxml3.backtesting.wave_backtester import WaveBacktester
+from fxml3.backtesting.performance_metrics import PerformanceMetrics
+from fxml3.data_engineering.data_loader import ForexDataLoader
 
 
 class Agent(ABC):
@@ -841,6 +844,809 @@ class MarketSentimentAgent(Agent):
             return {"error": f"Error getting sentiment for period: {str(e)}"}
 
 
+class BacktestAgent(Agent):
+    """Agent responsible for backtesting and validating trading strategies.
+    
+    This agent specializes in evaluating Elliott Wave patterns through
+    backtesting, including realistic market simulation, walk-forward analysis,
+    and cross-market validation.
+    """
+    
+    def __init__(
+        self,
+        agent_id: Optional[str] = None,
+        name: str = "BacktestAgent",
+        llm_client: Optional[LLMClient] = None,
+        rag_engine: Optional[RAGEngine] = None,
+        knowledge_base: Optional[ElliotWaveKnowledgeBase] = None,
+        data_loader: Optional[ForexDataLoader] = None,
+        backtester: Optional[WaveBacktester] = None,
+    ):
+        """Initialize the backtest agent.
+        
+        Args:
+            agent_id: Unique identifier for this agent
+            name: Human-readable name for this agent
+            llm_client: LLM client for text generation
+            rag_engine: RAG engine for knowledge retrieval
+            knowledge_base: Knowledge base for Elliott Wave theory
+            data_loader: Data loader for historical price data
+            backtester: WaveBacktester instance for backtesting
+        """
+        # Define the tools this agent can use
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_backtest",
+                    "description": "Run a backtest on historical data",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {
+                                "type": "string",
+                                "description": "Symbol to backtest",
+                            },
+                            "start_date": {
+                                "type": "string",
+                                "description": "Start date for backtest (YYYY-MM-DD)",
+                            },
+                            "end_date": {
+                                "type": "string",
+                                "description": "End date for backtest (YYYY-MM-DD)",
+                            },
+                            "timeframe": {
+                                "type": "string",
+                                "description": "Timeframe for analysis (e.g., '1D', '4H')",
+                            },
+                            "use_realistic_simulation": {
+                                "type": "boolean",
+                                "description": "Whether to use realistic market simulation",
+                            },
+                        },
+                        "required": ["symbol", "start_date"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_monte_carlo",
+                    "description": "Run Monte Carlo simulation on backtest results",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "backtest_id": {
+                                "type": "string",
+                                "description": "ID of backtest to analyze",
+                            },
+                            "num_simulations": {
+                                "type": "integer",
+                                "description": "Number of Monte Carlo simulations to run",
+                            },
+                            "confidence_level": {
+                                "type": "number",
+                                "description": "Confidence level (0-1)",
+                            },
+                        },
+                        "required": ["backtest_id"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_walk_forward_analysis",
+                    "description": "Run walk-forward analysis to prevent overfitting",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {
+                                "type": "string",
+                                "description": "Symbol to analyze",
+                            },
+                            "start_date": {
+                                "type": "string",
+                                "description": "Start date (YYYY-MM-DD)",
+                            },
+                            "end_date": {
+                                "type": "string",
+                                "description": "End date (YYYY-MM-DD)",
+                            },
+                            "timeframe": {
+                                "type": "string",
+                                "description": "Timeframe for analysis",
+                            },
+                            "n_folds": {
+                                "type": "integer",
+                                "description": "Number of walk-forward folds",
+                            },
+                        },
+                        "required": ["symbol", "start_date"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_cross_market_validation",
+                    "description": "Run cross-market validation across different symbols",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "symbols": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of symbols to validate on",
+                            },
+                            "start_date": {
+                                "type": "string",
+                                "description": "Start date (YYYY-MM-DD)",
+                            },
+                            "end_date": {
+                                "type": "string",
+                                "description": "End date (YYYY-MM-DD)",
+                            },
+                            "timeframe": {
+                                "type": "string",
+                                "description": "Timeframe for analysis",
+                            },
+                        },
+                        "required": ["symbols", "start_date"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "analyze_performance",
+                    "description": "Analyze performance metrics of backtest results",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "backtest_id": {
+                                "type": "string",
+                                "description": "ID of backtest to analyze",
+                            },
+                            "include_costs": {
+                                "type": "boolean",
+                                "description": "Whether to include transaction costs",
+                            },
+                        },
+                        "required": ["backtest_id"],
+                    },
+                },
+            },
+        ]
+        
+        # Initialize base class
+        super().__init__(
+            agent_id=agent_id,
+            name=name,
+            llm_client=llm_client,
+            rag_engine=rag_engine,
+            knowledge_base=knowledge_base,
+            description="Backtests and validates Elliott Wave trading strategies",
+            tools=tools,
+        )
+        
+        # Initialize backtesting components
+        self.data_loader = data_loader or ForexDataLoader()
+        self.backtester = backtester or WaveBacktester(data_loader=self.data_loader)
+        
+        # Store backtest results for later reference
+        self.backtest_results = {}
+        
+    def handle_task(
+        self,
+        task: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle a task assigned to this agent.
+        
+        Args:
+            task: Task description dictionary
+            context: Optional context information
+            
+        Returns:
+            Dictionary with the task result
+        """
+        # Extract task details
+        task_type = task.get("type", "")
+        task_data = task.get("data", {})
+        
+        # Log the task
+        self.add_to_history({
+            "event": "task_received",
+            "task_type": task_type,
+            "task_id": task.get("task_id", str(uuid.uuid4())),
+        })
+        
+        # Handle different task types
+        if task_type == "run_backtest":
+            result = self._handle_run_backtest(task_data, context)
+        elif task_type == "run_monte_carlo":
+            result = self._handle_run_monte_carlo(task_data, context)
+        elif task_type == "run_walk_forward":
+            result = self._handle_run_walk_forward(task_data, context)
+        elif task_type == "run_cross_market":
+            result = self._handle_run_cross_market(task_data, context)
+        elif task_type == "analyze_performance":
+            result = self._handle_analyze_performance(task_data, context)
+        else:
+            result = {"error": f"Unknown task type: {task_type}"}
+            
+        # Log the result
+        self.add_to_history({
+            "event": "task_completed",
+            "task_type": task_type,
+            "task_id": task.get("task_id", ""),
+            "result_summary": "success" if "error" not in result else "error",
+        })
+            
+        return result
+        
+    def _handle_run_backtest(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle a backtest execution task.
+        
+        Args:
+            task_data: Task data with backtest parameters
+            context: Optional context information
+            
+        Returns:
+            Dictionary with backtest results
+        """
+        # Extract parameters
+        symbol = task_data.get("symbol", "")
+        start_date = task_data.get("start_date", "")
+        end_date = task_data.get("end_date", None)
+        timeframe = task_data.get("timeframe", "1D")
+        use_realistic_simulation = task_data.get("use_realistic_simulation", True)
+        window_size = task_data.get("window_size", 100)
+        step_size = task_data.get("step_size", 20)
+        prediction_horizon = task_data.get("prediction_horizon", 20)
+        initial_capital = task_data.get("initial_capital", 10000.0)
+        
+        # Validate parameters
+        if not symbol:
+            return {"error": "Symbol is required"}
+            
+        if not start_date:
+            return {"error": "Start date is required"}
+        
+        try:
+            # Load data
+            data = self.data_loader.load_data(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
+                timeframe=timeframe
+            )
+            
+            # Run backtest
+            backtest_result = self.backtester.run_rolling_window_backtest(
+                data=data,
+                window_size=window_size,
+                step_size=step_size,
+                prediction_horizon=prediction_horizon,
+                initial_capital=initial_capital,
+                use_realistic_simulation=use_realistic_simulation
+            )
+            
+            # Generate ID for this backtest
+            backtest_id = str(uuid.uuid4())
+            
+            # Calculate performance metrics
+            performance_metrics = PerformanceMetrics.calculate_profitability(
+                backtest_result.get("actual_outcomes", []),
+                account_size=initial_capital,
+                use_realistic_costs=use_realistic_simulation
+            )
+            
+            # Store results for later reference
+            self.backtest_results[backtest_id] = {
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "start_date": start_date,
+                "end_date": end_date,
+                "result": backtest_result,
+                "performance_metrics": performance_metrics,
+                "timestamp": time.time(),
+            }
+            
+            # Generate a summary of the backtest results using LLM
+            backtest_summary_prompt = (
+                f"Analyze these Elliott Wave backtesting results and provide a concise summary:\n\n"
+                f"Symbol: {symbol}\n"
+                f"Timeframe: {timeframe}\n"
+                f"Period: {start_date} to {end_date or 'present'}\n\n"
+                f"Key metrics:\n"
+                f"- Total Return: {performance_metrics.get('total_return_pct', 0):.2f}%\n"
+                f"- Win Rate: {performance_metrics.get('win_count', 0)/(performance_metrics.get('win_count', 0) + performance_metrics.get('loss_count', 1)) * 100:.1f}%\n"
+                f"- Profit Factor: {performance_metrics.get('profit_factor', 0):.2f}\n"
+                f"- Max Drawdown: {performance_metrics.get('max_drawdown_pct', 0):.2f}%\n"
+                f"- Total Trades: {performance_metrics.get('win_count', 0) + performance_metrics.get('loss_count', 0)}\n\n"
+                f"Analyze the backtest performance, noting strengths and weaknesses of the strategy."
+            )
+            
+            # Use the RAG engine to add context from Elliott Wave trading knowledge
+            retrieved_knowledge = self.rag_engine.query(
+                "Elliott Wave backtesting performance analysis and metrics interpretation",
+                filter={"category": "trading"},
+                return_source_documents=True,
+            )
+            
+            if isinstance(retrieved_knowledge, dict) and "source_documents" in retrieved_knowledge:
+                context_docs = "\n\n".join([doc["text"] for doc in retrieved_knowledge["source_documents"][:2]])
+                backtest_summary_prompt += f"\n\nElliott Wave Context:\n{context_docs}"
+            
+            # Generate summary with LLM
+            llm_summary = self.llm_client.generate_text(
+                prompt=backtest_summary_prompt,
+                system_prompt=(
+                    "You are a professional trading system analyst specializing in Elliott Wave strategies. "
+                    "Provide insightful and balanced analysis of backtest results, highlighting both strengths and weaknesses. "
+                    "Focus on objective metrics and their implications for real trading."
+                ),
+                temperature=0.3,
+            )
+            
+            # Return result with ID for future reference
+            return {
+                "backtest_id": backtest_id,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "period": f"{start_date} to {end_date or 'present'}",
+                "summary": llm_summary,
+                "key_metrics": {
+                    "total_return_pct": performance_metrics.get("total_return_pct", 0),
+                    "win_rate": performance_metrics.get("win_count", 0)/(performance_metrics.get("win_count", 0) + performance_metrics.get("loss_count", 1)),
+                    "profit_factor": performance_metrics.get("profit_factor", 0),
+                    "max_drawdown_pct": performance_metrics.get("max_drawdown_pct", 0),
+                    "total_trades": performance_metrics.get("win_count", 0) + performance_metrics.get("loss_count", 0),
+                },
+                "use_realistic_simulation": use_realistic_simulation,
+            }
+            
+        except Exception as e:
+            return {"error": f"Error running backtest: {str(e)}"}
+        
+    def _handle_run_monte_carlo(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle a Monte Carlo simulation task.
+        
+        Args:
+            task_data: Task data with Monte Carlo parameters
+            context: Optional context information
+            
+        Returns:
+            Dictionary with Monte Carlo results
+        """
+        # Extract parameters
+        backtest_id = task_data.get("backtest_id", "")
+        num_simulations = task_data.get("num_simulations", 1000)
+        confidence_level = task_data.get("confidence_level", 0.95)
+        
+        # Validate parameters
+        if not backtest_id or backtest_id not in self.backtest_results:
+            return {"error": "Invalid or missing backtest ID"}
+        
+        try:
+            # Get the backtest result
+            backtest_data = self.backtest_results[backtest_id]
+            backtest_result = backtest_data["result"]
+            initial_capital = backtest_data.get("performance_metrics", {}).get("initial_capital", 10000.0)
+            
+            # Run Monte Carlo simulation
+            mc_results = self.backtester.run_monte_carlo_simulation(
+                backtest_result=backtest_result,
+                num_simulations=num_simulations,
+                confidence_level=confidence_level,
+                initial_capital=initial_capital
+            )
+            
+            # Store the MC results with the backtest
+            self.backtest_results[backtest_id]["monte_carlo"] = mc_results
+            
+            # Generate a summary of the Monte Carlo results using LLM
+            mc_summary_prompt = (
+                f"Analyze these Monte Carlo simulation results for an Elliott Wave trading strategy and provide insights:\n\n"
+                f"Symbol: {backtest_data['symbol']}\n"
+                f"Timeframe: {backtest_data['timeframe']}\n"
+                f"Number of simulations: {num_simulations}\n"
+                f"Confidence level: {confidence_level*100:.0f}%\n\n"
+                f"Key metrics:\n"
+                f"- Expected Return: {mc_results.get('expected_return', 0):.2f}%\n"
+                f"- Worst Case Return: {(mc_results.get('worst_case_capital', 0)/initial_capital - 1)*100:.2f}%\n"
+                f"- Expected Drawdown: {mc_results.get('expected_drawdown', 0):.2f}%\n"
+                f"- Worst Drawdown: {mc_results.get('worst_drawdown', 0):.2f}%\n"
+                f"- Probability of Profit: {mc_results.get('probability_of_profit', 0):.2f}%\n"
+                f"- Sharpe Ratio: {mc_results.get('sharpe_ratio', 0):.2f}\n\n"
+                f"Explain what these Monte Carlo results reveal about the robustness of the strategy "
+                f"and what conclusions a trader should draw about using this strategy in real trading."
+            )
+            
+            # Generate summary with LLM
+            llm_summary = self.llm_client.generate_text(
+                prompt=mc_summary_prompt,
+                system_prompt=(
+                    "You are a quantitative financial analyst specializing in strategy validation. "
+                    "Provide clear explanations of what Monte Carlo simulation results mean for strategy robustness, "
+                    "focusing on the statistical confidence in the strategy's performance."
+                ),
+                temperature=0.3,
+            )
+            
+            # Return result
+            return {
+                "backtest_id": backtest_id,
+                "symbol": backtest_data["symbol"],
+                "timeframe": backtest_data["timeframe"],
+                "num_simulations": num_simulations,
+                "confidence_level": confidence_level,
+                "summary": llm_summary,
+                "monte_carlo_metrics": {
+                    "expected_return": mc_results.get("expected_return", 0),
+                    "worst_case_return": (mc_results.get("worst_case_capital", 0)/initial_capital - 1)*100,
+                    "expected_drawdown": mc_results.get("expected_drawdown", 0),
+                    "worst_drawdown": mc_results.get("worst_drawdown", 0),
+                    "probability_of_profit": mc_results.get("probability_of_profit", 0),
+                    "sharpe_ratio": mc_results.get("sharpe_ratio", 0),
+                }
+            }
+            
+        except Exception as e:
+            return {"error": f"Error running Monte Carlo simulation: {str(e)}"}
+    
+    def _handle_run_walk_forward(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle a walk-forward analysis task.
+        
+        Args:
+            task_data: Task data with walk-forward parameters
+            context: Optional context information
+            
+        Returns:
+            Dictionary with walk-forward results
+        """
+        # Extract parameters
+        symbol = task_data.get("symbol", "")
+        start_date = task_data.get("start_date", "")
+        end_date = task_data.get("end_date", None)
+        timeframe = task_data.get("timeframe", "1D")
+        n_folds = task_data.get("n_folds", 5)
+        use_realistic_simulation = task_data.get("use_realistic_simulation", True)
+        window_size = task_data.get("window_size", 100)
+        validation_size = task_data.get("validation_size", 50)
+        
+        # Validate parameters
+        if not symbol:
+            return {"error": "Symbol is required"}
+            
+        if not start_date:
+            return {"error": "Start date is required"}
+        
+        try:
+            # Run walk-forward analysis
+            wfa_results = self.backtester.run_walk_forward_analysis(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
+                timeframe=timeframe,
+                n_folds=n_folds,
+                window_size=window_size,
+                validation_size=validation_size,
+                use_realistic_simulation=use_realistic_simulation
+            )
+            
+            # Generate ID for this analysis
+            analysis_id = str(uuid.uuid4())
+            
+            # Store results for later reference
+            self.backtest_results[analysis_id] = {
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "start_date": start_date,
+                "end_date": end_date,
+                "type": "walk_forward",
+                "result": wfa_results,
+                "timestamp": time.time(),
+            }
+            
+            # Generate a summary of the walk-forward results using LLM
+            parameter_stability = wfa_results.get("parameter_stability", {})
+            overall_stability = parameter_stability.get("overall_stability", 0) * 100
+            
+            wfa_summary_prompt = (
+                f"Analyze these walk-forward analysis results for an Elliott Wave trading strategy and provide insights:\n\n"
+                f"Symbol: {symbol}\n"
+                f"Timeframe: {timeframe}\n"
+                f"Number of folds: {n_folds}\n\n"
+                f"Key metrics:\n"
+                f"- Total Return: {wfa_results.get('total_return_pct', 0):.2f}%\n"
+                f"- Parameter Stability: {overall_stability:.1f}%\n"
+                f"- Folds Completed: {wfa_results.get('folds_completed', 0)}\n\n"
+                f"Parameter stability across folds indicates how robust the strategy is to different market conditions. "
+                f"High stability suggests the strategy is not overfitted. Low stability suggests possible overfitting.\n\n"
+                f"Explain what these walk-forward results reveal about the robustness of the strategy "
+                f"and what conclusions a trader should draw about using this strategy in real trading."
+            )
+            
+            # Generate summary with LLM
+            llm_summary = self.llm_client.generate_text(
+                prompt=wfa_summary_prompt,
+                system_prompt=(
+                    "You are a quantitative financial analyst specializing in trading system validation. "
+                    "Provide clear explanations of what walk-forward analysis results mean for strategy robustness, "
+                    "focusing on parameter stability and out-of-sample performance."
+                ),
+                temperature=0.3,
+            )
+            
+            # Return result
+            return {
+                "analysis_id": analysis_id,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "n_folds": n_folds,
+                "period": f"{start_date} to {end_date or 'present'}",
+                "summary": llm_summary,
+                "key_metrics": {
+                    "total_return_pct": wfa_results.get("total_return_pct", 0),
+                    "parameter_stability": overall_stability,
+                    "folds_completed": wfa_results.get("folds_completed", 0),
+                }
+            }
+            
+        except Exception as e:
+            return {"error": f"Error running walk-forward analysis: {str(e)}"}
+    
+    def _handle_run_cross_market(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle a cross-market validation task.
+        
+        Args:
+            task_data: Task data with cross-market parameters
+            context: Optional context information
+            
+        Returns:
+            Dictionary with cross-market results
+        """
+        # Extract parameters
+        symbols = task_data.get("symbols", [])
+        start_date = task_data.get("start_date", "")
+        end_date = task_data.get("end_date", None)
+        timeframe = task_data.get("timeframe", "1D")
+        use_realistic_simulation = task_data.get("use_realistic_simulation", True)
+        
+        # Validate parameters
+        if not symbols:
+            return {"error": "Symbols are required"}
+            
+        if not start_date:
+            return {"error": "Start date is required"}
+        
+        try:
+            # Run cross-market validation
+            cm_results = self.backtester.run_cross_market_validation(
+                symbols=symbols,
+                start_date=start_date,
+                end_date=end_date,
+                timeframe=timeframe,
+                use_realistic_simulation=use_realistic_simulation
+            )
+            
+            # Generate ID for this analysis
+            analysis_id = str(uuid.uuid4())
+            
+            # Store results for later reference
+            self.backtest_results[analysis_id] = {
+                "symbols": symbols,
+                "timeframe": timeframe,
+                "start_date": start_date,
+                "end_date": end_date,
+                "type": "cross_market",
+                "result": cm_results,
+                "timestamp": time.time(),
+            }
+            
+            # Generate a summary of the cross-market results using LLM
+            consistency_metrics = cm_results.get("consistency_metrics", {})
+            overall_score = consistency_metrics.get("overall_score", 0) * 100
+            
+            cm_summary_prompt = (
+                f"Analyze these cross-market validation results for an Elliott Wave trading strategy and provide insights:\n\n"
+                f"Symbols analyzed: {', '.join(cm_results.get('symbols_analyzed', []))}\n"
+                f"Timeframe: {timeframe}\n\n"
+                f"Key metrics:\n"
+                f"- Strategy Consistency Score: {overall_score:.1f}%\n"
+                f"- Overall Return: {cm_results.get('overall_performance', {}).get('total_return_pct', 0):.2f}%\n"
+                f"- Total Trades: {cm_results.get('all_trades_count', 0)}\n\n"
+                f"Consistency across markets indicates how universally applicable the strategy is. "
+                f"High consistency suggests the strategy is not market-specific. Low consistency suggests "
+                f"the strategy may be overfitted to specific market characteristics.\n\n"
+                f"Explain what these cross-market results reveal about the robustness of the strategy "
+                f"and what conclusions a trader should draw about using this strategy across different markets."
+            )
+            
+            # Generate summary with LLM
+            llm_summary = self.llm_client.generate_text(
+                prompt=cm_summary_prompt,
+                system_prompt=(
+                    "You are a quantitative financial analyst specializing in multi-market strategy validation. "
+                    "Provide clear explanations of what cross-market validation results mean for strategy robustness, "
+                    "focusing on consistency across different markets and correlation effects."
+                ),
+                temperature=0.3,
+            )
+            
+            # Return result with market-specific metrics
+            market_metrics = {}
+            for symbol, market_result in cm_results.get("market_results", {}).items():
+                market_metrics[symbol] = {
+                    "return_pct": market_result.get("return_pct", 0),
+                    "win_rate": market_result.get("win_rate", 0) * 100,
+                    "profit_factor": market_result.get("profit_factor", 0),
+                    "trade_count": market_result.get("trade_count", 0),
+                }
+            
+            return {
+                "analysis_id": analysis_id,
+                "symbols": cm_results.get("symbols_analyzed", []),
+                "timeframe": timeframe,
+                "period": f"{start_date} to {end_date or 'present'}",
+                "summary": llm_summary,
+                "key_metrics": {
+                    "consistency_score": overall_score,
+                    "overall_return_pct": cm_results.get("overall_performance", {}).get("total_return_pct", 0),
+                    "total_trades": cm_results.get("all_trades_count", 0),
+                },
+                "market_metrics": market_metrics
+            }
+            
+        except Exception as e:
+            return {"error": f"Error running cross-market validation: {str(e)}"}
+    
+    def _handle_analyze_performance(
+        self,
+        task_data: Dict,
+        context: Optional[Dict] = None,
+    ) -> Dict:
+        """Handle a performance analysis task.
+        
+        Args:
+            task_data: Task data with analysis parameters
+            context: Optional context information
+            
+        Returns:
+            Dictionary with detailed performance analysis
+        """
+        # Extract parameters
+        backtest_id = task_data.get("backtest_id", "")
+        include_costs = task_data.get("include_costs", True)
+        
+        # Validate parameters
+        if not backtest_id or backtest_id not in self.backtest_results:
+            return {"error": "Invalid or missing backtest ID"}
+        
+        try:
+            # Get the backtest result
+            backtest_data = self.backtest_results[backtest_id]
+            backtest_result = backtest_data["result"]
+            backtest_type = backtest_data.get("type", "standard")
+            
+            # For different backtest types, extract appropriate outcomes
+            if backtest_type == "standard":
+                outcomes = backtest_result.get("actual_outcomes", [])
+            elif backtest_type == "walk_forward":
+                outcomes = []
+                for fold_result in backtest_result.get("fold_results", []):
+                    if "validation_results" in fold_result and "actual_outcomes" in fold_result["validation_results"]:
+                        outcomes.extend(fold_result["validation_results"]["actual_outcomes"])
+            elif backtest_type == "cross_market":
+                outcomes = []
+                for market_result in backtest_result.get("market_results", {}).values():
+                    if "backtest_result" in market_result and "actual_outcomes" in market_result["backtest_result"]:
+                        outcomes.extend(market_result["backtest_result"]["actual_outcomes"])
+            else:
+                outcomes = []
+            
+            # Calculate detailed performance metrics
+            metrics = PerformanceMetrics.calculate_profitability(
+                outcomes,
+                use_realistic_costs=include_costs
+            )
+            
+            # If available, calculate market impact metrics
+            impact_metrics = {}
+            if include_costs and outcomes:
+                impact_metrics = PerformanceMetrics.calculate_market_impact_metrics(
+                    outcomes
+                )
+            
+            # Generate a detailed performance analysis using LLM
+            performance_prompt = (
+                f"Analyze these detailed performance metrics for an Elliott Wave trading strategy:\n\n"
+                f"Strategy performance metrics:\n"
+                f"- Total Return: {metrics.get('total_return_pct', 0):.2f}%\n"
+                f"- Win Rate: {metrics.get('win_count', 0)/(metrics.get('win_count', 0) + metrics.get('loss_count', 1)) * 100:.1f}%\n"
+                f"- Profit Factor: {metrics.get('profit_factor', 0):.2f}\n"
+                f"- Max Drawdown: {metrics.get('max_drawdown_pct', 0):.2f}%\n"
+                f"- Expectancy: {metrics.get('expectancy', 0):.3f}\n"
+                f"- Kelly Percentage: {metrics.get('kelly_percentage', 0):.2f}%\n"
+            )
+            
+            if include_costs and impact_metrics:
+                performance_prompt += (
+                    f"\nTransaction cost metrics:\n"
+                    f"- Avg Slippage (pips): {impact_metrics.get('avg_slippage_pips', 0):.2f}\n"
+                    f"- Avg Spread (pips): {impact_metrics.get('avg_spread_pips', 0):.2f}\n"
+                    f"- Total Transaction Cost: {impact_metrics.get('total_transaction_cost_pct', 0):.2f}%\n"
+                    f"- Execution Quality: {impact_metrics.get('avg_execution_quality', 0):.1f}/100\n"
+                    f"- Cost as % of Profit: {metrics.get('cost_metrics', {}).get('cost_as_pct_of_profit', 0):.2f}%\n"
+                )
+            
+            performance_prompt += (
+                f"\nProvide a detailed analysis of these performance metrics, explaining what they mean "
+                f"for the strategy's viability in real trading. Identify strengths and weaknesses, and make "
+                f"recommendations for potential improvements."
+            )
+            
+            # Generate analysis with LLM
+            llm_analysis = self.llm_client.generate_text(
+                prompt=performance_prompt,
+                system_prompt=(
+                    "You are a professional trading system analyst with expertise in performance metrics. "
+                    "Provide comprehensive, objective analysis of trading system performance, explaining "
+                    "what each metric means for real-world trading viability. Include both positives and "
+                    "areas for improvement, with practical recommendations."
+                ),
+                temperature=0.3,
+            )
+            
+            # Return detailed metrics and analysis
+            result = {
+                "backtest_id": backtest_id,
+                "performance_analysis": llm_analysis,
+                "profitability_metrics": {
+                    "total_return_pct": metrics.get("total_return_pct", 0),
+                    "win_rate": metrics.get("win_count", 0)/(metrics.get("win_count", 0) + metrics.get("loss_count", 1)),
+                    "profit_factor": metrics.get("profit_factor", 0),
+                    "max_drawdown_pct": metrics.get("max_drawdown_pct", 0),
+                    "expectancy": metrics.get("expectancy", 0),
+                    "kelly_percentage": metrics.get("kelly_percentage", 0),
+                }
+            }
+            
+            # Include impact metrics if available
+            if include_costs and impact_metrics:
+                result["cost_metrics"] = {
+                    "avg_slippage_pips": impact_metrics.get("avg_slippage_pips", 0),
+                    "avg_spread_pips": impact_metrics.get("avg_spread_pips", 0),
+                    "total_transaction_cost_pct": impact_metrics.get("total_transaction_cost_pct", 0),
+                    "execution_quality": impact_metrics.get("avg_execution_quality", 0),
+                    "cost_as_pct_of_profit": metrics.get("cost_metrics", {}).get("cost_as_pct_of_profit", 0),
+                }
+            
+            return result
+            
+        except Exception as e:
+            return {"error": f"Error analyzing performance: {str(e)}"}
+
+
 class StrategyAgent(Agent):
     """Agent responsible for developing trading strategies.
     
@@ -1591,6 +2397,9 @@ class AgentCoordinator:
             f"- timeframe: The timeframe mentioned (default: 'daily')\n"
             f"- pattern_type: The pattern type to look for (impulse, corrective, or any)\n"
             f"- risk_tolerance: The risk tolerance level (low, medium, high)\n"
+            f"- backtest: Whether backtesting is requested (true/false)\n"
+            f"- start_date: Start date for analysis (if provided)\n"
+            f"- end_date: End date for analysis (if provided)\n"
         )
         
         params_json = self.llm_client.generate_text(
@@ -1609,6 +2418,7 @@ class AgentCoordinator:
                 "timeframe": "daily",
                 "pattern_type": "any",
                 "risk_tolerance": "medium",
+                "backtest": False,
             }
             
         # Step 2: Get or create wave detection agent
@@ -1628,6 +2438,17 @@ class AgentCoordinator:
                 rag_engine=self.rag_engine,
             )
             self.register_agent(strategy_agent)
+            
+        # Step 4: Get or create backtest agent if needed
+        backtest_agent = None
+        if params.get("backtest", False):
+            backtest_agent = self.get_agent_by_name("BacktestAgent")
+            if not backtest_agent:
+                backtest_agent = BacktestAgent(
+                    llm_client=self.llm_client,
+                    rag_engine=self.rag_engine,
+                )
+                self.register_agent(backtest_agent)
             
         # Step 4: Create a task for wave detection
         # In a real implementation, this would include actual price data
@@ -1742,8 +2563,59 @@ class AgentCoordinator:
                 risk_reward_results = self.create_parallel_tasks([risk_reward_task])
                 risk_reward_result = list(risk_reward_results.values())[0] if risk_reward_results else risk_reward_result
             
-            # Compile the final result
-            return {
+            # Step 7: Run backtesting if requested
+            backtest_result = {}
+            monte_carlo_result = {}
+            
+            if params.get("backtest", False) and backtest_agent:
+                # Default dates if not provided
+                start_date = params.get("start_date", "2022-01-01")
+                end_date = params.get("end_date", None)
+                
+                # Convert timeframe if needed
+                timeframe_map = {
+                    "daily": "1D",
+                    "hourly": "1H", 
+                    "4hour": "4H",
+                    "weekly": "1W",
+                    "monthly": "1M"
+                }
+                
+                timeframe = timeframe_map.get(params.get("timeframe", ""), "1D")
+                
+                # Run backtest task
+                backtest_task = {
+                    "task_type": "run_backtest",
+                    "task_data": {
+                        "symbol": params["symbol"],
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "timeframe": timeframe,
+                        "use_realistic_simulation": True,
+                    },
+                    "target_agent_id": backtest_agent.agent_id,
+                }
+                
+                backtest_results = self.create_parallel_tasks([backtest_task])
+                backtest_result = list(backtest_results.values())[0] if backtest_results else {}
+                
+                # If backtest successful, run Monte Carlo simulation
+                if "backtest_id" in backtest_result and "error" not in backtest_result:
+                    monte_carlo_task = {
+                        "task_type": "run_monte_carlo",
+                        "task_data": {
+                            "backtest_id": backtest_result["backtest_id"],
+                            "num_simulations": 1000,
+                            "confidence_level": 0.95,
+                        },
+                        "target_agent_id": backtest_agent.agent_id,
+                    }
+                    
+                    monte_carlo_results = self.create_parallel_tasks([monte_carlo_task])
+                    monte_carlo_result = list(monte_carlo_results.values())[0] if monte_carlo_results else {}
+            
+            # Compile the final result with optional backtesting
+            result = {
                 "query": query,
                 "parameters": params,
                 "wave_detection": detect_result,
@@ -1754,9 +2626,18 @@ class AgentCoordinator:
                 "recommendation": risk_reward_result.get("recommendation", ""),
                 "execution_mode": "parallel",
             }
+            
+            # Add backtesting results if available
+            if backtest_result:
+                result["backtest"] = backtest_result
+            
+            if monte_carlo_result:
+                result["monte_carlo"] = monte_carlo_result
+            
+            return result
         else:
             # No valid pattern detected
-            return {
+            no_pattern_result = {
                 "query": query,
                 "parameters": params,
                 "wave_detection": detect_result,
@@ -1764,3 +2645,41 @@ class AgentCoordinator:
                 "error": "No valid Elliott Wave pattern detected",
                 "execution_mode": "parallel",
             }
+            
+            # If backtest was requested but no valid pattern was found,
+            # we can still run a general backtest to analyze performance
+            if params.get("backtest", False) and backtest_agent:
+                start_date = params.get("start_date", "2022-01-01")
+                end_date = params.get("end_date", None)
+                
+                # Convert timeframe if needed
+                timeframe_map = {
+                    "daily": "1D",
+                    "hourly": "1H", 
+                    "4hour": "4H",
+                    "weekly": "1W",
+                    "monthly": "1M"
+                }
+                
+                timeframe = timeframe_map.get(params.get("timeframe", ""), "1D")
+                
+                # Run general backtest task
+                backtest_task = {
+                    "task_type": "run_backtest",
+                    "task_data": {
+                        "symbol": params["symbol"],
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "timeframe": timeframe,
+                        "use_realistic_simulation": True,
+                    },
+                    "target_agent_id": backtest_agent.agent_id,
+                }
+                
+                backtest_results = self.create_parallel_tasks([backtest_task])
+                backtest_result = list(backtest_results.values())[0] if backtest_results else {}
+                
+                if backtest_result:
+                    no_pattern_result["backtest"] = backtest_result
+            
+            return no_pattern_result
