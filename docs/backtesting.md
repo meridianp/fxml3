@@ -217,6 +217,80 @@ position_sizes = position_sizer.calculate_position_sizes(
 )
 ```
 
+## Multi-Agent Integration
+
+The backtesting framework is fully integrated with the FXML3 multi-agent system through the `BacktestAgent` class, which provides a high-level interface for agent-based backtesting operations:
+
+```python
+from fxml3.llm_integration.agent_framework import BacktestAgent, AgentCoordinator
+
+# Create a backtest agent
+backtest_agent = BacktestAgent()
+
+# Process a backtest request directly
+result = backtest_agent.process({
+    "task": "backtest_strategy",
+    "data": {
+        "symbol": "EURUSD",
+        "timeframe": "H1",
+        "start_date": "2021-01-01",
+        "end_date": "2022-12-31",
+        "strategy_params": {
+            "wave_type": "impulse",
+            "entry_wave": 3,
+            "exit_wave": 5
+        }
+    }
+})
+
+# Or use via the agent coordinator in a multi-agent workflow
+coordinator = AgentCoordinator()
+coordinator.register_agent("wave_detection", WaveDetectionAgent())
+coordinator.register_agent("strategy", StrategyAgent())
+coordinator.register_agent("backtest", BacktestAgent())
+
+# Execute a complete workflow
+full_analysis = coordinator.execute_workflow([
+    {"agent": "wave_detection", "task": "detect_waves", "params": {...}},
+    {"agent": "strategy", "task": "generate_strategy", "params": {...}},
+    {"agent": "backtest", "task": "validate_strategy", "params": {...}}
+])
+```
+
+### LLM-Enhanced Backtest Analysis
+
+The `BacktestAgent` leverages LLM capabilities to provide enhanced analysis of backtest results:
+
+```python
+# Get AI-powered analysis of backtest results
+analysis = backtest_agent.analyze_results(
+    backtest_results=results,
+    include_strengths_weaknesses=True,
+    include_improvement_suggestions=True
+)
+
+# Example result structure
+{
+    "summary": "The strategy shows promising results with a 62% win rate and 1.8 profit factor...",
+    "strengths": [
+        "Consistent performance across different market conditions",
+        "Low drawdown relative to returns",
+        "Good performance in trending markets"
+    ],
+    "weaknesses": [
+        "Underperforms in choppy market conditions",
+        "Significant dependency on accurate wave 3 identification",
+        "Higher than optimal transaction costs due to frequent trading"
+    ],
+    "improvements": [
+        "Consider adding a market regime filter to avoid choppy conditions",
+        "Implement tighter stop-loss management for wave 3 entries",
+        "Reduce trade frequency by focusing only on highest-probability setups"
+    ],
+    "confidence_score": 0.78  # AI confidence in the strategy's robustness
+}
+```
+
 ## Best Practices
 
 To get the most out of the backtesting framework:

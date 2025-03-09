@@ -21,6 +21,7 @@ The system follows a hierarchical design with:
    - DRL Optimization Agent
    - Visualization Agent
    - Trading Strategy Agent
+   - Backtest Agent
 
 ### Task Decomposition and Dynamic Scaling
 
@@ -207,7 +208,15 @@ The implementation follows a phased approach:
 - Risk management system
 - Position sizing algorithms
 
-### Phase 6: UI/Dashboard & Deployment ⬜
+### Phase 6: Advanced Backtesting & Validation ✅
+- Realistic market simulation (slippage, spread, commissions)
+- Walk-forward analysis for out-of-sample testing
+- Monte Carlo simulation for statistical validation
+- Cross-market validation for strategy robustness
+- Comprehensive performance metrics
+
+### Phase 7: UI/Dashboard & Deployment ⬜
 - Streamlit dashboard with key metrics
 - Chart visualization with wave overlays
 - User configuration interface
+- Backtest results visualization
