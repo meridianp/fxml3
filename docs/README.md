@@ -9,6 +9,7 @@ Welcome to the FXML3 documentation. This directory contains comprehensive docume
 - [Data Engineering](data-engineering.md) - Data feeds, preprocessing, and feature engineering
 - [Visualization](visualization.md) - Chart visualization components
 - [Elliott Wave Analysis](elliott-wave-analysis.md) - Elliott Wave pattern detection
+- [Trading Strategy](trading-strategy.md) - Entry/exit signals, risk management, and position sizing
 - [API Reference](api-reference/) - Detailed API documentation
   - [Data Engineering API](api-reference/data-engineering.md)
   - [Visualization API](api-reference/visualization.md)
@@ -31,4 +32,16 @@ FXML3 is a Python-based forex analysis platform that combines traditional Elliot
 
 ### Development Status
 
-The project is under active development. Currently, Phase 1 (Data Infrastructure & Preprocessing) has been completed. We are now moving to Phase 2 (Elliott Wave Detection Engine).
+The project is under active development. We have completed the following phases:
+
+- ✅ **Phase 1**: Data Infrastructure & Preprocessing
+- ✅ **Phase 2**: Elliott Wave Detection Engine
+- ✅ **Phase 3**: Multi-Agent System & LLM Integration
+- ✅ **Phase 4**: Reinforcement Learning & Optimization
+- 🔄 **Phase 5**: Trading Strategy & Signal Generation (in progress)
+  - ✅ Entry/Exit Signal Generation
+  - ✅ Risk Management System
+  - ✅ Position Sizing Algorithms
+  - 🔄 Portfolio Strategy Logic (in progress)
+
+We are currently implementing the portfolio-level strategy logic, which is the final component of Phase 5.
