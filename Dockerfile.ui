@@ -1,0 +1,23 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code
+COPY . .
+
+# Install additional dependencies for the UI
+RUN pip install --no-cache-dir streamlit plotly requests
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Expose the port the app runs on
+EXPOSE 8501
+
+# Command to run the application
+CMD ["streamlit", "run", "fxml3/ui/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
