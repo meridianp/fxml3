@@ -10,10 +10,12 @@ Welcome to the FXML3 documentation. This directory contains comprehensive docume
 - [Visualization](visualization.md) - Chart visualization components
 - [Elliott Wave Analysis](elliott-wave-analysis.md) - Elliott Wave pattern detection
 - [Trading Strategy](trading-strategy.md) - Entry/exit signals, risk management, and position sizing
+- [Backtesting](backtesting.md) - Strategy backtesting and validation framework
 - [API Reference](api-reference/) - Detailed API documentation
   - [Data Engineering API](api-reference/data-engineering.md)
   - [Visualization API](api-reference/visualization.md)
   - [Wave Analysis API](api-reference/wave-analysis.md)
+  - [Backtesting API](api-reference/backtesting.md)
 - [Examples](examples/) - Usage examples and tutorials
 
 ## Project Overview
@@ -38,10 +40,20 @@ The project is under active development. We have completed the following phases:
 - ✅ **Phase 2**: Elliott Wave Detection Engine
 - ✅ **Phase 3**: Multi-Agent System & LLM Integration
 - ✅ **Phase 4**: Reinforcement Learning & Optimization
-- 🔄 **Phase 5**: Trading Strategy & Signal Generation (in progress)
+- ✅ **Phase 5**: Trading Strategy & Signal Generation
   - ✅ Entry/Exit Signal Generation
   - ✅ Risk Management System
   - ✅ Position Sizing Algorithms
-  - 🔄 Portfolio Strategy Logic (in progress)
+  - ✅ Portfolio Strategy Logic
+- ✅ **Phase 6**: Advanced Backtesting & Validation
+  - ✅ Realistic Market Simulation
+  - ✅ Strategy Performance Analysis
+  - ✅ Monte Carlo Simulation
+  - ✅ Walk-Forward Analysis
+  - ✅ Cross-Market Validation
+- 🔄 **Phase 7**: UI/Dashboard & Deployment (in progress)
+  - ✅ Basic Streamlit UI Skeleton
+  - 🔄 Interactive Dashboard (in progress)
+  - 🔄 Chart Visualization with Wave Overlay (in progress)
 
-We are currently implementing the portfolio-level strategy logic, which is the final component of Phase 5.
+We are currently implementing the web interface components and integrating the multi-agent system with the advanced backtesting framework.
