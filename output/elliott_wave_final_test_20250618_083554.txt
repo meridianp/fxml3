@@ -1,0 +1,23 @@
+Elliott Wave Implementation - Final Test Results
+============================================================
+
+Test Period: 2024-06-15 00:00:00+00:00 to 2024-06-30 20:00:00+00:00
+Symbol: GBPUSD
+Bars: 96
+
+ALGORITHMIC:
+  time: 0.05582857131958008
+  patterns: 0
+  confidence: 0
+  signal: HOLD
+
+TEXT_LLM:
+  time: 7.931383371353149
+  signal: BUY
+  response_length: 512
+
+VISUAL_HYBRID:
+  time: 26.295191049575806
+  signal: LONG
+  confidence: 0.0
+  risk_reward: 0.7500000000000232

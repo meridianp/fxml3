@@ -1,0 +1,418 @@
+# FXML4 Production Alerting Rules
+# Comprehensive alerting configuration for all critical system components
+
+groups:
+  # Critical System Alerts
+  - name: fxml4.critical
+    interval: 10s
+    rules:
+      - alert: SystemDown
+        expr: up{job=~"fxml4-.*"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          team: ops
+          component: "{{ $labels.job }}"
+        annotations:
+          summary: "FXML4 component {{ $labels.job }} is down"
+          description: "The {{ $labels.job }} service has been down for more than 30 seconds."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/system-down"
+          dashboard_url: "https://grafana.company.com/d/system-health"
+
+      - alert: DatabaseDown
+        expr: pg_up{instance=~".*timescaledb.*"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          team: ops
+          component: database
+        annotations:
+          summary: "TimescaleDB is unreachable"
+          description: "The TimescaleDB instance {{ $labels.instance }} is down."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/database-down"
+
+      - alert: TradingHalted
+        expr: trading_circuit_breaker_active == 1
+        for: 0s
+        labels:
+          severity: critical
+          team: trading
+          component: trading-engine
+        annotations:
+          summary: "Trading has been halted by circuit breaker"
+          description: "The trading circuit breaker has been triggered. All trading is suspended."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/trading-halt"
+          dashboard_url: "https://grafana.company.com/d/risk-monitoring"
+
+      - alert: ExcessiveDrawdown
+        expr: trading_current_drawdown_percent < -5
+        for: 30s
+        labels:
+          severity: critical
+          team: trading
+          component: risk-management
+        annotations:
+          summary: "Excessive drawdown detected: {{ $value }}%"
+          description: "Current drawdown of {{ $value }}% exceeds the 5% limit."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/excessive-drawdown"
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: pg_stat_database_numbackends{datname="fxml4"} > 95
+        for: 1m
+        labels:
+          severity: critical
+          team: ops
+          component: database
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Database has {{ $value }} active connections (limit: 100)."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/db-connections"
+
+  # High Priority System Alerts
+  - name: fxml4.high
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: high
+          team: ops
+          component: api
+        annotations:
+          summary: "High error rate: {{ $value | humanizePercentage }}"
+          description: "The {{ $labels.job }} service has an error rate of {{ $value | humanizePercentage }} over the last 5 minutes."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/high-error-rate"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job)) > 1
+        for: 5m
+        labels:
+          severity: high
+          team: ops
+          component: api
+        annotations:
+          summary: "High API latency: {{ $value }}s"
+          description: "The {{ $labels.job }} service has P99 latency of {{ $value }}s."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/high-latency"
+
+      - alert: LowWinRate
+        expr: trading_winning_trades / trading_total_trades < 0.4
+        for: 30m
+        labels:
+          severity: high
+          team: trading
+          component: strategy
+        annotations:
+          summary: "Low win rate: {{ $value | humanizePercentage }}"
+          description: "Trading win rate has dropped to {{ $value | humanizePercentage }}."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/low-win-rate"
+
+      - alert: ModelPerformanceDegradation
+        expr: ml_model_accuracy < 0.6
+        for: 1h
+        labels:
+          severity: high
+          team: ml
+          component: inference
+        annotations:
+          summary: "ML model accuracy degraded: {{ $value }}"
+          description: "Model accuracy has dropped to {{ $value }}."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/model-degradation"
+
+      - alert: DataFeedLatency
+        expr: data_feed_latency_seconds > 5
+        for: 2m
+        labels:
+          severity: high
+          team: ops
+          component: data-feed
+        annotations:
+          summary: "Data feed latency: {{ $value }}s"
+          description: "Data feed {{ $labels.source }} has latency of {{ $value }}s."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/data-feed-latency"
+
+      - alert: MessageQueueBacklog
+        expr: rabbitmq_queue_messages > 1000
+        for: 5m
+        labels:
+          severity: high
+          team: ops
+          component: message-queue
+        annotations:
+          summary: "Message queue backlog: {{ $value }} messages"
+          description: "Queue {{ $labels.queue }} has {{ $value }} pending messages."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/queue-backlog"
+
+  # Medium Priority Alerts
+  - name: fxml4.medium
+    interval: 1m
+    rules:
+      - alert: HighCPUUsage
+        expr: avg(rate(container_cpu_usage_seconds_total{namespace="default"}[5m])) by (pod) > 0.8
+        for: 10m
+        labels:
+          severity: medium
+          team: ops
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage: {{ $value | humanizePercentage }}"
+          description: "Pod {{ $labels.pod }} CPU usage is {{ $value | humanizePercentage }}."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/high-cpu"
+
+      - alert: HighMemoryUsage
+        expr: avg(container_memory_usage_bytes{namespace="default"}) by (pod) / avg(container_spec_memory_limit_bytes{namespace="default"}) by (pod) > 0.85
+        for: 10m
+        labels:
+          severity: medium
+          team: ops
+          component: infrastructure
+        annotations:
+          summary: "High memory usage: {{ $value | humanizePercentage }}"
+          description: "Pod {{ $labels.pod }} memory usage is {{ $value | humanizePercentage }}."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/high-memory"
+
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: medium
+          team: ops
+          component: infrastructure
+        annotations:
+          summary: "Low disk space: {{ $value | humanizePercentage }} available"
+          description: "Node {{ $labels.instance }} has only {{ $value | humanizePercentage }} disk space available."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/low-disk"
+
+      - alert: HighPositionConcentration
+        expr: max(trading_position_exposure_usd) / sum(trading_position_exposure_usd) > 0.6
+        for: 30m
+        labels:
+          severity: medium
+          team: trading
+          component: risk-management
+        annotations:
+          summary: "High position concentration: {{ $value | humanizePercentage }}"
+          description: "Largest position represents {{ $value | humanizePercentage }} of total exposure."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/position-concentration"
+
+      - alert: HighCorrelation
+        expr: max(trading_position_correlation) > 0.8
+        for: 1h
+        labels:
+          severity: medium
+          team: trading
+          component: risk-management
+        annotations:
+          summary: "High position correlation: {{ $value }}"
+          description: "Position correlation of {{ $value }} exceeds risk limits."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/high-correlation"
+
+  # Data Quality Alerts
+  - name: fxml4.data-quality
+    interval: 2m
+    rules:
+      - alert: DataFeedDisconnected
+        expr: data_feed_connected{source=~".*"} == 0
+        for: 1m
+        labels:
+          severity: high
+          team: ops
+          component: data-feed
+        annotations:
+          summary: "Data feed {{ $labels.source }} disconnected"
+          description: "Data feed {{ $labels.source }} has been disconnected for over 1 minute."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/data-feed-disconnected"
+
+      - alert: StaleData
+        expr: time() - data_feed_last_update_timestamp > 300
+        for: 30s
+        labels:
+          severity: high
+          team: ops
+          component: data-feed
+        annotations:
+          summary: "Stale data from {{ $labels.source }}"
+          description: "No data received from {{ $labels.source }} for {{ $value }}s."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/stale-data"
+
+      - alert: DataQualityIssue
+        expr: data_quality_issues_total > 0
+        for: 5m
+        labels:
+          severity: medium
+          team: ops
+          component: data-quality
+        annotations:
+          summary: "Data quality issues detected"
+          description: "{{ $value }} data quality issues detected in the last 5 minutes."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/data-quality"
+
+  # Security Alerts
+  - name: fxml4.security
+    interval: 30s
+    rules:
+      - alert: UnauthorizedAccess
+        expr: rate(http_requests_total{status="401"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: high
+          team: security
+          component: authentication
+        annotations:
+          summary: "High rate of unauthorized access attempts"
+          description: "{{ $value }} unauthorized requests per second detected."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/unauthorized-access"
+
+      - alert: TooManyFailedLogins
+        expr: rate(auth_failed_logins_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: medium
+          team: security
+          component: authentication
+        annotations:
+          summary: "High rate of failed logins"
+          description: "{{ $value }} failed login attempts per second."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/failed-logins"
+
+      - alert: SuspiciousTradePattern
+        expr: trading_unusual_pattern_detected == 1
+        for: 0s
+        labels:
+          severity: high
+          team: compliance
+          component: trade-monitoring
+        annotations:
+          summary: "Suspicious trading pattern detected"
+          description: "Unusual trading pattern detected requiring investigation."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/suspicious-trading"
+
+  # Business Logic Alerts
+  - name: fxml4.business
+    interval: 5m
+    rules:
+      - alert: NoTradesGenerated
+        expr: increase(trading_trades_executed_total[1h]) == 0
+        for: 2h
+        labels:
+          severity: medium
+          team: trading
+          component: strategy
+        annotations:
+          summary: "No trades executed in the last 2 hours"
+          description: "Trading system has not executed any trades recently."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/no-trades"
+
+      - alert: ExcessiveTrading
+        expr: increase(trading_trades_executed_total[1h]) > 50
+        for: 30m
+        labels:
+          severity: medium
+          team: trading
+          component: strategy
+        annotations:
+          summary: "Excessive trading activity: {{ $value }} trades/hour"
+          description: "Trading frequency of {{ $value }} trades per hour is unusually high."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/excessive-trading"
+
+      - alert: LowSignalConfidence
+        expr: avg(trading_signal_confidence) < 0.6
+        for: 1h
+        labels:
+          severity: medium
+          team: trading
+          component: signal-generation
+        annotations:
+          summary: "Low average signal confidence: {{ $value }}"
+          description: "Average signal confidence has dropped to {{ $value }}."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/low-confidence"
+
+      - alert: ModelInferenceFailure
+        expr: rate(ml_inference_failures_total[5m]) > 0.01
+        for: 10m
+        labels:
+          severity: medium
+          team: ml
+          component: inference
+        annotations:
+          summary: "ML inference failures: {{ $value }}/s"
+          description: "ML inference failing at rate of {{ $value }} per second."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/inference-failures"
+
+  # Performance Degradation Alerts
+  - name: fxml4.performance
+    interval: 2m
+    rules:
+      - alert: SlowDatabaseQueries
+        expr: rate(pg_stat_statements_mean_time[5m]) > 1000
+        for: 10m
+        labels:
+          severity: medium
+          team: ops
+          component: database
+        annotations:
+          summary: "Slow database queries: {{ $value }}ms average"
+          description: "Database query performance has degraded to {{ $value }}ms average."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/slow-queries"
+
+      - alert: HighGCPressure
+        expr: rate(process_gc_duration_seconds_sum[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: medium
+          team: ops
+          component: application
+        annotations:
+          summary: "High garbage collection pressure"
+          description: "Application {{ $labels.job }} spending {{ $value }}% time in GC."
+          runbook_url: "https://wiki.company.com/fxml4/runbooks/high-gc"
+
+# Notification Routing
+# This would be configured in Alertmanager
+notification_routing:
+  routes:
+    - match:
+        severity: critical
+      receiver: "pagerduty-critical"
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+
+    - match:
+        severity: high
+      receiver: "slack-trading-team"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+
+    - match:
+        severity: medium
+      receiver: "email-ops-team"
+      group_wait: 2m
+      group_interval: 10m
+      repeat_interval: 24h
+
+  receivers:
+    - name: "pagerduty-critical"
+      pagerduty_configs:
+        - service_key: "your-pagerduty-key"
+          description: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+
+    - name: "slack-trading-team"
+      slack_configs:
+        - api_url: "your-slack-webhook-url"
+          channel: "#trading-alerts"
+          title: "FXML4 Alert"
+          text: "{{ range .Alerts }}{{ .Annotations.description }}{{ end }}"
+
+    - name: "email-ops-team"
+      email_configs:
+        - to: "ops@company.com"
+          subject: "FXML4 Alert: {{ .GroupLabels.alertname }}"
+          body: |
+            {{ range .Alerts }}
+            Alert: {{ .Annotations.summary }}
+            Description: {{ .Annotations.description }}
+            Runbook: {{ .Annotations.runbook_url }}
+            {{ end }}

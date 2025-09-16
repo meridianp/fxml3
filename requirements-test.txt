@@ -1,0 +1,122 @@
+# Enhanced Testing Requirements for FXML4
+# ========================================
+# This file contains all testing dependencies for comprehensive test coverage,
+# parallel execution, property-based testing, and E2E testing.
+
+# Core Testing Framework
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==5.0.0                # Coverage reporting
+pytest-timeout==2.3.1            # Test timeouts to prevent hanging
+pytest-mock==3.14.0              # Enhanced mocking capabilities
+
+# Parallel Test Execution
+pytest-xdist==3.6.1              # Parallel test execution (-n auto)
+pytest-parallel==0.1.1           # Alternative parallel execution
+
+# Test Quality & Organization
+pytest-benchmark==4.0.0          # Performance benchmarking
+pytest-bdd==7.0.1               # Behavior-driven development
+pytest-html==4.1.1              # HTML test reports
+pytest-json-report==1.5.0       # JSON test reports for CI/CD
+pytest-metadata==3.1.1          # Test metadata collection
+
+# Property-Based Testing
+hypothesis==6.100.0              # Property-based testing framework
+hypothesis-jsonschema==0.23.1   # JSON schema strategies
+
+# Test Data Generation
+faker==24.4.0                   # Fake data generation
+factory-boy==3.3.0              # Test fixtures and factories
+mimesis==15.1.0                 # Advanced data generation
+
+# Frontend/E2E Testing
+playwright==1.42.0               # Browser automation for E2E tests
+pytest-playwright==0.4.4         # Playwright pytest integration
+selenium==4.18.1                # Alternative browser automation
+pytest-selenium==4.1.0          # Selenium pytest integration
+
+# API Testing
+httpx==0.27.0                   # Async HTTP client
+respx==0.21.1                   # HTTP mocking for httpx
+responses==0.25.0               # HTTP response mocking
+pytest-httpserver==1.0.10       # HTTP server for testing
+
+# WebSocket Testing
+websocket-client==1.7.0         # WebSocket client for testing
+pytest-asyncio-cooperative==0.28.0  # Cooperative async testing
+
+# Database Testing
+pytest-postgresql==6.0.0         # PostgreSQL testing fixtures
+aiosqlite==0.20.0               # Async SQLite for test isolation
+sqlalchemy-utils==0.41.2        # Database utilities for testing
+
+# Message Queue Testing
+pika-stubs==0.1.3               # Type stubs for pika
+aio-pika==9.4.1                 # Async RabbitMQ client
+fakeredis==2.21.3               # Fake Redis for testing
+pytest-redis==3.0.2             # Redis testing fixtures
+
+# Load & Performance Testing
+locust==2.24.1                  # Load testing framework
+pytest-stress==1.0.1            # Stress testing plugin
+memory-profiler==0.61.0         # Memory profiling
+
+# Mocking & Stubbing
+mock==5.1.0                     # Additional mocking utilities
+freezegun==1.4.0                # Time mocking
+pytest-freezer==0.4.8           # Alternative time mocking
+moto==5.0.2                     # AWS service mocking
+
+# Code Quality in Tests
+pytest-flake8==1.1.1            # Flake8 integration
+pytest-mypy==0.10.3             # Type checking for tests
+pytest-black==0.3.12            # Black formatting check
+pytest-isort==4.0.0             # Import sorting check
+
+# Test Debugging & Analysis
+pytest-sugar==1.0.0             # Better test output formatting
+pytest-instafail==0.5.0         # Show failures instantly
+pytest-testmon==2.1.1           # Test selection based on code changes
+pytest-picked==0.5.0            # Run tests for modified files
+pytest-clarity==1.0.1           # Better assertion introspection
+pytest-icdiff==0.9              # Better diffs in test output
+
+# Security Testing
+safety==3.1.0                   # Security vulnerability scanning
+bandit==1.7.8                   # Security linting
+pytest-bandit==0.4.0            # Bandit integration
+
+# Documentation Testing
+pytest-doctestplus==1.2.1       # Enhanced doctest support
+pytest-examples==0.0.10         # Test examples in documentation
+
+# Chaos Engineering
+pytest-chaos==0.3.0             # Chaos engineering tests
+chaostoolkit==1.18.1            # Chaos engineering toolkit
+
+# Contract Testing
+pact-python==2.1.1              # Consumer-driven contract testing
+schemathesis==3.27.1            # API schema testing
+
+# Mutation Testing
+mutmut==2.4.5                   # Mutation testing framework
+pytest-mutagen==1.3             # Alternative mutation testing
+
+# Test Reporting & Monitoring
+allure-pytest==2.13.5           # Allure test reporting
+pytest-testrail==2.9.0          # TestRail integration
+pytest-jira==0.3.19             # JIRA integration
+
+# Additional Utilities
+pytest-env==1.1.3               # Environment variable management
+pytest-datadir==1.4.1           # Test data directories
+pytest-lazy-fixtures==1.0.7     # Lazy fixture evaluation
+pytest-repeat==0.9.3            # Repeat tests for flakiness detection
+pytest-rerunfailures==14.0      # Rerun failed tests
+pytest-timeout-xfail==1.0.0     # Mark slow tests as xfail
+
+# Development Dependencies (optional but recommended)
+pytest-watch==4.2.0             # Auto-run tests on file changes
+pytest-testinfra==10.1.0        # Infrastructure testing
+pytest-ansible==24.1.2          # Ansible testing support

@@ -1,0 +1,14 @@
+{
+  "total_trades": 4,
+  "winning_trades": 1,
+  "losing_trades": 3,
+  "win_rate": 0.25,
+  "total_pnl": -1414.2217993836935,
+  "total_return": -0.01414221799383682,
+  "avg_win": 3596.3997230556083,
+  "avg_loss": -1670.207174146434,
+  "profit_factor": 0.71775521398886,
+  "sharpe_ratio": -0.28676853943599273,
+  "max_drawdown": -0.0410955035997156,
+  "avg_holding_days": 448.0
+}

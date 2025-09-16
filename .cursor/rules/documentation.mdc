@@ -1,0 +1,17 @@
+---
+description:
+globs: src/**/*.py
+alwaysApply: false
+---
+Documentation Standards
+
+---
+description: Documentation Standards
+globs:
+  - "src/**/*.py"
+  - "docs/**/*.md"
+alwaysApply: true
+---
+
+- Use mkdocs for all documentation, with griffe for automatic API references.
+- Include docstrings (Google style or reStructuredText) for all modules, classes, and functions.

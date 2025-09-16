@@ -1,0 +1,3 @@
+Test Suite,Test Name,Success,Execution Time (ms),Assertions Passed,Assertions Total
+MarketDataStreaming,websocket_broadcasting_performance,False,16.222086967900395,0,3
+MarketDataStreaming,ohlc_aggregation_performance,False,2.527338918298483,0,3

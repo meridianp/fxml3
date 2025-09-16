@@ -1,0 +1,141 @@
+{
+  "performance": {
+    "initial_capital": 10000,
+    "final_capital": -11.834076900051596,
+    "total_return": -1.0011834076900052,
+    "signal_count": 1181,
+    "trade_count": 1011
+  },
+  "trades": [
+    {
+      "symbol": "GBPUSD",
+      "direction": "SHORT",
+      "entry_time": "2024-12-27 08:00:00",
+      "exit_time": "2024-12-27 12:00:00",
+      "entry_price": 1.2551050000000001,
+      "exit_price": 1.2578054,
+      "size": 796.7460889726357,
+      "leverage": 718.5371802489464,
+      "pnl": -2.2016407153185877,
+      "pnl_pct": -0.0022016407153185877,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "SHORT",
+      "entry_time": "2024-12-27 16:00:00",
+      "exit_time": "2024-12-30 08:00:00",
+      "entry_price": 1.258005,
+      "exit_price": 1.2607112,
+      "size": 794.909400201112,
+      "leverage": -1162.8930804445683,
+      "pnl": -2.2012913780151844,
+      "pnl_pct": -0.0022012913780151844,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "SHORT",
+      "entry_time": "2024-12-27 20:00:00",
+      "exit_time": "2024-12-30 08:00:00",
+      "entry_price": 1.257505,
+      "exit_price": 1.2602102,
+      "size": 795.2254663003328,
+      "leverage": -1098.9925394644004,
+      "pnl": -2.201351493632114,
+      "pnl_pct": -0.002201351493632114,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "SHORT",
+      "entry_time": "2024-12-29 20:00:00",
+      "exit_time": "2024-12-30 08:00:00",
+      "entry_price": 1.257605,
+      "exit_price": 1.2603104,
+      "size": 795.1622329745826,
+      "leverage": -1041.7488298636067,
+      "pnl": -2.2013394666846655,
+      "pnl_pct": -0.0022013394666846654,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "SHORT",
+      "entry_time": "2024-12-30 00:00:00",
+      "exit_time": "2024-12-30 08:00:00",
+      "entry_price": 1.257825,
+      "exit_price": 1.26053084,
+      "size": 795.0231550493909,
+      "leverage": -990.17323919873,
+      "pnl": -2.2013130141315043,
+      "pnl_pct": -0.002201313014131504,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "SHORT",
+      "entry_time": "2024-12-30 04:00:00",
+      "exit_time": "2024-12-30 08:00:00",
+      "entry_price": 1.257895,
+      "exit_price": 1.26060098,
+      "size": 794.9789131843278,
+      "leverage": -943.4636178701004,
+      "pnl": -2.2013045993505,
+      "pnl_pct": -0.0022013045993504996,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "SHORT",
+      "entry_time": "2024-12-30 08:00:00",
+      "exit_time": "2024-12-30 12:00:00",
+      "entry_price": 1.259735,
+      "exit_price": 1.2561455099999999,
+      "size": 793.8177473833782,
+      "leverage": -82.53191926226468,
+      "pnl": 2.79954333609862,
+      "pnl_pct": 0.00279954333609862,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "LONG",
+      "entry_time": "2024-12-30 16:00:00",
+      "exit_time": "2024-12-30 20:00:00",
+      "entry_price": 1.254445,
+      "exit_price": 1.2517463000000002,
+      "size": 797.1652802633834,
+      "leverage": -106.75798431391051,
+      "pnl": -2.201202376349566,
+      "pnl_pct": -0.002201202376349566,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "LONG",
+      "entry_time": "2024-12-30 20:00:00",
+      "exit_time": "2024-12-31 00:00:00",
+      "entry_price": 1.254875,
+      "exit_price": 1.255045,
+      "size": 796.8921207291563,
+      "leverage": -86.07197667713697,
+      "pnl": 0.08546488694093314,
+      "pnl_pct": 8.546488694093314e-05,
+      "exit_reason": "End of Data"
+    },
+    {
+      "symbol": "GBPUSD",
+      "direction": "LONG",
+      "entry_time": "2024-12-31 00:00:00",
+      "exit_time": "2024-12-31 00:00:00",
+      "entry_price": 1.2552349999999999,
+      "exit_price": 1.255045,
+      "size": 796.6635729564584,
+      "leverage": -85.70314472344727,
+      "pnl": -0.20135851055771428,
+      "pnl_pct": -0.00020135851055771428,
+      "exit_reason": "End of Data"
+    }
+  ]
+}

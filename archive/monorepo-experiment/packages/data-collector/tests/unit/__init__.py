@@ -1,0 +1,1 @@
+"""Unit tests for fxml4-data-collector package."""

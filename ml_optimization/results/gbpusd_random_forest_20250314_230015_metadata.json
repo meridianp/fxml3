@@ -1,0 +1,86 @@
+{
+  "name": "gbpusd_random_forest_20250314_230015",
+  "model_type": "random_forest",
+  "n_classes": 3,
+  "random_state": 42,
+  "created_at": "2025-03-14T23:00:15.631389",
+  "platform": {
+    "system": "Darwin",
+    "processor": "arm",
+    "is_apple_silicon": true,
+    "gpu_available": false
+  },
+  "model_params": {
+    "n_estimators": 50,
+    "max_depth": 20,
+    "min_samples_split": 5,
+    "min_samples_leaf": 1,
+    "random_state": 42
+  },
+  "feature_names": [
+    "trend_100",
+    "sma_200",
+    "ema_200",
+    "dist_newyork_open",
+    "dist_newyork_close",
+    "dist_tokyo_close",
+    "dist_tokyo_open",
+    "lower_threshold_10",
+    "dist_sydney_open",
+    "upper_threshold_10",
+    "dist_sydney_close",
+    "dist_london_close",
+    "dist_london_open",
+    "volatility_20",
+    "bb_width_lag_5",
+    "sma_55",
+    "macd_signal",
+    "ema_55",
+    "macd_lag_5",
+    "rsi_14"
+  ],
+  "feature_importance": {
+    "trend_100": 0.0605857499212429,
+    "sma_200": 0.06493226562724606,
+    "ema_200": 0.06296454314100258,
+    "dist_newyork_open": 0.04444253429496859,
+    "dist_newyork_close": 0.042091938102472984,
+    "dist_tokyo_close": 0.04106951135637967,
+    "dist_tokyo_open": 0.03731527680301604,
+    "lower_threshold_10": 0.04746520334116881,
+    "dist_sydney_open": 0.0398232738915947,
+    "upper_threshold_10": 0.04680736444384615,
+    "dist_sydney_close": 0.03715854769748524,
+    "dist_london_close": 0.04079480172578159,
+    "dist_london_open": 0.04029621780918119,
+    "volatility_20": 0.05034135827762112,
+    "bb_width_lag_5": 0.049468449285469444,
+    "sma_55": 0.060077160199395706,
+    "macd_signal": 0.058202183002891816,
+    "ema_55": 0.059724183531919176,
+    "macd_lag_5": 0.04992721985248942,
+    "rsi_14": 0.06651221769482688
+  },
+  "training": {
+    "samples": 12398,
+    "features": 20,
+    "class_distribution": {
+      "-1.0": 4218,
+      "0.0": 3241,
+      "1.0": 4939
+    },
+    "timestamp": "2025-03-14T23:00:17.635216"
+  },
+  "evaluation": {
+    "accuracy": 0.38225806451612904,
+    "precision": 0.39616906154626663,
+    "recall": 0.38225806451612904,
+    "f1": 0.3458626673520382,
+    "timestamp": "2025-03-14T23:00:17.662166",
+    "profit_factor": 0.7081173822457898,
+    "win_rate": 0.3973230010567101,
+    "sharpe_ratio": -2.015186143602144,
+    "max_drawdown": 0.1502036435855807
+  },
+  "saved_at": "2025-03-14T23:00:31.427495"
+}

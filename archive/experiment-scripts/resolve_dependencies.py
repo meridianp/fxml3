@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""
+FXML4 Dependency Resolution Script
+
+This script helps identify and resolve dependency conflicts in requirements.txt
+"""
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+def parse_requirements(filename):
+    """Parse requirements file and extract package names and versions."""
+    requirements = {}
+    
+    with open(filename, 'r') as f:
+        for line_num, line in enumerate(f, 1):
+            line = line.strip()
+            
+            # Skip comments and empty lines
+            if not line or line.startswith('#'):
+                continue
+            
+            # Handle platform-specific requirements
+            if ';' in line:
+                line = line.split(';')[0].strip()
+            
+            # Extract package name and version
+            match = re.match(r'^([a-zA-Z0-9_-]+)([><=!]+.+)?', line)
+            if match:
+                package = match.group(1)
+                version = match.group(2) or ''
+                requirements[package] = {
+                    'version': version,
+                    'line': line_num,
+                    'original': line
+                }
+    
+    return requirements
+
+
+def check_conflicts():
+    """Check for known dependency conflicts."""
+    print("FXML4 Dependency Conflict Resolution")
+    print("=" * 50)
+    
+    # Known conflicts and their solutions
+    conflicts = {
+        'httpx': {
+            'description': 'httpx version conflicts between openai and supabase',
+            'conflicting_packages': ['openai', 'supabase'],
+            'solution': 'Use httpx>=0.24.0,<0.26.0 or remove supabase',
+            'fixed_version': '>=0.24.0,<0.26.0'
+        },
+        'tensorflow': {
+            'description': 'tensorflow can be very large and cause build issues',
+            'conflicting_packages': ['tensorflow', 'tensorflow-macos'],
+            'solution': 'Make tensorflow optional or use lighter alternatives',
+            'fixed_version': 'optional'
+        },
+        'torch': {
+            'description': 'PyTorch is very large and can cause build issues',
+            'conflicting_packages': ['torch'],
+            'solution': 'Make torch optional for basic functionality',
+            'fixed_version': 'optional'
+        }
+    }
+    
+    # Check current requirements
+    req_files = [
+        'requirements.txt',
+        'requirements-resolved.txt',
+        'requirements-stable.txt',
+        'requirements-docker.txt'
+    ]
+    
+    for req_file in req_files:
+        if Path(req_file).exists():
+            print(f"\n📋 Analyzing {req_file}")
+            print("-" * 30)
+            
+            requirements = parse_requirements(req_file)
+            
+            # Check for known conflicts
+            found_conflicts = []
+            for package, conflict_info in conflicts.items():
+                if package in requirements:
+                    print(f"⚠️  Found {package}: {requirements[package]['original']}")
+                    print(f"   Issue: {conflict_info['description']}")
+                    print(f"   Solution: {conflict_info['solution']}")
+                    found_conflicts.append(package)
+            
+            if not found_conflicts:
+                print("✅ No known conflicts found")
+            
+            # Check for duplicate packages
+            duplicates = {}
+            for package in requirements:
+                if package.lower() in duplicates:
+                    print(f"⚠️  Duplicate package: {package}")
+                else:
+                    duplicates[package.lower()] = package
+    
+    print(f"\n🔧 RECOMMENDATIONS")
+    print("-" * 30)
+    print("1. Use requirements-stable.txt for guaranteed builds")
+    print("2. Use requirements-resolved.txt for full features with conflict resolution")
+    print("3. Make heavy ML packages (tensorflow, torch) optional")
+    print("4. Install conflicting packages separately after main build")
+
+
+def create_conflict_free_requirements():
+    """Create a conflict-free requirements file."""
+    print(f"\n🛠️  Creating conflict-free requirements...")
+    
+    core_packages = [
+        "fastapi==0.108.0",
+        "uvicorn==0.25.0", 
+        "numpy>=1.20.0,<2.0.0",
+        "pandas>=1.5.0,<3.0.0",
+        "scikit-learn>=1.2.0,<2.0.0",
+        "python-dotenv==1.0.1",
+        "pyyaml==6.0.2",
+        "requests>=2.25.0,<3.0.0",
+        "streamlit>=1.25.0,<2.0.0",
+        "plotly>=5.14.0,<6.0.0",
+        "matplotlib>=3.5.0,<4.0.0",
+        "pytest>=7.3.1,<8.0.0",
+        "black==24.8.0",
+        "pandas-ta==0.3.14b0",
+        "yfinance>=0.2.18,<1.0.0",
+        "backtesting>=0.3.3,<1.0.0",
+        "SQLAlchemy==2.0.34",
+        "psycopg2-binary>=2.9.6",
+        "pydantic>=2.0.0,<3.0.0"
+    ]
+    
+    with open('requirements-conflict-free.txt', 'w') as f:
+        f.write("# FXML4 Conflict-Free Requirements\n")
+        f.write("# Generated by resolve_dependencies.py\n\n")
+        
+        for package in core_packages:
+            f.write(f"{package}\n")
+        
+        f.write("\n# Optional packages - install separately if needed:\n")
+        f.write("# tensorflow>=2.12.0,<2.16.0\n")
+        f.write("# torch>=2.0.0,<2.2.0\n")
+        f.write("# openai>=1.30.0,<2.0.0\n")
+        f.write("# anthropic>=0.5.0,<1.0.0\n")
+        f.write("# supabase>=2.3.0,<3.0.0\n")
+    
+    print("✅ Created requirements-conflict-free.txt")
+
+
+def test_requirements(filename):
+    """Test if requirements file can be installed."""
+    if not Path(filename).exists():
+        print(f"❌ {filename} not found")
+        return False
+    
+    print(f"\n🧪 Testing {filename} (dry run)...")
+    
+    try:
+        # Use pip to check dependencies without installing
+        result = subprocess.run([
+            sys.executable, '-m', 'pip', 'install', 
+            '--dry-run', '--quiet', '-r', filename
+        ], capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0:
+            print(f"✅ {filename} - No dependency conflicts")
+            return True
+        else:
+            print(f"❌ {filename} - Dependency conflicts found:")
+            if result.stderr:
+                # Extract relevant error info
+                lines = result.stderr.split('\n')
+                for line in lines:
+                    if 'conflict' in line.lower() or 'error' in line.lower():
+                        print(f"   {line}")
+            return False
+    
+    except subprocess.TimeoutExpired:
+        print(f"⏱️  {filename} - Test timed out")
+        return False
+    except Exception as e:
+        print(f"❌ {filename} - Test failed: {e}")
+        return False
+
+
+def main():
+    """Main dependency resolution workflow."""
+    check_conflicts()
+    create_conflict_free_requirements()
+    
+    print(f"\n🧪 TESTING REQUIREMENTS FILES")
+    print("=" * 50)
+    
+    # Test different requirements files
+    files_to_test = [
+        'requirements-conflict-free.txt',
+        'requirements-stable.txt',
+        'requirements-resolved.txt'
+    ]
+    
+    working_files = []
+    for filename in files_to_test:
+        if test_requirements(filename):
+            working_files.append(filename)
+    
+    print(f"\n📋 SUMMARY")
+    print("=" * 50)
+    
+    if working_files:
+        print("✅ Working requirements files:")
+        for filename in working_files:
+            print(f"   - {filename}")
+        print(f"\n💡 Recommended: Use {working_files[0]} for Docker builds")
+    else:
+        print("❌ No conflict-free requirements files found")
+        print("💡 Use requirements-stable.txt as a starting point")
+    
+    print(f"\n🐳 DOCKER BUILD COMMANDS")
+    print("-" * 30)
+    if working_files:
+        best_file = working_files[0]
+        print(f"# Use the conflict-free requirements")
+        print(f"sed -i 's/requirements.txt/{best_file}/' Dockerfile")
+        print(f"docker build -t fxml4:latest .")
+    else:
+        print(f"# Use stable requirements as fallback")
+        print(f"sed -i 's/requirements.txt/requirements-stable.txt/' Dockerfile")
+        print(f"docker build -t fxml4:latest .")
+
+
+if __name__ == "__main__":
+    main()

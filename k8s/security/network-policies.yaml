@@ -1,0 +1,300 @@
+# Network Policies for Production Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fxml4-default-deny-all
+  namespace: fxml4
+  labels:
+    app: fxml4
+    component: security
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Allow API ingress traffic from ingress controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fxml4-api-ingress
+  namespace: fxml4
+  labels:
+    app: fxml4-api
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: fxml4-api
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow ingress controller traffic
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow monitoring from Prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+    # Allow health checks from within namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: fxml4
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# Allow API egress to external database and services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fxml4-api-egress
+  namespace: fxml4
+  labels:
+    app: fxml4-api
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: fxml4-api
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow external database access (PostgreSQL/TimescaleDB)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow Redis access
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow RabbitMQ access
+    - to:
+        - podSelector:
+            matchLabels:
+              app: rabbitmq
+      ports:
+        - protocol: TCP
+          port: 5672
+        - protocol: TCP
+          port: 15672
+    # Allow HTTPS for external API calls (Polygon, OpenAI, etc.)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+    # Allow Interactive Brokers Gateway access
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 4001
+        - protocol: TCP
+          port: 4002
+        - protocol: TCP
+          port: 7496
+        - protocol: TCP
+          port: 7497
+
+---
+# Allow Dashboard ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fxml4-dashboard-ingress
+  namespace: fxml4
+  labels:
+    app: fxml4-dashboard
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: fxml4-dashboard
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow ingress controller traffic
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8501
+    # Allow monitoring from Prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+
+---
+# Allow Worker pods to communicate with necessary services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fxml4-worker-egress
+  namespace: fxml4
+  labels:
+    app: fxml4-worker
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: fxml4-worker
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow external database access
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow Redis access
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow RabbitMQ access
+    - to:
+        - podSelector:
+            matchLabels:
+              app: rabbitmq
+      ports:
+        - protocol: TCP
+          port: 5672
+    # Allow API communication
+    - to:
+        - podSelector:
+            matchLabels:
+              app: fxml4-api
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow HTTPS for external APIs
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Allow RabbitMQ internal communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fxml4-rabbitmq-internal
+  namespace: fxml4
+  labels:
+    app: rabbitmq
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: rabbitmq
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow connections from API and workers
+    - from:
+        - podSelector:
+            matchLabels:
+              app: fxml4-api
+        - podSelector:
+            matchLabels:
+              app: fxml4-worker
+      ports:
+        - protocol: TCP
+          port: 5672
+    # Allow monitoring connections
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 15672
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# Allow Redis internal communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fxml4-redis-internal
+  namespace: fxml4
+  labels:
+    app: redis
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow connections from API and workers
+    - from:
+        - podSelector:
+            matchLabels:
+              app: fxml4-api
+        - podSelector:
+            matchLabels:
+              app: fxml4-worker
+        - podSelector:
+            matchLabels:
+              app: fxml4-dashboard
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow monitoring connections
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 6379

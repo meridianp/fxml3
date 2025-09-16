@@ -1,0 +1,411 @@
+# Database Operations for External PostgreSQL/TimescaleDB
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fxml4-db-backup
+  namespace: fxml4
+  labels:
+    app: fxml4-db-backup
+    component: database
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      completions: 1
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            app: fxml4-db-backup
+            component: database
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  echo "Starting database backup process..."
+
+                  # Create backup directory
+                  mkdir -p /backup/$(date +%Y%m%d)
+
+                  # Database backup with compression
+                  BACKUP_FILE="/backup/$(date +%Y%m%d)/fxml4_backup_$(date +%Y%m%d_%H%M%S).sql.gz"
+
+                  echo "Creating backup: $BACKUP_FILE"
+                  pg_dump \
+                    --host="$FXML4_DATABASE_HOST" \
+                    --port="$FXML4_DATABASE_PORT" \
+                    --username="$FXML4_DATABASE_USER" \
+                    --dbname="$FXML4_DATABASE_NAME" \
+                    --verbose \
+                    --format=custom \
+                    --no-password \
+                    --compress=9 \
+                    --file="$BACKUP_FILE.custom"
+
+                  # Also create SQL dump for easier recovery
+                  pg_dump \
+                    --host="$FXML4_DATABASE_HOST" \
+                    --port="$FXML4_DATABASE_PORT" \
+                    --username="$FXML4_DATABASE_USER" \
+                    --dbname="$FXML4_DATABASE_NAME" \
+                    --verbose \
+                    --no-password | gzip > "$BACKUP_FILE"
+
+                  # Verify backup integrity
+                  echo "Verifying backup integrity..."
+                  pg_restore --list "$BACKUP_FILE.custom" > /dev/null
+
+                  # Get backup size
+                  BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+                  CUSTOM_SIZE=$(du -h "$BACKUP_FILE.custom" | cut -f1)
+
+                  echo "Backup completed successfully:"
+                  echo "  SQL Backup: $BACKUP_FILE ($BACKUP_SIZE)"
+                  echo "  Custom Backup: $BACKUP_FILE.custom ($CUSTOM_SIZE)"
+
+                  # Clean up old backups (keep last 30 days)
+                  find /backup -name "*.sql.gz" -mtime +30 -delete
+                  find /backup -name "*.custom" -mtime +30 -delete
+                  find /backup -type d -empty -delete
+
+                  # Upload to cloud storage (optional)
+                  if [ -n "$AWS_S3_BUCKET" ]; then
+                    echo "Uploading backup to S3..."
+                    aws s3 cp "$BACKUP_FILE" "s3://$AWS_S3_BUCKET/fxml4-backups/$(date +%Y/%m/%d)/"
+                    aws s3 cp "$BACKUP_FILE.custom" "s3://$AWS_S3_BUCKET/fxml4-backups/$(date +%Y/%m/%d)/"
+                  fi
+
+                  echo "Backup process completed successfully"
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: fxml4-secrets
+                      key: database-password
+              envFrom:
+                - configMapRef:
+                    name: fxml4-config
+                - secretRef:
+                    name: fxml4-secrets
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "200m"
+                  ephemeral-storage: "1Gi"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+                  ephemeral-storage: "10Gi"
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: fxml4-backup-pvc
+            - name: tmp
+              emptyDir:
+                sizeLimit: 2Gi
+
+---
+# Backup Storage PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fxml4-backup-pvc
+  namespace: fxml4
+  labels:
+    app: fxml4-backup
+    component: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+
+---
+# Database Health Monitor CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fxml4-db-health-monitor
+  namespace: fxml4
+  labels:
+    app: ftml4-db-health-monitor
+    component: monitoring
+spec:
+  schedule: "*/5 * * * *" # Every 5 minutes
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      completions: 1
+      template:
+        metadata:
+          labels:
+            app: fxml4-db-health-monitor
+            component: monitoring
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+          containers:
+            - name: health-check
+              image: postgres:16-alpine
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  echo "Running database health checks..."
+
+                  # Basic connectivity
+                  echo "Checking connectivity..."
+                  pg_isready -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME"
+
+                  # Connection count check
+                  echo "Checking connection count..."
+                  CONNECTION_COUNT=$(psql -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME" -t -c "SELECT count(*) FROM pg_stat_activity WHERE state = 'active';" | tr -d ' ')
+                  echo "Active connections: $CONNECTION_COUNT"
+
+                  if [ "$CONNECTION_COUNT" -gt 80 ]; then
+                    echo "WARNING: High connection count: $CONNECTION_COUNT"
+                  fi
+
+                  # Database size check
+                  echo "Checking database size..."
+                  DB_SIZE=$(psql -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME" -t -c "SELECT pg_size_pretty(pg_database_size('$FXML4_DATABASE_NAME'));" | tr -d ' ')
+                  echo "Database size: $DB_SIZE"
+
+                  # Table statistics
+                  echo "Checking table statistics..."
+                  psql -h "$FTML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME" -c "
+                  SELECT
+                    schemaname,
+                    tablename,
+                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size,
+                    pg_stat_get_tuples_inserted(c.oid) AS inserts,
+                    pg_stat_get_tuples_updated(c.oid) AS updates,
+                    pg_stat_get_tuples_deleted(c.oid) AS deletes
+                  FROM pg_tables pt
+                  JOIN pg_class c ON c.relname = pt.tablename
+                  WHERE schemaname = 'public'
+                  ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+                  LIMIT 10;
+                  "
+
+                  # TimescaleDB specific checks
+                  echo "Checking TimescaleDB hypertables..."
+                  psql -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME" -c "
+                  SELECT
+                    hypertable_schema,
+                    hypertable_name,
+                    num_dimensions,
+                    num_chunks,
+                    compressed_chunks,
+                    pg_size_pretty(hypertable_size(format('%I.%I', hypertable_schema, hypertable_name)::regclass)) AS size
+                  FROM timescaledb_information.hypertables;
+                  "
+
+                  # Check for long-running queries
+                  echo "Checking for long-running queries..."
+                  psql -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME" -c "
+                  SELECT
+                    pid,
+                    now() - pg_stat_activity.query_start AS duration,
+                    query
+                  FROM pg_stat_activity
+                  WHERE (now() - pg_stat_activity.query_start) > interval '5 minutes'
+                  AND query NOT ILIKE '%pg_stat_activity%'
+                  AND state = 'active';
+                  "
+
+                  # Check replication lag (if applicable)
+                  echo "Checking replication status..."
+                  psql -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME" -c "
+                  SELECT
+                    client_addr,
+                    state,
+                    pg_wal_lsn_diff(pg_current_wal_lsn(), flush_lsn) AS flush_lag,
+                    pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) AS replay_lag
+                  FROM pg_stat_replication;
+                  " || echo "No replication configured"
+
+                  echo "Database health check completed successfully"
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: fxml4-secrets
+                      key: database-password
+              envFrom:
+                - configMapRef:
+                    name: fxml4-config
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "200m"
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 100Mi
+
+---
+# Database Recovery Job (Manual trigger)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fxml4-db-recovery
+  namespace: fxml4
+  labels:
+    app: fxml4-db-recovery
+    component: database
+spec:
+  backoffLimit: 1
+  completions: 1
+  parallelism: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: fxml4-db-recovery
+        component: database
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+      containers:
+        - name: recovery
+          image: postgres:16-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Starting database recovery process..."
+              echo "WARNING: This will restore from the latest backup!"
+              echo "Make sure to stop all application pods before running recovery."
+
+              # Find latest backup
+              LATEST_BACKUP=$(find /backup -name "*.custom" -type f -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+
+              if [ -z "$LATEST_BACKUP" ]; then
+                echo "ERROR: No backup files found in /backup"
+                exit 1
+              fi
+
+              echo "Latest backup found: $LATEST_BACKUP"
+
+              # Verify backup integrity
+              echo "Verifying backup integrity..."
+              pg_restore --list "$LATEST_BACKUP" > /dev/null
+
+              # Create recovery database (temporary)
+              echo "Creating recovery database..."
+              createdb -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" "${FXML4_DATABASE_NAME}_recovery" || true
+
+              # Restore to recovery database
+              echo "Restoring backup to recovery database..."
+              pg_restore \
+                --host="$FXML4_DATABASE_HOST" \
+                --port="$FXML4_DATABASE_PORT" \
+                --username="$FXML4_DATABASE_USER" \
+                --dbname="${FXML4_DATABASE_NAME}_recovery" \
+                --verbose \
+                --no-password \
+                --clean \
+                --if-exists \
+                "$LATEST_BACKUP"
+
+              # Verify recovery
+              echo "Verifying recovery..."
+              TABLE_COUNT=$(psql -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "${FXML4_DATABASE_NAME}_recovery" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d ' ')
+
+              if [ "$TABLE_COUNT" -lt 5 ]; then
+                echo "ERROR: Recovery verification failed - insufficient tables found"
+                exit 1
+              fi
+
+              echo "Recovery verification successful - found $TABLE_COUNT tables"
+              echo "Recovery database created: ${FXML4_DATABASE_NAME}_recovery"
+              echo "Manual intervention required to promote recovery database to production"
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fxml4-secrets
+                  key: database-password
+          envFrom:
+            - configMapRef:
+                name: fxml4-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "300m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: backup-storage
+          persistentVolumeClaim:
+            claimName: fxml4-backup-pvc
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

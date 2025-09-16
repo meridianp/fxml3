@@ -1,0 +1,82 @@
+# Data Infrastructure Services for FXML4
+# Provides robust polygon.io data management with proper dependencies
+
+version: "3.8"
+
+services:
+  # Data Processing Service with all required dependencies
+  polygon-data-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.data-processor
+    container_name: fxml4-data-processor
+    restart: unless-stopped
+    ports:
+      - "8082:8082" # Data API
+    environment:
+      - POLYGON_API_KEY=${POLYGON_API_KEY}
+      - DATA_PATH=/data/polygon
+      - LOG_LEVEL=INFO
+      - PYTHONPATH=/app
+    volumes:
+      - /polygon:/data/polygon:rw # Mount existing polygon storage
+      - ./fxml4:/app/fxml4:ro # Mount FXML4 code
+      - ./config:/app/config:ro # Mount configuration
+      - data-logs:/app/logs
+    networks:
+      - fxml4-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Data Quality Monitor
+  data-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.data-monitor
+    container_name: fxml4-data-monitor
+    restart: unless-stopped
+    ports:
+      - "8083:8083" # Monitoring dashboard
+    environment:
+      - DATA_PATH=/data/polygon
+      - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
+      - CHECK_INTERVAL_MINUTES=15
+    volumes:
+      - /polygon:/data/polygon:ro
+      - data-logs:/app/logs
+    networks:
+      - fxml4-network
+    depends_on:
+      - polygon-data-processor
+
+  # Fresh Data Ingestion Service
+  data-ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile.data-ingestion
+    container_name: fxml4-data-ingestion
+    restart: unless-stopped
+    environment:
+      - POLYGON_API_KEY=${POLYGON_API_KEY}
+      - DATA_PATH=/data/polygon
+      - INGESTION_SCHEDULE=0 */6 * * * # Every 6 hours
+      - SYMBOLS=EURUSD,GBPUSD,USDJPY,AUDUSD,USDCHF,USDCAD,NZDUSD,EURJPY
+    volumes:
+      - /polygon:/data/polygon:rw
+      - data-logs:/app/logs
+    networks:
+      - fxml4-network
+    depends_on:
+      - polygon-data-processor
+
+volumes:
+  data-logs:
+    driver: local
+
+networks:
+  fxml4-network:
+    driver: bridge
+    external: true

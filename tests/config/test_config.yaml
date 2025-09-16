@@ -1,0 +1,103 @@
+# FXML4 Test Configuration
+#
+# This configuration file defines settings for the FXML4 test suite.
+# It can be customized for different testing environments and scenarios.
+
+# Environment settings
+test_env: "test"
+debug_mode: true
+log_level: "WARNING"
+
+# Database settings
+database_host: "localhost"
+database_port: 5433
+database_name: "fxml4_test"
+database_user: "test_user"
+database_password: "test_password"
+
+# API settings
+api_host: "localhost"
+api_port: 8000
+api_timeout: 30
+
+# External service settings
+disable_external_apis: true
+mock_network_calls: true
+
+# Test execution settings
+test_timeout: 300 # 5 minutes
+parallel_workers: 4
+coverage_threshold: 60.0
+
+# Performance settings
+performance_test_iterations: 10
+memory_limit_mb: 512.0
+cpu_timeout_seconds: 60.0
+
+# File paths (relative to project root)
+test_data_dir: "tests/fixtures/data"
+temp_dir: "/tmp/fxml4_tests"
+log_dir: "logs/tests"
+test_model_dir: "tests/fixtures/models"
+
+# Test markers and selection
+default_markers:
+  - "not slow"
+  - "not requires_ib"
+skip_integration: false
+skip_performance: false
+skip_security: false
+
+# API test settings
+test_api_keys:
+  alpha_vantage: "test-key"
+  polygon: "test-key"
+  openai: "test-key"
+  anthropic: "test-key"
+
+# Broker test settings
+mock_brokers: true
+ib_test_account: "TEST_ACCOUNT"
+ib_test_host: "127.0.0.1"
+ib_test_port: 7497
+
+# ML test settings
+mock_ml_training: true
+small_dataset_size: 100
+
+# Environment-specific overrides
+environments:
+  ci:
+    # CI/CD specific settings
+    parallel_workers: 2
+    test_timeout: 600
+    coverage_threshold: 70.0
+    disable_external_apis: true
+    mock_network_calls: true
+    skip_integration: true
+
+  local:
+    # Local development settings
+    debug_mode: true
+    log_level: "DEBUG"
+    parallel_workers: 4
+    test_timeout: 300
+    coverage_threshold: 60.0
+
+  performance:
+    # Performance testing settings
+    test_timeout: 900
+    performance_test_iterations: 100
+    memory_limit_mb: 1024.0
+    parallel_workers: 1
+    default_markers:
+      - "performance"
+
+  integration:
+    # Integration testing settings
+    disable_external_apis: false
+    mock_network_calls: false
+    test_timeout: 600
+    default_markers:
+      - "integration"
+      - "not requires_ib"

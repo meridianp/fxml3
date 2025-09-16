@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fxml4-config
+  namespace: fxml4
+data:
+  # Service Configuration
+  FXML4_ENV: "production"
+  FXML4_LOG_LEVEL: "INFO"
+
+  # API Configuration
+  FXML4_API_HOST: "0.0.0.0"
+  FXML4_API_PORT: "8000"
+  FXML4_API_WORKERS: "4"
+
+  # Dashboard Configuration
+  FXML4_UI_HOST: "0.0.0.0"
+  FXML4_UI_PORT: "8501"
+
+  # Database Configuration (External PostgreSQL)
+  FXML4_DATABASE_HOST: "postgres01.tailb381ec.ts.net"
+  FXML4_DATABASE_PORT: "5432"
+  FXML4_DATABASE_NAME: "fxml4"
+  FXML4_DATABASE_USER: "postgres"
+
+  # Redis Configuration
+  FXML4_REDIS_HOST: "redis"
+  FXML4_REDIS_PORT: "6379"
+  FXML4_REDIS_DB: "0"
+
+  # RabbitMQ Configuration
+  FXML4_RABBITMQ_HOST: "rabbitmq"
+  FXML4_RABBITMQ_PORT: "5672"
+  FXML4_RABBITMQ_VHOST: "/"
+
+  # Trading Configuration
+  FXML4_SYMBOLS: "EURUSD,GBPUSD,USDJPY,USDCHF"
+  FXML4_TIMEFRAMES: "1m,5m,15m,30m,1h,4h,1d"
+  FXML4_DEFAULT_LEVERAGE: "1"
+  FXML4_MAX_LEVERAGE: "100"
+
+  # ML Configuration
+  FXML4_MODEL_PATH: "/app/models"
+  FXML4_FEATURE_CACHE_TTL: "3600"
+
+  # Risk Management
+  FXML4_MAX_POSITION_SIZE: "0.02"
+  FXML4_MAX_DAILY_LOSS: "0.05"
+  FXML4_MAX_OPEN_POSITIONS: "5"
+
+  # Monitoring
+  FXML4_METRICS_ENABLED: "true"
+  FXML4_METRICS_PORT: "9090"

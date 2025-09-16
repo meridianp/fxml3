@@ -1,0 +1,353 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fxml4"
+version = "0.1.0"
+description = "Advanced Forex Trading Platform with ML, Elliott Wave Analysis, and Multi-Broker FIX Integration"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "FXML Team", email = "info@fxml.io"}
+]
+maintainers = [
+    {name = "FXML Team", email = "info@fxml.io"}
+]
+keywords = [
+    "forex",
+    "trading",
+    "machine-learning",
+    "elliott-wave",
+    "fix-protocol",
+    "financial-markets",
+    "algorithmic-trading",
+    "quantitative-finance"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "SQLAlchemy==2.0.34",
+    "aiohttp==3.11.11",
+    "alembic==1.13.2",
+    "anthropic>=0.5.0",
+    "asyncpg==0.29.0",
+    "backtesting>=0.3.3",
+    "ccxt>=3.0.0",
+    "simplefix>=1.0.14",
+    "dash>=2.9.3",
+    "faiss-cpu>=1.7.4",
+    "fastapi==0.108.0",
+    "gcsfs>=2023.6.0",
+    "google-cloud-aiplatform>=1.44.0",
+    "google-cloud-storage>=2.13.0",
+    "gymnasium>=0.28.1",
+    "httpx>=0.24.0,<0.26.0",
+    "huggingface-hub==0.28.0",
+    "joblib==1.4.2",
+    "kaleido>=0.2.1",
+    "kubernetes==29.0.0",
+    "langchain-community>=0.0.1",
+    "langchain>=0.0.267",
+    "matplotlib>=3.5.0",
+    "mlxtend>=0.21.0",
+    "mplfinance>=0.12.9b0",
+    "networkx>=2.7.0",
+    "numpy>=1.20.0",
+    "openai>=1.50.0",
+    "optuna==4.0.0",
+    "pandas>=1.5.0",
+    "pandas_ta==0.3.14b0",
+    "passlib[bcrypt]>=1.7.4",
+    "pika==1.3.2",
+    "pinecone-client>=2.2.4",
+    "plotly>=5.14.0",
+    "psutil==6.1.1",
+    "psycopg2-binary>=2.9.6",
+    "pydantic==2.10.6",
+    "python-dotenv==1.0.1",
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart==0.0.6",
+    "pyyaml==6.0.2",
+    "requests==2.32.3",
+    "rich==13.9.4",
+    "scikeras==0.13.0",
+    "scikit-learn>=1.2.0",
+    "scipy==1.13.1",
+    "seaborn>=0.12.0",
+    "sentence-transformers>=2.2.2",
+    "shap>=0.40.0",
+    "six==1.17.0",
+    "stable-baselines3>=2.0.0",
+    "starlette==0.32.0.post1",
+    "statsmodels==0.14.2",
+    "streamlit>=1.25.0",
+    "tensorflow>=2.12.0,<2.17.0; sys_platform != 'darwin' or platform_machine != 'arm64'",
+    "tensorflow-macos>=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "tiktoken==0.8.0",
+    "tokenizers==0.19.1",
+    "torch>=2.0.0,<2.3.0",
+    "tqdm>=4.64.0",
+    "transformers>=4.30.0",
+    "typing_extensions==4.12.2",
+    "uvicorn==0.25.0",
+    "yfinance>=0.2.18",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black==24.8.0",
+    "flake8==7.1.1",
+    "isort>=5.12.0",
+    "mypy>=1.3.0",
+    "pytest>=7.3.1",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-timeout>=2.1.0",
+    "pre-commit>=3.0.0",
+]
+test = [
+    "pytest>=7.3.1",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-mock>=3.10.0",
+    "pytest-xdist>=3.0.0",
+]
+docs = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=8.5.0",
+    "mkdocstrings[python]>=0.19.0",
+]
+api = [
+    "fastapi==0.108.0",
+    "uvicorn==0.25.0",
+    "python-multipart==0.0.6",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+]
+dashboard = [
+    "streamlit>=1.25.0",
+    "plotly>=5.14.0",
+    "dash>=2.9.3",
+    "kaleido>=0.2.1",
+]
+worker = [
+    "pika==1.3.2",
+    "kubernetes==29.0.0",
+    "psutil==6.1.1",
+]
+training = [
+    "optuna==4.0.0",
+    "scikeras==0.13.0",
+    "stable-baselines3>=2.0.0",
+    "tensorflow>=2.12.0,<2.17.0",
+    "torch>=2.0.0,<2.3.0",
+    "google-cloud-aiplatform>=1.44.0",
+]
+inference = [
+    "tensorflow>=2.12.0,<2.17.0",
+    "torch>=2.0.0,<2.3.0",
+    "transformers>=4.30.0",
+    "sentence-transformers>=2.2.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/fxml/fxml4"
+Documentation = "https://fxml4.readthedocs.io"
+Repository = "https://github.com/fxml/fxml4"
+"Bug Tracker" = "https://github.com/fxml/fxml4/issues"
+
+[project.scripts]
+fxml4 = "fxml4.main:main"
+fxml4-api = "fxml4.api.main:main"
+fxml4-broker = "fxml4.brokers.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fxml4*"]
+exclude = ["tests*", "scripts*", "docs*", "archive*"]
+
+[tool.setuptools.package-data]
+fxml4 = [
+    "config/*.yaml",
+    "config/*.yml",
+    "templates/*.html",
+    "static/**/*",
+    "api/static/**/*",
+]
+
+# Black code formatting
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | archive
+  | legacy
+)/
+'''
+
+# isort import sorting
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["fxml4"]
+skip_glob = ["archive/*", "legacy/*"]
+
+# MyPy type checking
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+exclude = [
+    "archive/",
+    "legacy/",
+    "scripts/",
+    "tests/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "ccxt.*",
+    "simplefix.*",
+    "pandas_ta.*",
+    "backtesting.*",
+    "mplfinance.*",
+    "pinecone.*",
+    "faiss.*",
+    "pika.*",
+    "stable_baselines3.*",
+]
+ignore_missing_imports = true
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["fxml4"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/archive/*",
+    "*/legacy/*",
+    "*/scripts/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == \\\"__main__\\\":",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+# Pytest configuration
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--tb=short",
+    "--durations=10",
+    "--cov=fxml4",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-fail-under=60",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+timeout = 300
+timeout_method = "thread"
+markers = [
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (slower, require services)",
+    "slow: Slow tests (may take several seconds)",
+    "fast: Fast tests (complete in milliseconds)",
+    "requires_ib: Tests requiring Interactive Brokers connection",
+    "requires_db: Tests requiring database connection",
+    "requires_api: Tests requiring API server",
+    "requires_network: Tests requiring network access",
+    "security: Security-related tests",
+    "performance: Performance and benchmarking tests",
+    "auth: Authentication and authorization tests",
+    "database: Database-related tests",
+    "ml: Machine learning tests",
+    "wave: Elliott Wave analysis tests",
+    "backtesting: Backtesting framework tests",
+    "api: API endpoint tests",
+    "stress: Stress tests (high resource usage)",
+    "compliance: Compliance and regulatory tests",
+    "broker: Broker integration tests",
+    "fix: FIX protocol tests",
+    "risk: Risk management tests",
+    "data: Data processing tests",
+    "feature: Feature engineering tests",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::ImportWarning",
+]
+
+# Flake8 linting (for tools that don't support pyproject.toml)
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+    ".venv",
+    ".tox",
+    "archive",
+    "legacy",
+]

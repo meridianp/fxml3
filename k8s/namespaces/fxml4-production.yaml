@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fxml4-production
+  labels:
+    name: fxml4-production
+    environment: production
+    project: fxml4-trading-platform
+    version: v1.0.0
+  annotations:
+    description: "FXML4 Production Trading Platform Namespace"
+    owner: "FXML4 Trading Team"
+    contact: "fxml4-ops@trading.local"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fxml4-monitoring
+  labels:
+    name: fxml4-monitoring
+    environment: production
+    project: fxml4-monitoring
+    component: observability
+  annotations:
+    description: "FXML4 Monitoring and Observability Namespace"
+    owner: "FXML4 SRE Team"
+    contact: "fxml4-sre@trading.local"

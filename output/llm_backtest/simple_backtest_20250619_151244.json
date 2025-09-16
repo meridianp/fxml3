@@ -1,0 +1,51 @@
+{
+  "config": {
+    "symbol": "GBPUSD",
+    "start_date": "2024-01-01T00:00:00",
+    "end_date": "2024-12-31T00:00:00",
+    "timeframes": [
+      "15m",
+      "1H",
+      "4H",
+      "D"
+    ]
+  },
+  "results": {
+    "total_signals": 5,
+    "accepted_signals": 3,
+    "rejection_rate": 0.4,
+    "total_trades": 3,
+    "winning_trades": 1,
+    "losing_trades": 2,
+    "total_pnl": -11.614098735057667,
+    "final_capital": 99988.38590126493,
+    "total_return": -0.00011614098735066364,
+    "avg_llm_confidence": 0.6744
+  },
+  "trades": [
+    {
+      "timestamp": "2024-02-13T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.26011,
+      "exit_price": 1.27011,
+      "pnl": 75.35815127250802,
+      "llm_confidence": 0.707
+    },
+    {
+      "timestamp": "2024-04-05T08:00:00",
+      "direction": "BUY",
+      "entry_price": 1.26321,
+      "exit_price": 1.25821,
+      "pnl": -43.581700588183224,
+      "llm_confidence": 0.75
+    },
+    {
+      "timestamp": "2024-07-03T04:00:00",
+      "direction": "BUY",
+      "entry_price": 1.26934,
+      "exit_price": 1.26434,
+      "pnl": -43.39054941938247,
+      "llm_confidence": 0.63
+    }
+  ]
+}

@@ -1,0 +1,453 @@
+# Test Environment Configuration
+# ==============================
+#
+# This file defines environment configurations for different test scenarios:
+# - unit: Fast, isolated tests with mocked dependencies
+# - integration: Component interaction tests with test databases
+# - e2e: Full system tests with staging infrastructure
+# - performance: Load and stress testing environment
+
+environments:
+  # Unit Test Environment
+  # ---------------------
+  # Fastest execution, no external dependencies
+  unit:
+    database:
+      url: "sqlite:///:memory:"
+      pool_size: 1
+      echo: false
+
+    redis:
+      url: "fakeredis://"
+      decode_responses: true
+
+    rabbitmq:
+      url: "memory://"
+      exchange: "test_exchange"
+
+    ml_models:
+      type: "mock"
+      cache_enabled: false
+      model_path: "tests/fixtures/models/mock"
+
+    brokers:
+      type: "mock"
+      adapters:
+        - name: "MockIB"
+          enabled: true
+          latency_ms: 0
+        - name: "MockFXCM"
+          enabled: true
+          latency_ms: 0
+
+    features:
+      async_enabled: false
+      rate_limiting: false
+      authentication: false
+      audit_logging: false
+
+    timeouts:
+      default: 1
+      database: 1
+      broker: 1
+      ml_inference: 1
+
+  # Integration Test Environment
+  # ---------------------------
+  # Tests component interactions with real databases
+  integration:
+    database:
+      url: "postgresql://fxml4_test:test_password@localhost:5433/fxml4_test"  # pragma: allowlist secret
+      pool_size: 5
+      pool_pre_ping: true
+      echo: false
+
+    timescale:
+      enabled: true
+      hypertables:
+        - market_data
+        - features
+      continuous_aggregates:
+        - market_data_1h
+        - market_data_4h
+
+    redis:
+      url: "redis://localhost:6380/0"
+      decode_responses: true
+      max_connections: 10
+
+    rabbitmq:
+      url: "amqp://guest:guest@localhost:5673/"  # pragma: allowlist secret
+      exchange: "test_exchange"
+      durable: false
+      auto_delete: true
+
+    ml_models:
+      type: "cached"
+      cache_enabled: true
+      model_path: "tests/fixtures/models/trained"
+      cache_ttl: 300
+
+    brokers:
+      type: "sandbox"
+      adapters:
+        - name: "IB_Paper"
+          enabled: true
+          host: "127.0.0.1"
+          port: 7497
+          client_id: 999
+        - name: "FXCM_Demo"
+          enabled: true
+          connection: "Demo"
+
+    features:
+      async_enabled: true
+      rate_limiting: true
+      authentication: true
+      audit_logging: true
+
+    timeouts:
+      default: 5
+      database: 3
+      broker: 5
+      ml_inference: 2
+
+    cleanup:
+      after_each: true
+      truncate_tables:
+        - trades
+        - orders
+        - signals
+        - audit_logs
+
+  # End-to-End Test Environment
+  # --------------------------
+  # Full system tests with staging infrastructure
+  e2e:
+    database:
+      url: "${E2E_DATABASE_URL:-postgresql://fxml4:password@staging-db:5432/fxml4_staging}"  # pragma: allowlist secret
+      pool_size: 10
+      pool_pre_ping: true
+      echo: false
+
+    timescale:
+      enabled: true
+      host: "staging-timescale"
+      port: 5433
+      database: "fxml4_staging"
+      hypertables:
+        - market_data
+        - features
+        - signals
+      continuous_aggregates:
+        - market_data_1m
+        - market_data_5m
+        - market_data_1h
+        - market_data_4h
+        - market_data_1d
+
+    redis:
+      url: "${E2E_REDIS_URL:-redis://staging-redis:6379/0}"
+      decode_responses: true
+      max_connections: 50
+      sentinel:
+        enabled: false
+        master_name: "mymaster"
+        sentinels:
+          - host: "sentinel1"
+            port: 26379
+          - host: "sentinel2"
+            port: 26379
+
+    rabbitmq:
+      url: "${E2E_RABBITMQ_URL:-amqp://fxml4:password@staging-rabbitmq:5672/}"  # pragma: allowlist secret
+      exchange: "fxml4_staging"
+      durable: true
+      auto_delete: false
+      queues:
+        - name: "orders"
+          routing_key: "orders.*"
+        - name: "signals"
+          routing_key: "signals.*"
+        - name: "risk"
+          routing_key: "risk.*"
+
+    ml_models:
+      type: "production"
+      cache_enabled: true
+      model_path: "s3://fxml4-models/staging/"
+      cache_ttl: 600
+      fallback_enabled: true
+
+    brokers:
+      type: "paper_trading"
+      adapters:
+        - name: "IB_Paper"
+          enabled: true
+          host: "staging-ib-gateway"
+          port: 4002
+          client_id: 1
+        - name: "FXCM_Demo"
+          enabled: true
+          url: "http://staging-fxcm-api"
+          connection: "Demo"
+        - name: "Manual"
+          enabled: true
+          auto_confirm: false
+
+    elasticsearch:
+      enabled: true
+      url: "http://staging-elasticsearch:9200"
+      index_prefix: "fxml4_staging"
+
+    monitoring:
+      prometheus:
+        enabled: true
+        pushgateway: "http://staging-pushgateway:9091"
+
+      grafana:
+        enabled: true
+        url: "http://staging-grafana:3000"
+
+    features:
+      async_enabled: true
+      rate_limiting: true
+      authentication: true
+      audit_logging: true
+      websocket_enabled: true
+      circuit_breakers: true
+
+    security:
+      jwt_secret: "${E2E_JWT_SECRET:-test_jwt_secret_key_for_e2e}"
+      encryption_key: "${E2E_ENCRYPTION_KEY:-test_encryption_key}"
+      tls_enabled: true
+      tls_cert: "/certs/staging.crt"
+      tls_key: "/certs/staging.key"
+
+    timeouts:
+      default: 30
+      database: 10
+      broker: 15
+      ml_inference: 5
+      websocket: 60
+
+    data_setup:
+      seed_data: true
+      historical_data:
+        symbols: ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD"]
+        periods: 1000
+        timeframes: ["1h", "4h", "1d"]
+
+      test_accounts:
+        - account_id: "TEST_001"
+          balance: 1000000
+          currency: "USD"
+        - account_id: "TEST_002"
+          balance: 500000
+          currency: "EUR"
+
+  # Performance Test Environment
+  # ---------------------------
+  # Load and stress testing configuration
+  performance:
+    database:
+      url: "${PERF_DATABASE_URL:-postgresql://fxml4:password@perf-db:5432/fxml4_perf}"  # pragma: allowlist secret
+      pool_size: 50
+      pool_pre_ping: true
+      echo: false
+      pool_recycle: 3600
+
+    timescale:
+      enabled: true
+      host: "perf-timescale"
+      port: 5433
+      database: "fxml4_perf"
+      chunk_time_interval: "1 hour"
+      compression:
+        enabled: true
+        after: "1 day"
+
+    redis:
+      url: "${PERF_REDIS_URL:-redis://perf-redis:6379/0}"
+      decode_responses: true
+      max_connections: 200
+      cluster:
+        enabled: true
+        nodes:
+          - "redis-node1:7000"
+          - "redis-node2:7000"
+          - "redis-node3:7000"
+
+    rabbitmq:
+      url: "${PERF_RABBITMQ_URL:-amqp://fxml4:password@perf-rabbitmq:5672/}"  # pragma: allowlist secret
+      exchange: "fxml4_perf"
+      durable: true
+      prefetch_count: 100
+      cluster:
+        enabled: true
+        nodes:
+          - "rabbit1"
+          - "rabbit2"
+          - "rabbit3"
+
+    ml_models:
+      type: "production"
+      cache_enabled: true
+      model_path: "s3://fxml4-models/performance/"
+      cache_ttl: 3600
+      parallel_inference: true
+      batch_size: 100
+
+    brokers:
+      type: "simulated"
+      adapters:
+        - name: "SimulatedIB"
+          enabled: true
+          max_orders_per_second: 100
+          latency_ms: 10
+          jitter_ms: 5
+        - name: "SimulatedFXCM"
+          enabled: true
+          max_orders_per_second: 50
+          latency_ms: 20
+          jitter_ms: 10
+
+    load_testing:
+      locust:
+        enabled: true
+        host: "http://perf-api:8000"
+        users: 1000
+        spawn_rate: 10
+        run_time: "30m"
+
+      k6:
+        enabled: true
+        script: "tests/performance/k6_script.js"
+        vus: 100
+        duration: "10m"
+
+    stress_testing:
+      max_concurrent_orders: 10000
+      max_websocket_connections: 50000
+      max_database_connections: 500
+
+    features:
+      async_enabled: true
+      rate_limiting: true
+      authentication: true
+      audit_logging: false  # Disabled for performance
+      websocket_enabled: true
+      circuit_breakers: true
+      caching:
+        aggressive: true
+        ttl: 300
+
+    monitoring:
+      prometheus:
+        enabled: true
+        scrape_interval: "5s"
+        retention: "7d"
+
+      grafana:
+        enabled: true
+        dashboards:
+          - "API Performance"
+          - "Database Performance"
+          - "Broker Latency"
+          - "ML Inference"
+
+      jaeger:
+        enabled: true
+        sampling_rate: 0.01
+
+    timeouts:
+      default: 60
+      database: 30
+      broker: 30
+      ml_inference: 10
+      websocket: 120
+
+    resource_limits:
+      cpu:
+        request: "4"
+        limit: "8"
+      memory:
+        request: "8Gi"
+        limit: "16Gi"
+
+    autoscaling:
+      enabled: true
+      min_replicas: 2
+      max_replicas: 10
+      target_cpu: 70
+      target_memory: 80
+
+# Test Data Configuration
+# -----------------------
+test_data:
+  market_data:
+    source: "fixtures"
+    path: "tests/fixtures/data/market_data.parquet"
+
+  reference_data:
+    symbols:
+      - symbol: "EURUSD"
+        pip_size: 0.0001
+        min_lot: 1000
+        max_lot: 10000000
+      - symbol: "GBPUSD"
+        pip_size: 0.0001
+        min_lot: 1000
+        max_lot: 10000000
+      - symbol: "USDJPY"
+        pip_size: 0.01
+        min_lot: 1000
+        max_lot: 10000000
+
+  test_users:
+    - username: "test_trader"
+      password: "test_password"  # pragma: allowlist secret
+      role: "trader"
+      permissions: ["trade", "view"]
+    - username: "test_admin"
+      password: "admin_password"  # pragma: allowlist secret
+      role: "admin"
+      permissions: ["trade", "view", "configure", "audit"]
+    - username: "test_viewer"
+      password: "viewer_password"  # pragma: allowlist secret
+      role: "viewer"
+      permissions: ["view"]
+
+# Environment Selection
+# --------------------
+# Set via environment variable: TEST_ENV=unit|integration|e2e|performance
+# Default: unit
+default_environment: "${TEST_ENV:-unit}"
+
+# Global Test Settings
+# -------------------
+global:
+  verbose: "${TEST_VERBOSE:-false}"
+  parallel: "${TEST_PARALLEL:-true}"
+  fail_fast: "${TEST_FAIL_FAST:-false}"
+  coverage:
+    enabled: "${TEST_COVERAGE:-true}"
+    threshold: 85
+    report_format: "html"
+
+  logging:
+    level: "${TEST_LOG_LEVEL:-WARNING}"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: "tests/logs/test.log"
+
+  fixtures:
+    auto_use:
+      - "database_cleanup"
+      - "redis_cleanup"
+      - "event_loop"
+
+  markers:
+    slow: "timeout=60"
+    requires_db: "timeout=30"
+    requires_broker: "timeout=30"
+    stress: "timeout=300"

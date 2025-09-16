@@ -1,0 +1,38 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "BUY",
+    "confidence": 0.75,
+    "entry_price": 1.354374869088692,
+    "stop_loss": 1.350374869088692,
+    "take_profit": 1.362374869088692,
+    "timeframe": "4H",
+    "timestamp": "2025-06-09 16:00:00",
+    "reason": "Price bounce from support"
+  },
+  "validation": {
+    "valid": true,
+    "llm_confidence": 0.85,
+    "visual_patterns": [
+      "Ascending Channel"
+    ],
+    "key_observations": [
+      "Price is near the 20-bar high, indicating potential resistance.",
+      "RSI is above 70, suggesting overbought conditions.",
+      "Bollinger Bands show price is in the upper band, indicating strong upward pressure."
+    ],
+    "concerns": [
+      "RSI indicates potential overbought condition.",
+      "No clear MACD signal to confirm trend."
+    ],
+    "suggested_adjustments": [
+      "Consider a tighter stop loss due to overbought RSI."
+    ],
+    "pattern_clarity": 0.9,
+    "overall_assessment": "The buy signal is supported by an ascending channel pattern and strong upward momentum, though high RSI suggests caution. Ensure stop loss is managed carefully.",
+    "validation_timestamp": "2025-06-19 13:58:40.549707",
+    "chart_timeframe": "4H",
+    "symbol": "GBPUSD",
+    "enhanced_confidence": 0.9185
+  }
+}

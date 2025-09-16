@@ -1,0 +1,17 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Code Style and Consistency
+
+---
+description: Code Style and Consistency
+globs:
+  - "src/**/*.py"
+alwaysApply: true
+---
+
+- Follow the Google Python Style Guide.
+- Use type hints in every function; enforce them with mypy.
+- Run Black, isort, and flake8 (or pylint) via pre-commit hooks to maintain a consistent style.

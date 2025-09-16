@@ -1,0 +1,21 @@
+{
+  "total_trades": 607,
+  "win_rate": 0.5205930807248764,
+  "avg_win": 19.004877436770837,
+  "avg_loss": -18.439397942934395,
+  "profit_factor": 1.1269575982770939,
+  "total_return": 0.006765552645115676,
+  "sharpe_ratio": 1.0756172992828148,
+  "max_drawdown": -0.008008468861127143,
+  "avg_holding_hours": 25.482701812191102,
+  "trades_per_day": 4.6513409961685825,
+  "exit_reasons": {
+    "signal_reversal": 281,
+    "max_time": 157,
+    "momentum_exit": 74,
+    "stop_loss": 65,
+    "take_profit": 24,
+    "dynamic_target": 3,
+    "end_of_test": 3
+  }
+}

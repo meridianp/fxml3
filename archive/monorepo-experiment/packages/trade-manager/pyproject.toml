@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "fxml4-trade-manager"
+version = "0.1.0"
+description = "Trade management service for fxml4"
+authors = ["cnross <cnross@example.com>"]
+readme = "README.md"
+packages = [
+  { include = "fxml4_trade_manager", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fxml4-core = { path = "../core", develop = true }
+asyncio = "*"
+aioredis = "^2.0"
+asyncpg = "^0.27"
+pydantic = "^1.10"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0"
+pytest-asyncio = "^0.20"
+pytest-cov = "^4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

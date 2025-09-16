@@ -1,0 +1,69 @@
+# FXML4 UI Kubernetes ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fxml4-ui-config
+  namespace: fxml4-ui
+  labels:
+    app.kubernetes.io/name: fxml4-ui
+    app.kubernetes.io/component: frontend
+data:
+  # API Configuration
+  api-url: "https://api.fxml4.com"
+  ws-url: "wss://ws.fxml4.com"
+
+  # Application Settings
+  environment: "production"
+  log-level: "warn"
+
+  # Performance Settings
+  enable-performance-monitoring: "true"
+  performance-sample-rate: "0.1"
+
+  # Feature Flags
+  enable-analytics: "true"
+  enable-error-reporting: "true"
+  enable-realtime-updates: "true"
+
+  # Cache Configuration
+  cache-ttl: "3600"
+
+  # Security Settings
+  csp-nonce: "auto"
+  secure-cookies: "true"
+
+  # Nginx Configuration
+  nginx.conf: |
+    upstream fxml4_ui {
+        server 127.0.0.1:3000;
+        keepalive 32;
+    }
+
+    server {
+        listen 8080;
+        server_name _;
+
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        location / {
+            proxy_pass http://fxml4_ui;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        location /_next/static/ {
+            proxy_pass http://fxml4_ui;
+            proxy_cache_valid 200 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }

@@ -1,0 +1,72 @@
+# FXML4: Advanced Forex Trading Platform
+# Improved multi-stage build with better dependency handling
+
+# Build stage
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    pkg-config \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Upgrade pip first
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools
+
+# Copy requirements files
+COPY requirements-docker.txt requirements-minimal.txt ./
+
+# Install minimal requirements first, then optional ones
+RUN pip install --no-cache-dir -r requirements-minimal.txt || \
+    (echo "Minimal requirements failed, continuing with core packages" && \
+     pip install --no-cache-dir numpy pandas fastapi uvicorn python-dotenv pyyaml scikit-learn streamlit pytest)
+
+# Try to install additional packages from docker requirements
+RUN pip install --no-cache-dir -r requirements-docker.txt || \
+    echo "Some optional packages failed to install, continuing with available packages"
+
+# Runtime stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p logs data output
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+
+# Expose ports for API and dashboard
+EXPOSE 8000 8501
+
+# Default command (can be overridden)
+CMD ["python", "-m", "fxml4.main"]

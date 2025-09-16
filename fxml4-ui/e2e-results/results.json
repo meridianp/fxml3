@@ -1,0 +1,394 @@
+{
+  "config": {
+    "configFile": "/home/cnross/code/fxml4/fxml4-ui/playwright.config.ts",
+    "rootDir": "/home/cnross/code/fxml4/fxml4-ui/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "e2e-results"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "e2e-results/results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "e2e-results/results.xml"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/cnross/code/fxml4/fxml4-ui/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/cnross/code/fxml4/fxml4-ui/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 3,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "07-functional-reality-check.spec.ts",
+      "file": "07-functional-reality-check.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "7. FUNCTIONAL REALITY CHECK",
+          "file": "07-functional-reality-check.spec.ts",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Dashboard shows REAL data vs mock placeholders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7415,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "=== DASHBOARD REALITY CHECK ===\n"
+                        },
+                        {
+                          "text": "⚠ Found placeholder: \"John Doe\"\n"
+                        },
+                        {
+                          "text": "Found 4 metric cards\n"
+                        },
+                        {
+                          "text": "⚠ Suspicious static data in metric 1: \"Active Models12+2...\"\n"
+                        },
+                        {
+                          "text": "⚠ Suspicious static data in metric 2: \"Running Backtests30...\"\n"
+                        },
+                        {
+                          "text": "⚠ Suspicious static data in metric 3: \"Open Positions5-1...\"\n"
+                        },
+                        {
+                          "text": "⚠ Suspicious static data in metric 4: \"Total P&L+$2,847+$127...\"\n"
+                        },
+                        {
+                          "text": "Testing for real-time updates...\n"
+                        },
+                        {
+                          "text": "Real-time updates detected: false\n"
+                        },
+                        {
+                          "text": "Placeholder patterns found: 1\n"
+                        },
+                        {
+                          "text": "Specific placeholders: John Doe\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-29T13:50:45.824Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f8bc23cdd1f72cb42c58-1aeef75d1ba993327388",
+              "file": "07-functional-reality-check.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "Market data shows LIVE prices vs static mockups",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1803,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "=== MARKET DATA REALITY CHECK ===\n"
+                        },
+                        {
+                          "text": "Found 1 data tables\n"
+                        },
+                        {
+                          "text": "Bid/Ask elements found: 17\n"
+                        },
+                        {
+                          "text": "Total prices found: 0\n"
+                        },
+                        {
+                          "text": "Unique prices: 0\n"
+                        },
+                        {
+                          "text": "Uniqueness ratio: NaN (should be close to 1.0 for real data)\n"
+                        },
+                        {
+                          "text": "Realistic forex prices found: 0\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-29T13:50:53.438Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f8bc23cdd1f72cb42c58-35b6751bb89b38c69cc1",
+              "file": "07-functional-reality-check.spec.ts",
+              "line": 67,
+              "column": 7
+            },
+            {
+              "title": "Trading console shows REAL account data vs placeholder values",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1794,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "=== TRADING CONSOLE REALITY CHECK ===\n"
+                        },
+                        {
+                          "text": "Balance elements found: 12\n"
+                        },
+                        {
+                          "text": "⚠ Found suspicious account value: 10000\n"
+                        },
+                        {
+                          "text": "Trading form exists: true\n"
+                        },
+                        {
+                          "text": "✓ Trading form has symbol selection\n"
+                        },
+                        {
+                          "text": "Quantity input - placeholder: \"null\", value: \"10000\"\n"
+                        },
+                        {
+                          "text": "Position tables found: 0\n"
+                        },
+                        {
+                          "text": "Order tables found: 0\n"
+                        },
+                        {
+                          "text": "Suspicious account values: 1\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-29T13:50:55.264Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f8bc23cdd1f72cb42c58-f9391e32a18122f324ce",
+              "file": "07-functional-reality-check.spec.ts",
+              "line": 130,
+              "column": 7
+            },
+            {
+              "title": "API connectivity and backend integration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1365,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "=== BACKEND CONNECTIVITY CHECK ===\n"
+                        },
+                        {
+                          "text": "Total requests: 40\n"
+                        },
+                        {
+                          "text": "API calls: 0\n"
+                        },
+                        {
+                          "text": "Successful responses: 40\n"
+                        },
+                        {
+                          "text": "Error responses: 0\n"
+                        },
+                        {
+                          "text": "LocalStorage contents: []\n"
+                        },
+                        {
+                          "text": "Has authentication data: false\n"
+                        },
+                        {
+                          "text": "⚠ NO API CALLS DETECTED - Platform may be purely static\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-29T13:50:57.075Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f8bc23cdd1f72cb42c58-f613e6bb882671c02dcc",
+              "file": "07-functional-reality-check.spec.ts",
+              "line": 195,
+              "column": 7
+            },
+            {
+              "title": "ML and advanced features functionality check",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4561,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "=== ML FEATURES REALITY CHECK ===\n"
+                        },
+                        {
+                          "text": "ML/Training elements found: 40\n"
+                        },
+                        {
+                          "text": "Backtesting elements found: 37\n"
+                        },
+                        {
+                          "text": "Charts/visualizations found: 30\n"
+                        },
+                        {
+                          "text": "Signal-related elements found: 28\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-29T13:50:58.458Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f8bc23cdd1f72cb42c58-a2d5e2675fe02348444d",
+              "file": "07-functional-reality-check.spec.ts",
+              "line": 265,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-08-29T13:50:44.817Z",
+    "duration": 18290.269,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

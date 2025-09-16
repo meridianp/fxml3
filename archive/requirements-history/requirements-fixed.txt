@@ -1,0 +1,122 @@
+# Requirements for FXML4 - Fixed version for Docker build
+# Core dependencies for trading platform
+
+# Database and ORM
+SQLAlchemy==2.0.34
+alembic==1.13.2
+asyncpg==0.29.0
+psycopg2-binary>=2.9.6
+
+# Web framework and API
+fastapi==0.108.0
+uvicorn==0.25.0
+starlette==0.32.0.post1
+aiohttp==3.11.11
+httpx==0.27.2
+python-multipart==0.0.6
+
+# Data science and ML (core)
+numpy>=1.20.0
+pandas>=1.5.0
+scikit-learn>=1.2.0
+scipy==1.13.1
+joblib==1.4.2
+
+# Technical analysis
+pandas-ta==0.3.14b0
+# Note: boruta_py removed due to availability issues - can be replaced with sklearn feature selection
+
+# Visualization
+matplotlib>=3.5.0
+plotly>=5.14.0
+seaborn>=0.12.0
+# kaleido>=0.2.1  # Commented out due to potential build issues
+
+# Dashboard and UI
+streamlit>=1.25.0
+dash>=2.9.3
+
+# Configuration and environment
+python-dotenv==1.0.1
+pyyaml==6.0.2
+rich==13.9.4
+
+# Testing and development
+pytest>=7.3.1
+black==24.8.0
+flake8==7.1.1
+mypy>=1.3.0
+isort>=5.12.0
+
+# Backtesting
+backtesting>=0.3.3
+
+# Authentication and security
+passlib[bcrypt]>=1.7.4
+python-jose>=3.3.0
+
+# AI and LLM (optional - can be installed separately)
+# anthropic>=0.5.0
+# openai==1.60.2
+# langchain>=0.0.267
+# langchain-community>=0.0.1
+# sentence-transformers>=2.2.2
+# tiktoken==0.8.0
+# transformers>=4.30.0
+# tokenizers==0.19.1
+
+# ML optimization (optional)
+optuna==4.0.0
+# shap>=0.40.0  # Commented out due to potential dependency conflicts
+
+# Cloud and storage (optional)
+# google-cloud-aiplatform>=1.44.0
+# google-cloud-storage>=2.13.0
+# gcsfs>=2023.6.0
+
+# Financial data
+yfinance>=0.2.18
+# ccxt>=3.0.0  # Commented out due to potential build issues
+
+# Utilities
+requests==2.32.3
+tqdm>=4.64.0
+psutil==6.1.1
+six==1.17.0
+typing_extensions==4.12.2
+networkx>=2.7.0
+
+# Database integration
+# supabase==2.3.1  # Commented out to reduce dependencies
+
+# Reinforcement learning (optional)
+# gymnasium>=0.28.1
+# stable-baselines3>=2.0.0
+
+# Vector search (optional)
+# faiss-cpu>=1.7.4
+# pinecone-client>=2.2.4
+
+# Deep learning (optional - heavy dependencies)
+# tensorflow>=2.12.0,<2.17.0 ; sys_platform != 'darwin' or platform_machine != 'arm64'
+# tensorflow-macos>=2.12.0 ; sys_platform == 'darwin' and platform_machine == 'arm64'
+# torch>=2.0.0,<2.3.0
+
+# Kubernetes (optional)
+# kubernetes==29.0.0
+
+# Statistics
+statsmodels==0.14.2
+
+# Data validation
+pydantic==2.10.6
+
+# Extended ML utilities (optional)
+# mlxtend>=0.21.0
+# scikeras==0.13.0
+
+# Finance-specific charting
+# mplfinance>=0.12.9b0  # Commented out due to potential version conflicts
+
+# GUI toolkit (optional)
+tabulate

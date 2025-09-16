@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FXML4 - Broker Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f1419;
+            color: #e6e6e6;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .header h1 {
+            color: #63b3ed;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .header .subtitle {
+            color: #a0aec0;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            height: calc(100vh - 120px);
+        }
+
+        .system-health {
+            grid-column: 1 / -1;
+            background: #1a202c;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #2d3748;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .metric-card {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid #4a5568;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .adapters-section, .orders-section {
+            background: #1a202c;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #2d3748;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #63b3ed;
+            font-weight: 600;
+        }
+
+        .adapter-card {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+
+        .adapter-card.connected {
+            border-left-color: #48bb78;
+        }
+
+        .adapter-card.disconnected {
+            border-left-color: #f56565;
+        }
+
+        .adapter-card.connecting {
+            border-left-color: #ed8936;
+        }
+
+        .adapter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .adapter-name {
+            font-weight: 600;
+            color: #e6e6e6;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-connected {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .status-disconnected {
+            background-color: #f56565;
+            color: white;
+        }
+
+        .status-connecting {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .adapter-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .adapter-metric {
+            text-align: center;
+            padding: 0.5rem;
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        .adapter-metric-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .adapter-metric-label {
+            font-size: 0.8rem;
+            color: #a0aec0;
+        }
+
+        .system-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .system-status.healthy {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .system-status.degraded {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .system-status.critical {
+            background-color: #f56565;
+            color: white;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        .refresh-button {
+            background: #63b3ed;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            float: right;
+            margin-top: -3rem;
+        }
+
+        .refresh-button:hover {
+            background: #4299e1;
+        }
+
+        .refresh-button:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #a0aec0;
+        }
+
+        .error {
+            background: #f56565;
+            color: white;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .log-entry {
+            background: #2d3748;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-entry.INFO {
+            border-left-color: #63b3ed;
+        }
+
+        .log-entry.WARNING {
+            border-left-color: #ed8936;
+        }
+
+        .log-entry.ERROR {
+            border-left-color: #f56565;
+        }
+
+        .log-timestamp {
+            color: #a0aec0;
+            font-size: 0.8rem;
+        }
+
+        .log-level {
+            font-weight: bold;
+            margin: 0 0.5rem;
+        }
+
+        .auto-refresh {
+            position: fixed;
+            top: 1rem;
+            right: 2rem;
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            color: #e6e6e6;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .auto-refresh input {
+            margin-right: 0.5rem;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulsing {
+            animation: pulse 2s infinite;
+        }
+
+        .timestamp {
+            color: #a0aec0;
+            font-size: 0.8rem;
+            float: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>FXML4 Broker Monitoring Dashboard</h1>
+        <div class="subtitle">Real-time monitoring of broker adapters, risk management, and system health</div>
+        <div class="timestamp">Last updated: <span id="lastUpdate">Loading...</span></div>
+    </div>
+
+    <div class="auto-refresh">
+        <input type="checkbox" id="autoRefresh" checked>
+        <label for="autoRefresh">Auto-refresh (5s)</label>
+    </div>
+
+    <div class="dashboard">
+        <!-- System Health Overview -->
+        <div class="system-health">
+            <div class="section-title">System Health Overview</div>
+            <button class="refresh-button" onclick="refreshData()" id="refreshBtn">Refresh Now</button>
+
+            <div id="systemStatus" class="loading">Loading system status...</div>
+
+            <div class="metrics-grid" id="metricsGrid">
+                <!-- Metrics will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Broker Adapters -->
+        <div class="adapters-section">
+            <div class="section-title">Broker Adapters</div>
+            <div id="adaptersContainer" class="loading">Loading adapter status...</div>
+        </div>
+
+        <!-- Order Metrics & Logs -->
+        <div class="orders-section">
+            <div class="section-title">Recent Activity & Logs</div>
+            <div id="logsContainer" class="loading">Loading recent logs...</div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let autoRefreshEnabled = true;
+        let refreshInterval;
+        const API_BASE = '/api';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+            setupAutoRefresh();
+        });
+
+        async function initializeDashboard() {
+            await refreshData();
+        }
+
+        function setupAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            checkbox.addEventListener('change', function() {
+                autoRefreshEnabled = this.checked;
+                if (autoRefreshEnabled) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+
+            if (autoRefreshEnabled) {
+                startAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Clear any existing interval
+            refreshInterval = setInterval(refreshData, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        async function refreshData() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = 'Refreshing...';
+
+            try {
+                await Promise.all([
+                    loadSystemHealth(),
+                    loadAdapterStatus(),
+                    loadRecentLogs()
+                ]);
+
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showError('Failed to refresh dashboard data');
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'Refresh Now';
+            }
+        }
+
+        async function loadSystemHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/monitoring/health`);
+                const data = await response.json();
+
+                updateSystemStatus(data);
+                await loadMetricsSummary();
+            } catch (error) {
+                console.error('Error loading system health:', error);
+                document.getElementById('systemStatus').innerHTML =
+                    '<div class="error">Failed to load system health</div>';
+            }
+        }
+
+        async function loadMetricsSummary() {
+            try {
+                const response = await fetch(`${API_BASE}/monitoring/metrics/summary`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    updateMetricsGrid(result.data);
+                }
+            } catch (error) {
+                console.error('Error loading metrics summary:', error);
+            }
+        }
+
+        async function loadAdapterStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/monitoring/adapters`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    updateAdaptersContainer(result.data);
+                }
+            } catch (error) {
+                console.error('Error loading adapter status:', error);
+                document.getElementById('adaptersContainer').innerHTML =
+                    '<div class="error">Failed to load adapter status</div>';
+            }
+        }
+
+        async function loadRecentLogs() {
+            try {
+                const response = await fetch(`${API_BASE}/monitoring/logs/recent?lines=10&level=ALL`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    updateLogsContainer(result.data);
+                }
+            } catch (error) {
+                console.error('Error loading recent logs:', error);
+                document.getElementById('logsContainer').innerHTML =
+                    '<div class="error">Failed to load recent logs</div>';
+            }
+        }
+
+        function updateSystemStatus(healthData) {
+            const statusContainer = document.getElementById('systemStatus');
+            const statusClass = healthData.status;
+
+            statusContainer.innerHTML = `
+                <div class="system-status ${statusClass}">
+                    <div class="status-indicator"></div>
+                    System Status: ${statusClass.toUpperCase()}
+                </div>
+                <div style="margin-top: 1rem; color: #a0aec0; font-size: 0.9rem;">
+                    Components: ${Object.keys(healthData.components).length} monitored
+                </div>
+            `;
+        }
+
+        function updateMetricsGrid(metricsData) {
+            const metricsGrid = document.getElementById('metricsGrid');
+
+            const metrics = [
+                {
+                    label: 'Total Orders',
+                    value: metricsData.orders.total.toLocaleString(),
+                    color: '#63b3ed'
+                },
+                {
+                    label: 'Success Rate',
+                    value: `${metricsData.orders.success_rate.toFixed(1)}%`,
+                    color: metricsData.orders.success_rate > 95 ? '#48bb78' :
+                           metricsData.orders.success_rate > 90 ? '#ed8936' : '#f56565'
+                },
+                {
+                    label: 'Active Adapters',
+                    value: `${metricsData.adapters.ready}/${metricsData.adapters.total}`,
+                    color: metricsData.adapters.ready === metricsData.adapters.total ? '#48bb78' : '#ed8936'
+                },
+                {
+                    label: 'Total Notional',
+                    value: `$${(metricsData.risk.total_notional / 1000000).toFixed(1)}M`,
+                    color: '#9f7aea'
+                },
+                {
+                    label: 'Daily P&L',
+                    value: `$${metricsData.risk.daily_pnl.toLocaleString()}`,
+                    color: metricsData.risk.daily_pnl >= 0 ? '#48bb78' : '#f56565'
+                },
+                {
+                    label: 'Open Orders',
+                    value: metricsData.risk.open_orders.toString(),
+                    color: '#ed8936'
+                }
+            ];
+
+            metricsGrid.innerHTML = metrics.map(metric => `
+                <div class="metric-card">
+                    <div class="metric-value" style="color: ${metric.color}">
+                        ${metric.value}
+                    </div>
+                    <div class="metric-label">${metric.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateAdaptersContainer(adaptersData) {
+            const container = document.getElementById('adaptersContainer');
+
+            if (!adaptersData.adapters || adaptersData.adapters.length === 0) {
+                container.innerHTML = '<div class="loading">No adapters configured</div>';
+                return;
+            }
+
+            container.innerHTML = adaptersData.adapters.map(adapter => {
+                const statusClass = adapter.connected ? 'connected' : 'disconnected';
+                const statusBadgeClass = adapter.connected ? 'status-connected' : 'status-disconnected';
+
+                return `
+                    <div class="adapter-card ${statusClass}">
+                        <div class="adapter-header">
+                            <div class="adapter-name">${adapter.broker_name} (${adapter.broker_type})</div>
+                            <div class="status-badge ${statusBadgeClass}">
+                                ${adapter.connected ? 'Connected' : 'Disconnected'}
+                            </div>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #a0aec0; margin-bottom: 0.5rem;">
+                            ID: ${adapter.adapter_id} | Ready: ${adapter.ready ? 'Yes' : 'No'}
+                        </div>
+                        <div class="adapter-metrics">
+                            <div class="adapter-metric">
+                                <div class="adapter-metric-value">${adapter.metrics.total_orders}</div>
+                                <div class="adapter-metric-label">Orders</div>
+                            </div>
+                            <div class="adapter-metric">
+                                <div class="adapter-metric-value">${adapter.metrics.filled_orders}</div>
+                                <div class="adapter-metric-label">Filled</div>
+                            </div>
+                            <div class="adapter-metric">
+                                <div class="adapter-metric-value">${adapter.metrics.rejected_orders}</div>
+                                <div class="adapter-metric-label">Rejected</div>
+                            </div>
+                            <div class="adapter-metric">
+                                <div class="adapter-metric-value">${Math.round(adapter.metrics.uptime_seconds / 3600)}h</div>
+                                <div class="adapter-metric-label">Uptime</div>
+                            </div>
+                        </div>
+                        ${adapter.error_message ? `
+                            <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f56565; border-radius: 4px; font-size: 0.8rem;">
+                                Error: ${adapter.error_message}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateLogsContainer(logsData) {
+            const container = document.getElementById('logsContainer');
+
+            if (!logsData.logs || logsData.logs.length === 0) {
+                container.innerHTML = '<div class="loading">No recent logs available</div>';
+                return;
+            }
+
+            container.innerHTML = logsData.logs.map(log => {
+                const timestamp = new Date(log.timestamp).toLocaleTimeString();
+                return `
+                    <div class="log-entry ${log.level}">
+                        <div>
+                            <span class="log-timestamp">${timestamp}</span>
+                            <span class="log-level" style="color: ${getLevelColor(log.level)}">[${log.level}]</span>
+                            <span>${log.logger}</span>
+                        </div>
+                        <div style="margin-top: 0.25rem; color: #e6e6e6;">
+                            ${log.message}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getLevelColor(level) {
+            switch (level) {
+                case 'INFO': return '#63b3ed';
+                case 'WARNING': return '#ed8936';
+                case 'ERROR': return '#f56565';
+                default: return '#a0aec0';
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+
+            document.body.insertBefore(errorDiv, document.body.firstChild);
+
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 5000);
+        }
+
+        // WebSocket connection for real-time updates (optional enhancement)
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/monitoring/ws`;
+
+            try {
+                const ws = new WebSocket(wsUrl);
+
+                ws.onmessage = function(event) {
+                    try {
+                        const update = JSON.parse(event.data);
+                        if (update.type === 'health_update') {
+                            updateSystemStatus(update.data);
+                        }
+                    } catch (error) {
+                        console.error('Error processing WebSocket message:', error);
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    console.log('WebSocket not available, using polling mode');
+                };
+
+            } catch (error) {
+                console.log('WebSocket not supported, using polling mode');
+            }
+        }
+
+        // Try to connect WebSocket for real-time updates
+        // connectWebSocket();
+    </script>
+</body>
+</html>

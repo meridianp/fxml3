@@ -1,0 +1,304 @@
+# Database Migration Job for External PostgreSQL/TimescaleDB
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fxml4-db-migration
+  namespace: fxml4
+  labels:
+    app: fxml4-db-migration
+    component: database
+    version: "1.0"
+spec:
+  backoffLimit: 3
+  completions: 1
+  parallelism: 1
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: fxml4-db-migration
+        component: database
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: ghcr-secret
+      initContainers:
+        - name: db-connectivity-check
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "Checking database connectivity..."
+              pg_isready -h "$FXML4_DATABASE_HOST" -p "$FXML4_DATABASE_PORT" -U "$FXML4_DATABASE_USER" -d "$FXML4_DATABASE_NAME"
+              if [ $? -eq 0 ]; then
+                echo "Database is ready"
+              else
+                echo "Database is not ready, exiting..."
+                exit 1
+              fi
+          env:
+            - name: FXML4_DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fxml4-config
+                  key: FXML4_DATABASE_HOST
+            - name: FXML4_DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: fxml4-config
+                  key: FXML4_DATABASE_PORT
+            - name: FXML4_DATABASE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: fxml4-config
+                  key: FXML4_DATABASE_USER
+            - name: FXML4_DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: fxml4-config
+                  key: FXML4_DATABASE_NAME
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fxml4-secrets
+                  key: database-password
+      containers:
+        - name: migration
+          image: ghcr.io/meridianp/fxml4-api:latest
+          command:
+            - python
+            - -c
+            - |
+              import os
+              import asyncio
+              import logging
+              from pathlib import Path
+              from fxml4.database.timescaledb import TimescaleDBManager
+              from fxml4.database.db_migration_adapter import DBMigrationAdapter
+
+              logging.basicConfig(level=logging.INFO)
+              logger = logging.getLogger(__name__)
+
+              async def run_migrations():
+                  try:
+                      # Initialize database connection
+                      db_manager = TimescaleDBManager()
+                      await db_manager.initialize()
+
+                      # Initialize migration adapter
+                      migration_adapter = DBMigrationAdapter(db_manager)
+
+                      # Run all pending migrations
+                      migration_files = sorted(Path('/app/db/migrations').glob('*.sql'))
+                      logger.info(f"Found {len(migration_files)} migration files")
+
+                      for migration_file in migration_files:
+                          logger.info(f"Applying migration: {migration_file.name}")
+                          await migration_adapter.apply_migration(migration_file)
+                          logger.info(f"Successfully applied: {migration_file.name}")
+
+                      logger.info("All migrations completed successfully")
+
+                  except Exception as e:
+                      logger.error(f"Migration failed: {e}")
+                      raise
+                  finally:
+                      if 'db_manager' in locals():
+                          await db_manager.cleanup()
+
+              # Run migrations
+              asyncio.run(run_migrations())
+          env:
+            - name: PYTHONPATH
+              value: "/app"
+            - name: FXML4_ENV
+              value: "production"
+          envFrom:
+            - configMapRef:
+                name: fxml4-config
+            - secretRef:
+                name: fxml4-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: migration-scripts
+              mountPath: /app/db/migrations
+              readOnly: true
+      volumes:
+        - name: migration-scripts
+          configMap:
+            name: fxml4-migrations
+
+---
+# ConfigMap for migration scripts
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fxml4-migrations
+  namespace: fxml4
+  labels:
+    app: fxml4-migrations
+    component: database
+data:
+  001_initial_schema.sql: |
+    -- Initial schema for FXML4 Production
+    CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE EXTENSION IF NOT EXISTS vector;
+
+    -- Market Data Tables (Hypertables)
+    CREATE TABLE IF NOT EXISTS market_data (
+        time TIMESTAMPTZ NOT NULL,
+        symbol TEXT NOT NULL,
+        timeframe TEXT NOT NULL,
+        open DOUBLE PRECISION,
+        high DOUBLE PRECISION,
+        low DOUBLE PRECISION,
+        close DOUBLE PRECISION,
+        volume DOUBLE PRECISION,
+        spread DOUBLE PRECISION,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    SELECT create_hypertable('market_data', 'time', if_not_exists => TRUE);
+
+    -- Features Table (Hypertable)
+    CREATE TABLE IF NOT EXISTS features (
+        time TIMESTAMPTZ NOT NULL,
+        symbol TEXT NOT NULL,
+        timeframe TEXT NOT NULL,
+        feature_name TEXT NOT NULL,
+        feature_value DOUBLE PRECISION,
+        feature_version INTEGER DEFAULT 1,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    SELECT create_hypertable('features', 'time', if_not_exists => TRUE);
+
+    -- Trading Signals Table
+    CREATE TABLE IF NOT EXISTS signals (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        timestamp TIMESTAMPTZ NOT NULL,
+        symbol TEXT NOT NULL,
+        timeframe TEXT NOT NULL,
+        signal_type TEXT NOT NULL,
+        strength DOUBLE PRECISION,
+        direction TEXT CHECK (direction IN ('buy', 'sell', 'hold')),
+        confidence DOUBLE PRECISION,
+        metadata JSONB,
+        strategy_name TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals (timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_signals_symbol ON signals (symbol);
+    CREATE INDEX IF NOT EXISTS idx_signals_strategy ON signals (strategy_name);
+
+    -- Trades and Positions
+    CREATE TABLE IF NOT EXISTS trades (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        symbol TEXT NOT NULL,
+        side TEXT CHECK (side IN ('buy', 'sell')),
+        quantity DOUBLE PRECISION,
+        entry_price DOUBLE PRECISION,
+        exit_price DOUBLE PRECISION,
+        entry_time TIMESTAMPTZ,
+        exit_time TIMESTAMPTZ,
+        pnl DOUBLE PRECISION,
+        fees DOUBLE PRECISION,
+        strategy_name TEXT,
+        broker TEXT,
+        order_id TEXT,
+        status TEXT DEFAULT 'open',
+        metadata JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades (symbol);
+    CREATE INDEX IF NOT EXISTS idx_trades_entry_time ON trades (entry_time DESC);
+    CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades (strategy_name);
+
+    -- Model Registry
+    CREATE TABLE IF NOT EXISTS model_registry (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL UNIQUE,
+        version TEXT NOT NULL,
+        model_type TEXT NOT NULL,
+        framework TEXT,
+        file_path TEXT,
+        metrics JSONB,
+        hyperparameters JSONB,
+        training_data_hash TEXT,
+        performance_metrics JSONB,
+        is_active BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_model_registry_name ON model_registry (name);
+    CREATE INDEX IF NOT EXISTS idx_model_registry_active ON model_registry (is_active);
+
+  002_continuous_aggregates.sql: |
+    -- Continuous Aggregates for Performance
+    CREATE MATERIALIZED VIEW IF NOT EXISTS market_data_1h
+    WITH (timescaledb.continuous) AS
+    SELECT
+        time_bucket('1 hour', time) AS hour,
+        symbol,
+        timeframe,
+        FIRST(open, time) AS open,
+        MAX(high) AS high,
+        MIN(low) AS low,
+        LAST(close, time) AS close,
+        SUM(volume) AS volume,
+        AVG(spread) AS avg_spread
+    FROM market_data
+    WHERE timeframe = '1m'
+    GROUP BY hour, symbol, timeframe
+    WITH NO DATA;
+
+    SELECT add_continuous_aggregate_policy('market_data_1h',
+        start_offset => INTERVAL '1 day',
+        end_offset => INTERVAL '1 hour',
+        schedule_interval => INTERVAL '1 hour');
+
+    -- Daily aggregates
+    CREATE MATERIALIZED VIEW IF NOT EXISTS market_data_1d
+    WITH (timescaledb.continuous) AS
+    SELECT
+        time_bucket('1 day', time) AS day,
+        symbol,
+        FIRST(open, time) AS open,
+        MAX(high) AS high,
+        MIN(low) AS low,
+        LAST(close, time) AS close,
+        SUM(volume) AS volume,
+        AVG(spread) AS avg_spread
+    FROM market_data_1h
+    GROUP BY day, symbol
+    WITH NO DATA;
+
+    SELECT add_continuous_aggregate_policy('market_data_1d',
+        start_offset => INTERVAL '7 days',
+        end_offset => INTERVAL '1 day',
+        schedule_interval => INTERVAL '1 day');
+
+  003_compression_policies.sql: |
+    -- Compression Policies for Data Retention
+    SELECT add_compression_policy('market_data', INTERVAL '7 days');
+    SELECT add_compression_policy('features', INTERVAL '14 days');
+
+    -- Retention Policies
+    SELECT add_retention_policy('market_data', INTERVAL '2 years');
+    SELECT add_retention_policy('features', INTERVAL '1 year');
+
+    -- Indexes for Performance
+    CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data (symbol, time DESC);
+    CREATE INDEX IF NOT EXISTS idx_features_symbol_time ON features (symbol, time DESC);
+    CREATE INDEX IF NOT EXISTS idx_features_name_time ON features (feature_name, time DESC);

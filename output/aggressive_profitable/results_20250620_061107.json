@@ -1,0 +1,86 @@
+{
+  "performance": {
+    "initial_capital": 10000,
+    "final_capital": 10242.586966186676,
+    "total_return": 0.024258696618667638
+  },
+  "signals": {
+    "ml": 7,
+    "elliott": 0,
+    "trades": 7
+  },
+  "trades": [
+    {
+      "entry_time": "2024-08-28 12:00:00",
+      "exit_time": "2024-08-28 16:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.31985,
+      "exit_price": 1.3186118571428571,
+      "pnl": 94.28851174934384,
+      "pnl_pct": 0.0009379870129870107,
+      "reason": "Stop",
+      "source": "ML"
+    },
+    {
+      "entry_time": "2024-08-29 12:00:00",
+      "exit_time": "2024-08-29 20:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.3183099999999999,
+      "exit_price": 1.3169787142857143,
+      "pnl": 95.55940130128087,
+      "pnl_pct": 0.0010097277993155159,
+      "reason": "Stop",
+      "source": "ML"
+    },
+    {
+      "entry_time": "2024-08-30 16:00:00",
+      "exit_time": "2024-09-03 12:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.3130499999999998,
+      "exit_price": 1.3117809999999999,
+      "pnl": 96.21218007188072,
+      "pnl_pct": 0.000966341760584804,
+      "reason": "Stop",
+      "source": "ML"
+    },
+    {
+      "entry_time": "2024-09-05 16:00:00",
+      "exit_time": "2024-09-06 12:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.3168499999999999,
+      "exit_price": 1.3156915714285713,
+      "pnl": 96.60604736521563,
+      "pnl_pct": 0.0008795964855190283,
+      "reason": "Stop",
+      "source": "ML"
+    },
+    {
+      "entry_time": "2024-09-08 20:00:00",
+      "exit_time": "2024-09-09 04:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.3129499999999998,
+      "exit_price": 1.3117318571428571,
+      "pnl": 97.80489856377311,
+      "pnl_pct": 0.0009276847590760211,
+      "reason": "Stop",
+      "source": "ML"
+    },
+    {
+      "entry_time": "2024-09-15 20:00:00",
+      "exit_time": "2024-09-16 00:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.3133199999999998,
+      "exit_price": 1.315844,
+      "pnl": -237.8840728648197,
+      "pnl_pct": -0.0019216274448599457,
+      "reason": "Stop",
+      "source": "ML"
+    }
+  ],
+  "settings": {
+    "base_leverage": 50.0,
+    "risk_per_trade": 0.02,
+    "ml_threshold": 0.55,
+    "ew_threshold": 0.4
+  }
+}

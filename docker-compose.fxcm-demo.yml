@@ -1,0 +1,192 @@
+# Docker Compose for FXCM Demo Integration
+# Extends existing ForexConnect infrastructure with FXCM demo bridge
+
+version: "3.8"
+
+services:
+  # FXCM Demo Bridge Service
+  fxcm-demo-bridge:
+    build:
+      context: ./docker/fxcm-demo-bridge
+      dockerfile: Dockerfile
+    container_name: fxcm-demo-bridge
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # HTTP API
+      - "8081:8081" # WebSocket
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASS=guest
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FXCM_DEMO_MODE=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./docker/fxcm-demo-bridge/config:/app/config:ro
+      - fxcm-demo-logs:/app/logs
+    networks:
+      - fxml4-network
+    depends_on:
+      - rabbitmq
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fxcm-demo.rule=Host(`fxcm-demo.localhost`)"
+      - "traefik.http.services.fxcm-demo.loadbalancer.server.port=8080"
+
+  # RabbitMQ Message Broker (shared with ForexConnect)
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: fxml4-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672" # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_VHOST=/
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks:
+      - fxml4-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: fxml4-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - fxml4-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FXML4 API (connects to FXCM bridge via RabbitMQ)
+  fxml4-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: fxml4-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - REDIS_URL=redis://redis:6379/0
+      - FXCM_BRIDGE_URL=http://fxcm-demo-bridge:8080
+      - FXCM_WEBSOCKET_URL=ws://fxcm-demo-bridge:8081
+      - DATABASE_URL=postgresql://postgres:postgres@timescaledb:5432/fxml4
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    networks:
+      - fxml4-network
+    depends_on:
+      - fxcm-demo-bridge
+      - timescaledb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # TimescaleDB for time-series data
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: fxml4-timescaledb
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=fxml4
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - fxml4-network
+
+  # Streamlit Dashboard
+  fxml4-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: fxml4-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - FXML4_API_URL=http://fxml4-api:8000
+      - FXCM_BRIDGE_URL=http://fxcm-demo-bridge:8080
+      - FXCM_WEBSOCKET_URL=ws://fxcm-demo-bridge:8081
+    volumes:
+      - ./dashboard:/app/dashboard
+      - ./config:/app/config:ro
+    networks:
+      - fxml4-network
+    depends_on:
+      - fxml4-api
+      - fxcm-demo-bridge
+
+  # FXCM Integration Validator
+  fxcm-validator:
+    build:
+      context: .
+      dockerfile: Dockerfile.validator
+    container_name: fxcm-validator
+    restart: "no"
+    environment:
+      - FXCM_BRIDGE_URL=http://fxcm-demo-bridge:8080
+      - FXML4_API_URL=http://fxml4-api:8000
+      - VALIDATION_MODE=continuous
+    volumes:
+      - ./tests:/app/tests:ro
+      - validation-results:/app/results
+    networks:
+      - fxml4-network
+    depends_on:
+      - fxcm-demo-bridge
+      - fxml4-api
+    profiles:
+      - testing
+
+volumes:
+  fxcm-demo-logs:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  redis-data:
+    driver: local
+  timescaledb-data:
+    driver: local
+  validation-results:
+    driver: local
+
+networks:
+  fxml4-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

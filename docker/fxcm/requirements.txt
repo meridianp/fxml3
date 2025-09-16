@@ -1,0 +1,25 @@
+# FXCM Bridge Service Requirements
+
+# ForexConnect Python SDK
+forexconnect==1.6.3
+
+# Web framework for bridge API
+fastapi==0.68.2
+uvicorn==0.15.0
+websockets==9.1
+
+# Async HTTP client
+aiohttp==3.7.4
+
+# JSON handling
+pydantic==1.8.2
+
+# Logging
+python-json-logger==2.0.2
+
+# ForexConnect dependencies (as per research)
+numpy==1.14.5
+pandas==0.23.4
+python-dateutil==2.7.3
+pytz==2018.5
+six==1.11.0

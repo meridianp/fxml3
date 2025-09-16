@@ -1,0 +1,364 @@
+# Prometheus ServiceMonitor for FXML4 Production Monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fxml4-api-monitor
+  namespace: fxml4
+  labels:
+    app: fxml4-api
+    component: monitoring
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: fxml4-api
+      monitoring: enabled
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: fxml4_(.*)
+          targetLabel: __name__
+          replacement: ${1}
+        - sourceLabels: [instance]
+          targetLabel: instance
+          replacement: '{{ printf "fxml4-api-%s" .Values.pod_id }}'
+
+---
+# ServiceMonitor for Dashboard
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fxml4-dashboard-monitor
+  namespace: fxml4
+  labels:
+    app: fxml4-dashboard
+    component: monitoring
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: fxml4-dashboard
+      monitoring: enabled
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 15s
+
+---
+# ServiceMonitor for Worker processes
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fxml4-worker-monitor
+  namespace: fxml4
+  labels:
+    app: fxml4-worker
+    component: monitoring
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: fxml4-worker
+      monitoring: enabled
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 15s
+
+---
+# PrometheusRule for FXML4 Alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: fxml4-alerts
+  namespace: fxml4
+  labels:
+    app: fxml4
+    component: monitoring
+    release: prometheus
+spec:
+  groups:
+    - name: fxml4.api.rules
+      interval: 30s
+      rules:
+        # API Health and Availability
+        - alert: FXML4APIDown
+          expr: up{app="fxml4-api"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: api
+          annotations:
+            summary: "FXML4 API is down"
+            description: "FXML4 API instance {{ $labels.instance }} has been down for more than 2 minutes."
+
+        - alert: FXML4APIHighErrorRate
+          expr: |
+            (
+              rate(fxml4_http_requests_total{app="fxml4-api",status=~"5.."}[5m])
+              /
+              rate(fxml4_http_requests_total{app="fxml4-api"}[5m])
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            component: api
+          annotations:
+            summary: "FXML4 API high error rate"
+            description: "FXML4 API has error rate above 5% for more than 5 minutes."
+
+        - alert: FXML4APISlowResponse
+          expr: |
+            histogram_quantile(0.95,
+              rate(fxml4_http_request_duration_seconds_bucket{app="fxml4-api"}[5m])
+            ) > 2.0
+          for: 5m
+          labels:
+            severity: warning
+            component: api
+          annotations:
+            summary: "FXML4 API slow response times"
+            description: "FXML4 API 95th percentile response time is above 2 seconds."
+
+        # Database Connectivity
+        - alert: FXML4DatabaseConnectionFailed
+          expr: fxml4_database_connection_failures_total > 0
+          for: 1m
+          labels:
+            severity: critical
+            component: database
+          annotations:
+            summary: "FXML4 external database connection failed"
+            description: "FXML4 cannot connect to external TimescaleDB at {{ $labels.database_host }}."
+
+        - alert: FXML4DatabaseQuerySlow
+          expr: |
+            histogram_quantile(0.95,
+              rate(fxml4_database_query_duration_seconds_bucket[5m])
+            ) > 5.0
+          for: 5m
+          labels:
+            severity: warning
+            component: database
+          annotations:
+            summary: "FXML4 database queries are slow"
+            description: "95th percentile database query time is above 5 seconds."
+
+        # Trading System Alerts
+        - alert: FXML4SignalGenerationFailed
+          expr: increase(fxml4_signal_generation_failures_total[5m]) > 5
+          for: 2m
+          labels:
+            severity: critical
+            component: trading
+          annotations:
+            summary: "FXML4 signal generation failing"
+            description: "Signal generation has failed {{ $value }} times in the last 5 minutes."
+
+        - alert: FXML4BrokerConnectionDown
+          expr: ftml4_broker_connection_status{status="connected"} == 0
+          for: 3m
+          labels:
+            severity: critical
+            component: broker
+          annotations:
+            summary: "FXML4 broker connection down"
+            description: "Connection to broker {{ $labels.broker }} is down for more than 3 minutes."
+
+        # Resource Usage Alerts
+        - alert: FXML4HighMemoryUsage
+          expr: |
+            (
+              container_memory_working_set_bytes{container="api", namespace="fxml4"}
+              /
+              container_spec_memory_limit_bytes{container="api", namespace="fxml4"}
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            component: resources
+          annotations:
+            summary: "FXML4 API high memory usage"
+            description: "FXML4 API memory usage is above 85% for more than 5 minutes."
+
+        - alert: FXML4HighCPUUsage
+          expr: |
+            rate(container_cpu_usage_seconds_total{container="api", namespace="fxml4"}[5m])
+            /
+            (container_spec_cpu_quota{container="api", namespace="ftml4"} / container_spec_cpu_period{container="api", namespace="fxml4"})
+            > 0.80
+          for: 10m
+          labels:
+            severity: warning
+            component: resources
+          annotations:
+            summary: "FXML4 API high CPU usage"
+            description: "FXML4 API CPU usage is above 80% for more than 10 minutes."
+
+        # ML Model Performance
+        - alert: FXML4ModelPredictionLatency
+          expr: |
+            histogram_quantile(0.95,
+              rate(fxml4_model_prediction_duration_seconds_bucket[5m])
+            ) > 1.0
+          for: 5m
+          labels:
+            severity: warning
+            component: ml
+          annotations:
+            summary: "FXML4 ML model prediction latency high"
+            description: "95th percentile ML model prediction time is above 1 second."
+
+        - alert: FXML4ModelAccuracyDrop
+          expr: fxml4_model_accuracy < 0.6
+          for: 15m
+          labels:
+            severity: critical
+            component: ml
+          annotations:
+            summary: "FXML4 ML model accuracy dropped"
+            description: "ML model accuracy has dropped below 60% for {{ $labels.symbol }}."
+
+    - name: fxml4.business.rules
+      interval: 60s
+      rules:
+        # Business Logic Alerts
+        - alert: FXML4TradingVolumeAnomaly
+          expr: |
+            (
+              rate(fxml4_trades_executed_total[1h])
+              /
+              avg_over_time(fxml4_trades_executed_total[24h])
+            ) > 3 or
+            (
+              rate(fxml4_trades_executed_total[1h])
+              /
+              avg_over_time(fxml4_trades_executed_total[24h])
+            ) < 0.1
+          for: 10m
+          labels:
+            severity: warning
+            component: business
+          annotations:
+            summary: "FXML4 trading volume anomaly detected"
+            description: "Trading volume is {{ $value }}x of the 24h average."
+
+        - alert: FXML4UnusualPnL
+          expr: abs(fxml4_portfolio_pnl_total) > 10000
+          for: 5m
+          labels:
+            severity: critical
+            component: business
+          annotations:
+            summary: "FXML4 unusual P&L detected"
+            description: "Portfolio P&L is {{ $value }}, exceeding normal thresholds."
+
+        - alert: FXML4RiskLimitBreach
+          expr: |
+            fxml4_portfolio_risk_exposure > fxml4_portfolio_risk_limit * 0.9
+          for: 1m
+          labels:
+            severity: critical
+            component: risk
+          annotations:
+            summary: "FXML4 risk limit breach"
+            description: "Portfolio risk exposure ({{ $value }}) approaching limits."
+
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fxml4-dashboard-config
+  namespace: fxml4
+  labels:
+    app: fxml4
+    component: monitoring
+    grafana_dashboard: "1"
+data:
+  dashboard.json: |
+    {
+      "dashboard": {
+        "title": "FXML4 Production Monitoring",
+        "panels": [
+          {
+            "title": "API Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(fxml4_http_request_duration_seconds_bucket{app=\"fxml4-api\"}[5m]))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(fxml4_http_request_duration_seconds_bucket{app=\"fxml4-api\"}[5m]))",
+                "legendFormat": "50th percentile"
+              }
+            ],
+            "yAxes": [{"unit": "s"}]
+          },
+          {
+            "title": "Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(fxml4_http_requests_total{app=\"fxml4-api\"}[5m])",
+                "legendFormat": "{{method}} {{status}}"
+              }
+            ]
+          },
+          {
+            "title": "Database Query Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(fxml4_database_query_duration_seconds_bucket[5m]))",
+                "legendFormat": "95th percentile"
+              }
+            ],
+            "yAxes": [{"unit": "s"}]
+          },
+          {
+            "title": "Active Connections",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "fxml4_database_connections_active",
+                "legendFormat": "Active DB Connections"
+              }
+            ]
+          },
+          {
+            "title": "Trading Metrics",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(fxml4_trades_executed_total[5m])",
+                "legendFormat": "Trades per second"
+              },
+              {
+                "expr": "rate(fxml4_signals_generated_total[5m])",
+                "legendFormat": "Signals per second"
+              }
+            ]
+          },
+          {
+            "title": "Portfolio P&L",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "fxml4_portfolio_pnl_total",
+                "legendFormat": "Total P&L"
+              }
+            ],
+            "yAxes": [{"unit": "currencyUSD"}]
+          }
+        ]
+      }
+    }

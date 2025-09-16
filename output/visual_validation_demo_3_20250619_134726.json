@@ -1,0 +1,18 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "BUY",
+    "confidence": 0.82,
+    "entry_price": 1.355500889703031,
+    "stop_loss": 1.351500889703031,
+    "take_profit": 1.363500889703031,
+    "timeframe": "4H",
+    "timestamp": "2025-06-16 08:00:00",
+    "reason": "Bullish breakout"
+  },
+  "validation": {
+    "valid": false,
+    "error": "Unknown style: '^'",
+    "confidence": 0.0
+  }
+}

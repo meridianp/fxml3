@@ -1,0 +1,40 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "BUY",
+    "confidence": 0.82,
+    "entry_price": 1.355500889703031,
+    "stop_loss": 1.351500889703031,
+    "take_profit": 1.363500889703031,
+    "timeframe": "4H",
+    "timestamp": "2025-06-16 08:00:00",
+    "reason": "Bullish breakout"
+  },
+  "validation": {
+    "valid": false,
+    "llm_confidence": 0.75,
+    "visual_patterns": [
+      "consolidation"
+    ],
+    "key_observations": [
+      "RSI is extremely low at 13, indicating oversold conditions.",
+      "Price is near the lower Bollinger Band, suggesting potential support.",
+      "Current price is within a consolidation phase."
+    ],
+    "concerns": [
+      "Low RSI could indicate further downside momentum despite oversold conditions.",
+      "The market is currently in a consolidation phase, which may lead to unpredictable movements.",
+      "No MACD signal to confirm bullish momentum."
+    ],
+    "suggested_adjustments": [
+      "Consider waiting for RSI to rise above 30 before entering.",
+      "Ensure a breakout from consolidation before committing to the trade."
+    ],
+    "pattern_clarity": 0.6,
+    "overall_assessment": "The BUY signal appears risky due to low RSI and consolidation. Wait for more bullish confirmation.",
+    "validation_timestamp": "2025-06-19 13:59:02.359495",
+    "chart_timeframe": "4H",
+    "symbol": "GBPUSD",
+    "enhanced_confidence": 0.726
+  }
+}

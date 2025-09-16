@@ -1,0 +1,110 @@
+# FXCM Demo Bridge Configuration
+# Integration with FXML4 via ForexConnect architecture
+
+service:
+  name: "fxcm-demo-bridge"
+  version: "1.0.0"
+  environment: "development"
+
+api:
+  host: "0.0.0.0"
+  port: 8080
+  cors_enabled: true
+
+websocket:
+  host: "0.0.0.0"
+  port: 8081
+  max_connections: 100
+
+# FXCM Demo Account Credentials (from provided info)
+fxcm_demo:
+  username: "0x0c9@quatumchain.com"
+  password: "QkPh4%mVHKQ6Li"
+  server: "FXCM-USDDemo1"
+  account_type: "demo"
+
+  # Connection settings
+  connection:
+    timeout: 30
+    retry_attempts: 3
+    heartbeat_interval: 30
+
+  # Trading settings
+  trading:
+    default_currency: "USD"
+    max_position_size: 1000000 # 1M units
+    risk_limit_percentage: 2.0 # 2% risk per trade
+    enable_hedging: false
+
+  # Market data settings
+  market_data:
+    symbols:
+      - "EURUSD"
+      - "GBPUSD"
+      - "USDJPY"
+      - "USDCHF"
+      - "AUDUSD"
+      - "USDCAD"
+      - "NZDUSD"
+    update_frequency: 1.0 # seconds
+    price_precision: 5
+
+# RabbitMQ Integration (connects to existing ForexConnect infrastructure)
+rabbitmq:
+  host: "${RABBITMQ_HOST:-rabbitmq}"
+  port: 5672
+  username: "${RABBITMQ_USER:-guest}"
+  password: "${RABBITMQ_PASS:-guest}"
+  virtual_host: "/"
+
+  # Exchanges for FXML4 integration
+  exchanges:
+    market_data: "fxcm.market_data"
+    account_updates: "fxcm.account_updates"
+    orders: "fxcm.orders"
+
+  # Queues
+  queues:
+    prices: "fxcm.prices"
+    account: "fxcm.account"
+    positions: "fxcm.positions"
+    orders_in: "fxml4.orders"
+
+# Redis Cache
+redis:
+  host: "${REDIS_HOST:-redis}"
+  port: 6379
+  db: 0
+  password: "${REDIS_PASSWORD:-}"
+
+  # Cache settings
+  cache:
+    prices_ttl: 60 # seconds
+    account_ttl: 60 # seconds
+    positions_ttl: 300 # seconds
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/app/logs/fxcm_demo_bridge.log"
+  max_size: "10MB"
+  backup_count: 5
+
+# Health monitoring
+health:
+  check_interval: 30 # seconds
+  timeout: 10 # seconds
+
+# Integration with existing ForexConnect middleware
+integration:
+  forex_connect:
+    enabled: true
+    bridge_mode: true
+    message_format: "json"
+
+  fxml4:
+    enabled: true
+    websocket_bridge: true
+    account_sync: true
+    real_time_updates: true

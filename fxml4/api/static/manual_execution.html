@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FXML4 - Manual Order Execution</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f1419;
+            color: #e6e6e6;
+            line-height: 1.6;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border-bottom: 1px solid #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #63b3ed;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            font-size: 0.9rem;
+            color: #a0aec0;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #48bb78;
+        }
+
+        .status-dot.disconnected {
+            background-color: #f56565;
+        }
+
+        .status-dot.connecting {
+            background-color: #ed8936;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: calc(100vh - 80px);
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .orders-panel {
+            background: #1a202c;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #2d3748;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: #2d3748;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #4a5568;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #63b3ed;
+        }
+
+        .pending-count {
+            background: #f56565;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            min-width: 1.5rem;
+            text-align: center;
+        }
+
+        .pending-count.zero {
+            background: #4a5568;
+        }
+
+        .orders-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .order-card {
+            background: #2d3748;
+            margin: 1rem;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border-left: 4px solid #63b3ed;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .order-card.selected {
+            border-left-color: #48bb78;
+            background: #2a4f40;
+        }
+
+        .order-card.urgent {
+            border-left-color: #f56565;
+            animation: gentle-pulse 2s infinite;
+        }
+
+        @keyframes gentle-pulse {
+            0%, 100% { border-left-color: #f56565; }
+            50% { border-left-color: #fc8181; }
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .order-symbol {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #e6e6e6;
+        }
+
+        .order-side {
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .order-side.buy {
+            background: #38a169;
+            color: white;
+        }
+
+        .order-side.sell {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .order-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .order-detail {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .order-detail-label {
+            color: #a0aec0;
+            font-weight: 500;
+        }
+
+        .order-detail-value {
+            color: #e6e6e6;
+            font-weight: 600;
+        }
+
+        .time-remaining {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: #ed8936;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .time-remaining.critical {
+            background: #f56565;
+        }
+
+        .details-panel {
+            background: #1a202c;
+            border-radius: 12px;
+            border: 1px solid #2d3748;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .details-content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .no-selection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #4a5568;
+            text-align: center;
+        }
+
+        .no-selection-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .order-info {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .order-info h3 {
+            color: #63b3ed;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .info-label {
+            color: #a0aec0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            color: #e6e6e6;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .action-section {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .btn-approve {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #38a169;
+        }
+
+        .btn-reject {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background: #e53e3e;
+        }
+
+        .btn:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            color: #a0aec0;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            background: #4a5568;
+            border: 1px solid #6b7280;
+            border-radius: 4px;
+            padding: 0.75rem;
+            color: #e6e6e6;
+            font-size: 0.9rem;
+        }
+
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 2px rgba(99, 179, 237, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .stats-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: #2d3748;
+            border-radius: 6px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #63b3ed;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+
+        .notification {
+            position: fixed;
+            top: 100px;
+            right: 2rem;
+            background: #48bb78;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.error {
+            background: #f56565;
+        }
+
+        .notification.warning {
+            background: #ed8936;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4a5568;
+            border-radius: 50%;
+            border-top-color: #63b3ed;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .connection-lost {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #f56565;
+            color: white;
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+            z-index: 1001;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .connection-lost.show {
+            transform: translateY(0);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: #4a5568;
+            text-align: center;
+            height: 100%;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.8rem;
+        }
+
+        .audio-controls input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-lost" id="connectionLost">
+        ⚠️ Connection lost - attempting to reconnect...
+    </div>
+
+    <div class="header">
+        <div>
+            <h1>Manual Order Execution</h1>
+            <div style="font-size: 0.8rem; color: #a0aec0; margin-top: 0.25rem;">
+                Real-time order approval and risk management
+            </div>
+        </div>
+        <div class="header-info">
+            <div class="status-indicator">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span id="connectionText">Connecting...</span>
+            </div>
+            <div class="audio-controls">
+                <label>
+                    <input type="checkbox" id="soundEnabled" checked>
+                    Sound alerts
+                </label>
+            </div>
+            <div>
+                Last updated: <span id="lastUpdate">--:--:--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Orders Panel -->
+        <div class="orders-panel">
+            <div class="panel-header">
+                <div class="panel-title">Pending Orders</div>
+                <div class="pending-count" id="pendingCount">0</div>
+            </div>
+            <div class="orders-list" id="ordersList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div>No pending orders</div>
+                    <div style="font-size: 0.8rem; margin-top: 0.5rem;">
+                        Orders awaiting approval will appear here
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Panel -->
+        <div class="details-panel">
+            <div class="panel-header">
+                <div class="panel-title">Order Details</div>
+                <div id="detailsActions" style="display: none;">
+                    <button class="btn btn-approve" id="quickApprove" style="padding: 0.5rem 1rem; margin-right: 0.5rem;">
+                        Quick Approve
+                    </button>
+                </div>
+            </div>
+            <div class="details-content" id="detailsContent">
+                <div class="no-selection">
+                    <div class="no-selection-icon">🎯</div>
+                    <div>Select an order to view details</div>
+                    <div style="font-size: 0.8rem; margin-top: 0.5rem; color: #6b7280;">
+                        Click on an order from the list to review and approve/reject
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="notification" id="notification">
+        <div id="notificationText"></div>
+    </div>
+
+    <!-- Audio elements for notifications -->
+    <audio id="newOrderSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCMELIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCMELIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCMELIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCMELIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCMELIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCMELIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCMELIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSWM0fPHdCME" type="audio/wav">
+    </audio>
+
+    <script>
+        // Global state
+        let ws = null;
+        let selectedOrderId = null;
+        let orders = {};
+        let isConnected = false;
+        let soundEnabled = true;
+        let authToken = 'valid_demo_user'; // Mock token for demo
+
+        // DOM elements
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionText = document.getElementById('connectionText');
+        const connectionLost = document.getElementById('connectionLost');
+        const pendingCount = document.getElementById('pendingCount');
+        const ordersList = document.getElementById('ordersList');
+        const detailsContent = document.getElementById('detailsContent');
+        const detailsActions = document.getElementById('detailsActions');
+        const lastUpdate = document.getElementById('lastUpdate');
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        const soundEnabledCheckbox = document.getElementById('soundEnabled');
+        const newOrderSound = document.getElementById('newOrderSound');
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+            loadPendingOrders();
+            connectWebSocket();
+        });
+
+        function initializeApp() {
+            updateLastUpdate();
+            setInterval(updateLastUpdate, 1000);
+            setInterval(updateTimeRemaining, 1000);
+        }
+
+        function setupEventListeners() {
+            soundEnabledCheckbox.addEventListener('change', function() {
+                soundEnabled = this.checked;
+            });
+
+            document.getElementById('quickApprove').addEventListener('click', function() {
+                if (selectedOrderId) {
+                    approveOrder(selectedOrderId, '', {});
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (selectedOrderId) {
+                    if (e.key === 'a' && e.ctrlKey) {
+                        e.preventDefault();
+                        approveOrder(selectedOrderId, 'Quick approval via hotkey', {});
+                    } else if (e.key === 'r' && e.ctrlKey) {
+                        e.preventDefault();
+                        const reason = prompt('Rejection reason:');
+                        if (reason) {
+                            rejectOrder(selectedOrderId, reason, '');
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateLastUpdate() {
+            lastUpdate.textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateTimeRemaining() {
+            const orderCards = document.querySelectorAll('.order-card');
+            orderCards.forEach(card => {
+                const orderId = card.dataset.orderId;
+                const order = orders[orderId];
+                if (order) {
+                    const timeElement = card.querySelector('.time-remaining');
+                    if (timeElement) {
+                        const remaining = Math.max(0, order.time_remaining - 1);
+                        order.time_remaining = remaining;
+
+                        const minutes = Math.floor(remaining / 60);
+                        const seconds = remaining % 60;
+                        timeElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                        if (remaining <= 30) {
+                            timeElement.classList.add('critical');
+                            card.classList.add('urgent');
+                        }
+
+                        if (remaining <= 0) {
+                            timeElement.textContent = 'EXPIRED';
+                            card.style.opacity = '0.6';
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadPendingOrders() {
+            try {
+                const response = await fetch('/manual/orders/pending', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateOrdersList(data.orders);
+                } else {
+                    showNotification('Failed to load pending orders', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading pending orders:', error);
+                showNotification('Error loading orders', 'error');
+            }
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/manual/ws`;
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                    setConnectionStatus(true);
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleWebSocketMessage(message);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected');
+                    setConnectionStatus(false);
+
+                    // Attempt to reconnect after 3 seconds
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    setConnectionStatus(false);
+                };
+
+            } catch (error) {
+                console.error('Failed to create WebSocket connection:', error);
+                setConnectionStatus(false);
+            }
+        }
+
+        function handleWebSocketMessage(message) {
+            switch (message.type) {
+                case 'connected':
+                    console.log('WebSocket connection confirmed');
+                    break;
+
+                case 'new_order':
+                    addNewOrder(message.order);
+                    playNotificationSound();
+                    showNotification(`New order: ${message.order.symbol}`, 'info');
+                    break;
+
+                case 'order_update':
+                    updateOrder(message.order);
+                    break;
+
+                case 'pending_orders':
+                    updateOrdersList(message.orders);
+                    break;
+
+                case 'pong':
+                    // Keep-alive response
+                    break;
+
+                default:
+                    console.log('Unknown WebSocket message type:', message.type);
+            }
+        }
+
+        function setConnectionStatus(connected) {
+            isConnected = connected;
+
+            if (connected) {
+                connectionStatus.className = 'status-dot';
+                connectionText.textContent = 'Connected';
+                connectionLost.classList.remove('show');
+            } else {
+                connectionStatus.className = 'status-dot disconnected';
+                connectionText.textContent = 'Disconnected';
+                connectionLost.classList.add('show');
+            }
+        }
+
+        function updateOrdersList(orderList) {
+            orders = {};
+            orderList.forEach(order => {
+                orders[order.cl_ord_id] = order;
+            });
+
+            pendingCount.textContent = orderList.length;
+            pendingCount.className = orderList.length > 0 ? 'pending-count' : 'pending-count zero';
+
+            if (orderList.length === 0) {
+                ordersList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div>No pending orders</div>
+                        <div style="font-size: 0.8rem; margin-top: 0.5rem;">
+                            Orders awaiting approval will appear here
+                        </div>
+                    </div>
+                `;
+                clearDetails();
+                return;
+            }
+
+            const html = orderList.map(order => createOrderCard(order)).join('');
+            ordersList.innerHTML = html;
+
+            // Reselect previously selected order if it still exists
+            if (selectedOrderId && orders[selectedOrderId]) {
+                selectOrder(selectedOrderId);
+            } else {
+                clearDetails();
+            }
+        }
+
+        function createOrderCard(order) {
+            const side = order.side.toLowerCase();
+            const sideClass = side === 'buy' ? 'buy' : 'sell';
+            const timeRemaining = order.time_remaining || 300; // Default 5 minutes
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            const timeClass = timeRemaining <= 30 ? 'critical' : '';
+            const urgentClass = timeRemaining <= 30 ? 'urgent' : '';
+
+            return `
+                <div class="order-card ${urgentClass}" data-order-id="${order.cl_ord_id}" onclick="selectOrder('${order.cl_ord_id}')">
+                    <div class="time-remaining ${timeClass}">
+                        ${minutes}:${seconds.toString().padStart(2, '0')}
+                    </div>
+                    <div class="order-header">
+                        <div class="order-symbol">${order.symbol}</div>
+                        <div class="order-side ${sideClass}">${order.side}</div>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-detail">
+                            <span class="order-detail-label">Quantity:</span>
+                            <span class="order-detail-value">${formatNumber(order.quantity)}</span>
+                        </div>
+                        <div class="order-detail">
+                            <span class="order-detail-label">Type:</span>
+                            <span class="order-detail-value">${order.order_type}</span>
+                        </div>
+                        ${order.price ? `
+                        <div class="order-detail">
+                            <span class="order-detail-label">Price:</span>
+                            <span class="order-detail-value">${formatPrice(order.price)}</span>
+                        </div>
+                        ` : ''}
+                        <div class="order-detail">
+                            <span class="order-detail-label">TIF:</span>
+                            <span class="order-detail-value">${order.time_in_force}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectOrder(orderId) {
+            selectedOrderId = orderId;
+
+            // Update visual selection
+            document.querySelectorAll('.order-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            const selectedCard = document.querySelector(`[data-order-id="${orderId}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+            }
+
+            // Show order details
+            const order = orders[orderId];
+            if (order) {
+                showOrderDetails(order);
+                detailsActions.style.display = 'block';
+            }
+        }
+
+        function showOrderDetails(order) {
+            const timeRemaining = order.time_remaining || 300;
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+
+            detailsContent.innerHTML = `
+                <div class="order-info">
+                    <h3>Order Information</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Symbol</div>
+                            <div class="info-value">${order.symbol}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Side</div>
+                            <div class="info-value">${order.side}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Quantity</div>
+                            <div class="info-value">${formatNumber(order.quantity)}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Order Type</div>
+                            <div class="info-value">${order.order_type}</div>
+                        </div>
+                        ${order.price ? `
+                        <div class="info-item">
+                            <div class="info-label">Price</div>
+                            <div class="info-value">${formatPrice(order.price)}</div>
+                        </div>
+                        ` : ''}
+                        ${order.stop_price ? `
+                        <div class="info-item">
+                            <div class="info-label">Stop Price</div>
+                            <div class="info-value">${formatPrice(order.stop_price)}</div>
+                        </div>
+                        ` : ''}
+                        <div class="info-item">
+                            <div class="info-label">Time in Force</div>
+                            <div class="info-value">${order.time_in_force}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Time Remaining</div>
+                            <div class="info-value">${minutes}:${seconds.toString().padStart(2, '0')}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Order ID</div>
+                            <div class="info-value">${order.cl_ord_id}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Received</div>
+                            <div class="info-value">${formatTime(order.received_time)}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-section">
+                    <h3 style="color: #63b3ed; margin-bottom: 1rem;">Review Actions</h3>
+                    <div class="action-buttons">
+                        <button class="btn btn-approve" onclick="showApprovalForm()">
+                            ✅ Approve Order
+                        </button>
+                        <button class="btn btn-reject" onclick="showRejectionForm()">
+                            ❌ Reject Order
+                        </button>
+                    </div>
+                    <div id="actionForm" style="display: none;">
+                        <!-- Form will be populated by showApprovalForm or showRejectionForm -->
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem; padding: 1rem; background: #2d3748; border-radius: 6px; font-size: 0.8rem; color: #a0aec0;">
+                    <strong>Keyboard Shortcuts:</strong><br>
+                    Ctrl+A: Quick Approve | Ctrl+R: Quick Reject
+                </div>
+            `;
+        }
+
+        function showApprovalForm() {
+            const formHtml = `
+                <div class="form-group">
+                    <label class="form-label">Approval Notes (Optional)</label>
+                    <textarea class="form-textarea" id="approvalNotes" placeholder="Add any notes about this approval..."></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-approve" onclick="submitApproval()" style="flex: 1;">
+                        Confirm Approval
+                    </button>
+                    <button class="btn" onclick="hideActionForm()" style="background: #4a5568; color: white; flex: 0 0 auto;">
+                        Cancel
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('actionForm').innerHTML = formHtml;
+            document.getElementById('actionForm').style.display = 'block';
+            document.getElementById('approvalNotes').focus();
+        }
+
+        function showRejectionForm() {
+            const formHtml = `
+                <div class="form-group">
+                    <label class="form-label">Rejection Reason (Required)</label>
+                    <input type="text" class="form-input" id="rejectionReason" placeholder="Enter reason for rejection..." required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Additional Notes (Optional)</label>
+                    <textarea class="form-textarea" id="rejectionNotes" placeholder="Add any additional notes..."></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-reject" onclick="submitRejection()" style="flex: 1;">
+                        Confirm Rejection
+                    </button>
+                    <button class="btn" onclick="hideActionForm()" style="background: #4a5568; color: white; flex: 0 0 auto;">
+                        Cancel
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('actionForm').innerHTML = formHtml;
+            document.getElementById('actionForm').style.display = 'block';
+            document.getElementById('rejectionReason').focus();
+        }
+
+        function hideActionForm() {
+            document.getElementById('actionForm').style.display = 'none';
+        }
+
+        async function submitApproval() {
+            const notes = document.getElementById('approvalNotes').value.trim();
+            await approveOrder(selectedOrderId, notes, {});
+        }
+
+        async function submitRejection() {
+            const reason = document.getElementById('rejectionReason').value.trim();
+            const notes = document.getElementById('rejectionNotes').value.trim();
+
+            if (!reason) {
+                showNotification('Rejection reason is required', 'error');
+                return;
+            }
+
+            await rejectOrder(selectedOrderId, reason, notes);
+        }
+
+        async function approveOrder(orderId, notes, modifications) {
+            try {
+                const response = await fetch(`/manual/orders/${orderId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        cl_ord_id: orderId,
+                        reviewer: 'current_user',
+                        notes: notes,
+                        modifications: modifications,
+                        risk_overrides: {}
+                    })
+                });
+
+                if (response.ok) {
+                    showNotification('Order approved successfully', 'success');
+                    removeOrderFromList(orderId);
+                    clearDetails();
+                } else {
+                    const error = await response.json();
+                    showNotification(error.detail || 'Failed to approve order', 'error');
+                }
+            } catch (error) {
+                console.error('Error approving order:', error);
+                showNotification('Error approving order', 'error');
+            }
+        }
+
+        async function rejectOrder(orderId, reason, notes) {
+            try {
+                const response = await fetch(`/manual/orders/${orderId}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        cl_ord_id: orderId,
+                        reviewer: 'current_user',
+                        reason: reason,
+                        notes: notes
+                    })
+                });
+
+                if (response.ok) {
+                    showNotification('Order rejected successfully', 'success');
+                    removeOrderFromList(orderId);
+                    clearDetails();
+                } else {
+                    const error = await response.json();
+                    showNotification(error.detail || 'Failed to reject order', 'error');
+                }
+            } catch (error) {
+                console.error('Error rejecting order:', error);
+                showNotification('Error rejecting order', 'error');
+            }
+        }
+
+        function removeOrderFromList(orderId) {
+            delete orders[orderId];
+
+            const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+            if (orderCard) {
+                orderCard.remove();
+            }
+
+            const remainingCount = Object.keys(orders).length;
+            pendingCount.textContent = remainingCount;
+            pendingCount.className = remainingCount > 0 ? 'pending-count' : 'pending-count zero';
+
+            if (remainingCount === 0) {
+                ordersList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div>No pending orders</div>
+                        <div style="font-size: 0.8rem; margin-top: 0.5rem;">
+                            Orders awaiting approval will appear here
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function clearDetails() {
+            selectedOrderId = null;
+            detailsActions.style.display = 'none';
+            detailsContent.innerHTML = `
+                <div class="no-selection">
+                    <div class="no-selection-icon">🎯</div>
+                    <div>Select an order to view details</div>
+                    <div style="font-size: 0.8rem; margin-top: 0.5rem; color: #6b7280;">
+                        Click on an order from the list to review and approve/reject
+                    </div>
+                </div>
+            `;
+        }
+
+        function showNotification(message, type = 'info') {
+            notificationText.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+        }
+
+        function playNotificationSound() {
+            if (soundEnabled) {
+                try {
+                    newOrderSound.currentTime = 0;
+                    newOrderSound.play().catch(e => {
+                        console.log('Could not play notification sound:', e);
+                    });
+                } catch (e) {
+                    console.log('Sound not available');
+                }
+            }
+        }
+
+        function addNewOrder(order) {
+            orders[order.cl_ord_id] = order;
+            loadPendingOrders(); // Refresh the entire list for simplicity
+        }
+
+        function updateOrder(order) {
+            if (orders[order.cl_ord_id]) {
+                orders[order.cl_ord_id] = order;
+
+                // Update the displayed order if it's currently selected
+                if (selectedOrderId === order.cl_ord_id) {
+                    showOrderDetails(order);
+                }
+            }
+        }
+
+        // Utility functions
+        function formatNumber(num) {
+            return new Intl.NumberFormat().format(num);
+        }
+
+        function formatPrice(price) {
+            return new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4
+            }).format(price);
+        }
+
+        function formatTime(timeString) {
+            return new Date(timeString).toLocaleString();
+        }
+
+        // Mock data for demonstration (remove in production)
+        function addMockOrder() {
+            const mockOrder = {
+                cl_ord_id: `MOCK_${Date.now()}`,
+                order_id: `ORD_${Date.now()}`,
+                symbol: 'EUR/USD',
+                side: Math.random() > 0.5 ? 'BUY' : 'SELL',
+                quantity: Math.floor(Math.random() * 1000000) + 100000,
+                order_type: 'LIMIT',
+                price: 1.0850 + (Math.random() - 0.5) * 0.01,
+                time_in_force: 'GTC',
+                received_time: new Date().toISOString(),
+                approval_status: 'PENDING',
+                time_remaining: 300
+            };
+
+            addNewOrder(mockOrder);
+        }
+
+        // Development helper (remove in production)
+        window.addMockOrder = addMockOrder;
+    </script>
+</body>
+</html>

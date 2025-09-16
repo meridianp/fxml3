@@ -1,0 +1,25 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "BUY",
+    "confidence": 0.82,
+    "entry_price": 1.355500889703031,
+    "stop_loss": 1.351500889703031,
+    "take_profit": 1.363500889703031,
+    "timeframe": "4H",
+    "timestamp": "2025-06-16 08:00:00",
+    "reason": "Bullish breakout"
+  },
+  "validation": {
+    "valid": true,
+    "llm_confidence": 0.5,
+    "visual_patterns": [],
+    "key_observations": [
+      "Fallback validation used"
+    ],
+    "concerns": [],
+    "suggested_adjustments": {},
+    "pattern_clarity": 0.3,
+    "overall_assessment": "Technical rule-based validation only"
+  }
+}

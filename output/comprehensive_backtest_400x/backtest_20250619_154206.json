@@ -1,0 +1,29 @@
+{
+  "config": {
+    "initial_capital": 10000,
+    "max_leverage": 400.0,
+    "min_lot_size": 1.0,
+    "start_date": "2024-01-01T00:00:00",
+    "end_date": "2024-12-31T00:00:00"
+  },
+  "results": {
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0,
+    "avg_win": 0,
+    "avg_loss": 0,
+    "profit_factor": 0,
+    "total_pnl": 0,
+    "final_capital": 10000,
+    "total_return": 0,
+    "max_drawdown": 0,
+    "sharpe_ratio": 0,
+    "avg_leverage": 0,
+    "max_leverage": 0,
+    "total_commission": 0
+  },
+  "trades": [],
+  "equity_curve": [
+    {
+      "timestamp":

@@ -1,0 +1,174 @@
+# Broker Adapter Configuration
+# This file defines the configuration for all broker adapters
+
+brokers:
+  # Interactive Brokers Configuration
+  ib:
+    enabled: true
+    adapter_class: "fxml4.brokers.adapters.ib.IBRabbitMQAdapter"
+    connection:
+      # IB Gateway/TWS connection
+      host: "localhost"
+      port: 7497 # 7497 for paper trading, 7496 for live
+      client_id: 1
+      account_id: "" # Leave empty to auto-detect
+
+      # RabbitMQ connection
+      rabbitmq:
+        host: "rabbitmq"
+        port: 5672
+        username: "guest"
+        password: "guest"
+
+    # Adapter features
+    features:
+      market_data: true
+      portfolio_queries: true
+      order_modification: true
+      historical_data: true
+
+    # Rate limits and constraints
+    limits:
+      max_orders_per_second: 10
+      max_orders_per_minute: 50
+      max_daily_volume: 10000000 # $10M daily volume limit
+      max_position_size: 1000000 # $1M max position
+
+    # Timeouts (in seconds)
+    timeouts:
+      connect: 30
+      authenticate: 60
+      order: 300
+      heartbeat: 30
+
+    # Retry policy
+    retry_policy:
+      max_retries: 3
+      base_delay: 1.0
+      max_delay: 60.0
+      exponential_base: 2.0
+
+  # Manual Execution Configuration
+  manual:
+    enabled: true
+    adapter_class: "fxml4.brokers.adapters.manual.ManualRabbitMQAdapter"
+    connection:
+      review_interface: "http://localhost:8001/manual"
+      rabbitmq:
+        host: "rabbitmq"
+        port: 5672
+        username: "guest"
+        password: "guest"
+
+    features:
+      human_review: true
+      compliance_override: true
+      audit_trail: true
+      auto_reject_timeout: 300 # 5 minutes
+      simulate_execution: true
+      simulated_fill_delay: 2
+      require_two_factor: false
+      allow_risk_override: true
+      approval_levels:
+        standard: 0
+        senior: 100000
+        executive: 1000000
+
+    limits:
+      max_orders_per_second: 10 # Manual can handle bursts
+      max_daily_volume: 100000000 # $100M for manual review
+      max_override_amount: 10000000 # $10M risk override limit
+
+  # FXCM Configuration
+  fxcm:
+    enabled: false
+    adapter_class: "fxml4.brokers.adapters.fxcm.FXCMRabbitMQAdapter"
+    connection:
+      # Bridge service connection
+      bridge_url: "http://fxcm-bridge:9090"
+      api_key: "" # Optional API key for bridge security
+
+      # RabbitMQ connection
+      rabbitmq:
+        host: "rabbitmq"
+        port: 5672
+        username: "guest"
+        password: "guest"
+
+    features:
+      market_data: true
+      fx_instruments: true
+      bulk_operations: true
+      docker_isolation: true
+
+    limits:
+      max_orders_per_second: 20
+      max_orders_per_minute: 100
+      max_daily_volume: 100000000 # $100M daily
+      max_position_size: 10000000 # $10M max position
+
+    # Timeouts (in seconds)
+    timeouts:
+      connect: 30
+      order: 300
+      heartbeat: 30
+      bridge_timeout: 60
+
+    # Retry policy
+    retry_policy:
+      max_retries: 3
+      base_delay: 2.0
+      max_delay: 60.0
+      exponential_base: 2.0 # $100M daily
+
+  # Native FIX Configuration (placeholder)
+  fix:
+    enabled: false
+    adapter_class: "fxml4.brokers.adapters.fix.NativeFIXAdapter"
+    connection:
+      config_file: "config/fix_sessions.cfg"
+      sender_comp_id: "FXML4"
+      target_comp_id: "BROKER"
+      rabbitmq:
+        host: "rabbitmq"
+        port: 5672
+        username: "guest"
+        password: "guest"
+
+    features:
+      fix_protocol: true
+      low_latency: true
+      institutional_grade: true
+
+    limits:
+      max_orders_per_second: 100
+      max_daily_volume: 1000000000 # $1B daily
+
+# Default broker for routing
+default_broker: "ib"
+
+# Routing rules (used by MessageRouter)
+routing_rules:
+  - name: "large_fx_to_fxcm"
+    priority: 1
+    conditions:
+      symbols: ["EURUSD", "GBPUSD", "USDJPY", "USDCHF"]
+      min_quantity: 1000000
+    target_brokers: ["fxcm"]
+    fallback_brokers: ["ib", "manual"]
+    enabled: false # Disabled until FXCM is ready
+
+  - name: "manual_review_large_orders"
+    priority: 2
+    conditions:
+      min_quantity: 10000000
+    target_brokers: ["manual"]
+    fallback_brokers: ["ib"]
+    enabled: true # Manual adapter now ready
+
+  - name: "default_to_ib"
+    priority: 100
+    conditions: {}
+    target_brokers: ["ib"]
+    fallback_brokers: ["manual"]
+    enabled: true

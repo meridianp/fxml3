@@ -1,0 +1,157 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e8]: FX
+          - generic [ref=e9]:
+            - heading "FXML4" [level=1] [ref=e10]
+            - paragraph [ref=e11]: Trading Platform
+        - button [ref=e12] [cursor=pointer]:
+          - img [ref=e13] [cursor=pointer]
+      - navigation [ref=e15]:
+        - generic [ref=e16]:
+          - link "Dashboard Overview and quick access" [ref=e17] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e19] [cursor=pointer]
+            - generic [ref=e21] [cursor=pointer]:
+              - generic [ref=e22] [cursor=pointer]: Dashboard
+              - paragraph [ref=e23] [cursor=pointer]: Overview and quick access
+          - link "Data Market data and feeds" [ref=e24] [cursor=pointer]:
+            - /url: /data
+            - img [ref=e26] [cursor=pointer]
+            - generic [ref=e28] [cursor=pointer]:
+              - generic [ref=e29] [cursor=pointer]: Data
+              - paragraph [ref=e30] [cursor=pointer]: Market data and feeds
+          - link "Training" [ref=e31] [cursor=pointer]:
+            - /url: /training
+            - img [ref=e33] [cursor=pointer]
+            - generic [ref=e37] [cursor=pointer]: Training
+          - link "Analytics Performance & wave analysis" [ref=e38] [cursor=pointer]:
+            - /url: /analytics
+            - img [ref=e40] [cursor=pointer]
+            - generic [ref=e42] [cursor=pointer]:
+              - generic [ref=e43] [cursor=pointer]: Analytics
+              - paragraph [ref=e44] [cursor=pointer]: Performance & wave analysis
+          - link "Elliott Waves AI-enhanced wave analysis" [ref=e45] [cursor=pointer]:
+            - /url: /elliott-waves
+            - img [ref=e47] [cursor=pointer]
+            - generic [ref=e49] [cursor=pointer]:
+              - generic [ref=e50] [cursor=pointer]: Elliott Waves
+              - paragraph [ref=e51] [cursor=pointer]: AI-enhanced wave analysis
+          - link "Backtesting Strategy backtests" [ref=e52] [cursor=pointer]:
+            - /url: /backtesting
+            - img [ref=e54] [cursor=pointer]
+            - generic [ref=e56] [cursor=pointer]:
+              - generic [ref=e57] [cursor=pointer]: Backtesting
+              - paragraph [ref=e58] [cursor=pointer]: Strategy backtests
+          - link "5 Trading Live trading console" [ref=e59] [cursor=pointer]:
+            - /url: /trading
+            - generic [ref=e60] [cursor=pointer]:
+              - img [ref=e61] [cursor=pointer]
+              - generic [ref=e63] [cursor=pointer]: "5"
+            - generic [ref=e64] [cursor=pointer]:
+              - generic [ref=e65] [cursor=pointer]: Trading
+              - paragraph [ref=e66] [cursor=pointer]: Live trading console
+        - generic [ref=e68]:
+          - link "Settings" [ref=e69] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e70] [cursor=pointer]
+            - generic [ref=e73] [cursor=pointer]: Settings
+          - link "Profile" [ref=e74] [cursor=pointer]:
+            - /url: /profile
+            - img [ref=e75] [cursor=pointer]
+            - generic [ref=e77] [cursor=pointer]: Profile
+          - link "Help" [ref=e78] [cursor=pointer]:
+            - /url: /help
+            - img [ref=e79] [cursor=pointer]
+            - generic [ref=e81] [cursor=pointer]: Help
+      - generic [ref=e83]:
+        - generic [ref=e85]: JD
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: John Doe
+          - paragraph [ref=e88]: Pro Trader
+        - generic [ref=e89]:
+          - button "Switch theme (currently dark)" [ref=e90] [cursor=pointer]:
+            - img [ref=e91] [cursor=pointer]
+          - button [ref=e93] [cursor=pointer]:
+            - img [ref=e94] [cursor=pointer]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97] [cursor=pointer]
+    - generic [ref=e99]:
+      - banner [ref=e100]:
+        - generic [ref=e102]:
+          - generic [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e108]: Disconnected
+          - generic [ref=e110]:
+            - img [ref=e111]
+            - generic [ref=e113]: 0 symbols
+          - generic [ref=e114]:
+            - generic [ref=e117]: Market Open
+            - button [ref=e118] [cursor=pointer]:
+              - img [ref=e119] [cursor=pointer]
+            - generic [ref=e121]: 4:45:01 PM
+      - main [ref=e122]:
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - generic [ref=e125]:
+              - generic [ref=e126]:
+                - heading "ML Training Studio" [level=1] [ref=e127]
+                - paragraph [ref=e128]: Train and manage machine learning models
+              - button "Create Model" [ref=e130] [cursor=pointer]:
+                - img [ref=e131] [cursor=pointer]
+                - text: Create Model
+            - generic [ref=e133]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: "0"
+                - generic [ref=e136]: Total Models
+              - generic [ref=e137]:
+                - generic [ref=e138]: "0"
+                - generic [ref=e139]: Trained
+              - generic [ref=e140]:
+                - generic [ref=e141]: "0"
+                - generic [ref=e142]: Training
+              - generic [ref=e143]:
+                - generic [ref=e144]: "0"
+                - generic [ref=e145]: Deployed
+          - generic [ref=e147]:
+            - tablist [ref=e148]:
+              - tab "Models" [selected] [ref=e149] [cursor=pointer]:
+                - img [ref=e150] [cursor=pointer]
+                - text: Models
+              - tab "Datasets" [ref=e152] [cursor=pointer]:
+                - img [ref=e153] [cursor=pointer]
+                - text: Datasets
+              - tab "Experiments" [ref=e155] [cursor=pointer]:
+                - img [ref=e156] [cursor=pointer]
+                - text: Experiments
+              - tab "Deployment" [ref=e158] [cursor=pointer]:
+                - img [ref=e159] [cursor=pointer]
+                - text: Deployment
+            - tabpanel "Models" [ref=e162]:
+              - generic [ref=e164]:
+                - img [ref=e165]
+                - heading "No Models Yet" [level=3] [ref=e167]
+                - paragraph [ref=e168]: Create your first ML model to get started
+                - button "Create Your First Model" [ref=e169] [cursor=pointer]:
+                  - img [ref=e170] [cursor=pointer]
+                  - text: Create Your First Model
+    - region "Notifications" [ref=e172]:
+      - generic [ref=e174]:
+        - generic [ref=e175]:
+          - img [ref=e176]
+          - heading "Notifications" [level=3] [ref=e178]
+        - button "all" [ref=e181] [cursor=pointer]:
+          - img [ref=e182] [cursor=pointer]
+          - generic [ref=e184] [cursor=pointer]: all
+          - img [ref=e185] [cursor=pointer]
+      - list [ref=e187]:
+        - generic [ref=e188]:
+          - img [ref=e189]
+          - paragraph [ref=e191]: No notifications
+  - alert [ref=e192]
+```

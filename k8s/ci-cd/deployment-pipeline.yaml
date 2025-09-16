@@ -1,0 +1,371 @@
+# GitHub Actions CI/CD Pipeline for FXML4 Production Deployment
+name: FXML4 Production Deployment
+
+on:
+  push:
+    branches: [main, production]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  KUBERNETES_NAMESPACE: fxml4
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: timescale/timescaledb:2.14.2-pg16
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fxml4_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7.2-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      rabbitmq:
+        image: rabbitmq:3.12-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: fxml4
+          RABBITMQ_DEFAULT_PASS: test_password
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 30s
+          --health-timeout 30s
+          --health-retries 3
+        ports:
+          - 5672:5672
+          - 15672:15672
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test environment
+        run: |
+          export FXML4_DATABASE_URL="postgresql://postgres:test_password@localhost:5432/fxml4_test"
+          export FXML4_REDIS_URL="redis://localhost:6379/0"
+          export FXML4_RABBITMQ_URL="amqp://fxml4:test_password@localhost:5672"
+          export FXML4_ENV="test"
+
+      - name: Run comprehensive test suite
+        run: |
+          # Run unit tests
+          pytest tests/unit/ -v --cov=fxml4 --cov-report=xml --cov-report=term
+
+          # Run integration tests (excluding external dependencies)
+          pytest tests/integration/ -v -m "not requires_ib and not requires_fxcm"
+
+          # Run security tests
+          pytest tests/security/ -v
+
+          # Run performance tests
+          pytest tests/performance/ -v -m "not slow"
+        env:
+          FXML4_DATABASE_URL: "postgresql://postgres:test_password@localhost:5432/fxml4_test"
+          FXML4_REDIS_URL: "redis://localhost:6379/0"
+          FXML4_RABBITMQ_URL: "amqp://fxml4:test_password@localhost:5672"
+          FXML4_ENV: "test"
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Run Bandit security linter
+        run: |
+          pip install bandit
+          bandit -r fxml4/ -f json -o bandit-results.json
+
+      - name: Upload security results
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-results
+          path: |
+            trivy-results.sarif
+            bandit-results.json
+
+  build:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push API image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+
+      - name: Sign container image
+        uses: sigstore/cosign-installer@v3
+      - run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api@${{ steps.build.outputs.digest }}
+        env:
+          COSIGN_EXPERIMENTAL: 1
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.28.0"
+
+      - name: Set up Kubernetes context
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy to staging
+        run: |
+          # Update image tags in staging manifests
+          sed -i "s|ghcr.io/meridianp/fxml4-api:.*|${{ needs.build.outputs.image-tag }}|g" k8s/environments/staging.yaml
+
+          # Apply database migrations first
+          kubectl apply -f k8s/jobs/db-migration.yaml
+          kubectl wait --for=condition=complete job/fxml4-db-migration --timeout=300s
+
+          # Deploy application
+          kubectl apply -f k8s/namespace/namespace.yaml
+          kubectl apply -f k8s/secrets/app-secrets.yaml
+          kubectl apply -f k8s/configmaps/app-config.yaml
+          kubectl apply -f k8s/production/production-api.yaml
+          kubectl apply -f k8s/services/api-service.yaml
+          kubectl apply -f k8s/ingress/ingress.yaml
+
+          # Wait for deployment to be ready
+          kubectl rollout status deployment/fxml4-api --timeout=600s
+
+      - name: Run smoke tests
+        run: |
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod -l app=fxml4-api --timeout=300s
+
+          # Run smoke tests
+          API_URL="https://staging-api.fxml4.io"
+
+          # Health check
+          curl -f "$API_URL/health" || exit 1
+
+          # Ready check
+          curl -f "$API_URL/ready" || exit 1
+
+          # Basic API functionality
+          curl -f "$API_URL/api/v1/symbols" || exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, deploy-staging]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.28.0"
+
+      - name: Set up Kubernetes context
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Pre-deployment validations
+        run: |
+          # Verify external database connectivity
+          kubectl run db-check --rm -i --restart=Never --image=postgres:16-alpine -- \
+            pg_isready -h postgres01.tailb381ec.ts.net -p 5432 -U postgres -d fxml4
+
+          # Check current deployment health
+          kubectl get deployment fxml4-api -o jsonpath='{.status.readyReplicas}' || echo "0"
+
+      - name: Blue-Green Deployment
+        run: |
+          # Update image tags
+          sed -i "s|ghcr.io/meridianp/fxml4-api:.*|${{ needs.build.outputs.image-tag }}|g" k8s/production/production-api.yaml
+
+          # Apply database migrations
+          kubectl apply -f k8s/jobs/db-migration.yaml
+          kubectl wait --for=condition=complete job/fxml4-db-migration --timeout=600s
+
+          # Update secrets and configs
+          kubectl apply -f k8s/secrets/app-secrets.yaml
+          kubectl apply -f k8s/configmaps/app-config.yaml
+
+          # Deploy new version
+          kubectl apply -f k8s/production/production-api.yaml
+
+          # Wait for new deployment to be ready
+          kubectl rollout status deployment/fxml4-api --timeout=900s
+
+          # Verify all pods are healthy
+          kubectl wait --for=condition=ready pod -l app=fxml4-api --timeout=600s
+
+      - name: Production Health Checks
+        run: |
+          # Comprehensive health validation
+          API_URL="https://api.fxml4.io"
+
+          # Health endpoints
+          curl -f "$API_URL/health" || exit 1
+          curl -f "$API_URL/ready" || exit 1
+          curl -f "$API_URL/startup" || exit 1
+
+          # Database connectivity
+          curl -f "$API_URL/api/v1/health/database" || exit 1
+
+          # External services
+          curl -f "$API_URL/api/v1/health/services" || exit 1
+
+          # Trading system
+          curl -f "$API_URL/api/v1/health/trading" || exit 1
+
+          echo "Production deployment successful!"
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          # Send success notification (Slack, Teams, etc.)
+          echo "FXML4 production deployment successful: ${{ github.ref_name }}"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Production deployment failed, initiating rollback..."
+          kubectl rollout undo deployment/fxml4-api
+          kubectl rollout status deployment/fxml4-api --timeout=600s
+
+          # Send failure notification
+          echo "FXML4 production deployment failed and was rolled back"
+          exit 1
+
+  performance-test:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run load tests
+        run: |
+          # Install k6
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+          # Run performance tests against production
+          k6 run --vus 50 --duration 5m tests/performance/load_test.js
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: performance-results.json

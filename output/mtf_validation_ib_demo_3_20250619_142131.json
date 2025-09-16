@@ -1,0 +1,27 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "BUY",
+    "confidence": 0.7999999999999999,
+    "entry_price": 1.34023,
+    "stop_loss": 1.3352300000000001,
+    "take_profit": 1.35023,
+    "timeframe": "4H",
+    "timestamp": "2025-06-19 00:00:00",
+    "data_source": "Interactive Brokers",
+    "reason": "Real-time support/resistance confirmation"
+  },
+  "validation": {
+    "valid": false,
+    "error": "Data for column \"volume\" must be ALL float or int.",
+    "confidence": 0.0
+  },
+  "timeframes_analyzed": [
+    "D",
+    "4H",
+    "1H",
+    "15m"
+  ],
+  "data_source": "Interactive Brokers TWS API",
+  "timestamp": "2025-06-19T14:21:31.124701"
+}

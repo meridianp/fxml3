@@ -1,0 +1,154 @@
+version: "3.8"
+
+services:
+  # Test Database
+  test-db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: fxml4-test-db
+    environment:
+      - POSTGRES_USER=fxml4_test
+      - POSTGRES_PASSWORD=test_password # pragma: allowlist secret
+      - POSTGRES_DB=fxml4_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - test-db-data:/var/lib/postgresql/data
+    networks:
+      - fxml4_test_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fxml4_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Test Redis
+  test-redis:
+    image: redis:7-alpine
+    container_name: fxml4-test-redis
+    ports:
+      - "6380:6379"
+    networks:
+      - fxml4_test_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Test RabbitMQ
+  test-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fxml4-test-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=fxml4_test
+      - RABBITMQ_DEFAULT_PASS=test_password # pragma: allowlist secret
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    networks:
+      - fxml4_test_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Test API Service
+  test-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: api
+    container_name: fxml4-test-api
+    ports:
+      - "8002:8000"
+    environment:
+      - FXML4_ENV=test
+      - FXML4_API_HOST=0.0.0.0
+      - FXML4_API_PORT=8000
+      - FXML4_API_DEBUG=true
+      - FXML4_DATABASE_HOST=test-db
+      - FXML4_DATABASE_PORT=5432
+      - FXML4_DATABASE_USER=fxml4_test
+      - FXML4_DATABASE_PASSWORD=test_password # pragma: allowlist secret
+      - FXML4_DATABASE_NAME=fxml4_test
+      - FXML4_REDIS_HOST=test-redis
+      - FXML4_REDIS_PORT=6379
+      - RABBITMQ_HOST=test-rabbitmq
+      - RABBITMQ_USER=fxml4_test
+      - RABBITMQ_PASSWORD=test_password # pragma: allowlist secret
+      - FXML4_JWT_SECRET_KEY=test-secret-key-for-e2e-testing # pragma: allowlist secret
+      - FXML4_JWT_ALGORITHM=HS256
+      - FXML4_JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - FXML4_JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+      - PYTHONPATH=/app
+    volumes:
+      - ./fxml4:/app/fxml4:ro
+      - ./config:/app/config:ro
+      - ./tests:/app/tests:ro
+    command: ["python", "-m", "fxml4.api.main"]
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+      test-rabbitmq:
+        condition: service_healthy
+    networks:
+      - fxml4_test_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Test Runner Container
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: test
+    container_name: fxml4-test-runner
+    environment:
+      - FXML4_ENV=test
+      - API_BASE_URL=http://test-api:8000
+      - DATABASE_HOST=test-db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=fxml4_test
+      - DATABASE_PASSWORD=test_password # pragma: allowlist secret
+      - DATABASE_NAME=fxml4_test
+      - REDIS_HOST=test-redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=test-rabbitmq
+      - RABBITMQ_USER=fxml4_test
+      - RABBITMQ_PASSWORD=test_password # pragma: allowlist secret
+      - PYTHONPATH=/app
+      - PYTEST_TIMEOUT=300
+    volumes:
+      - ./fxml4:/app/fxml4:ro
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 10 &&
+        echo 'Running E2E authentication tests...' &&
+        python -m pytest tests/e2e/test_auth_security_flow_e2e.py -v --tb=short --junit-xml=/app/test-results/junit.xml
+      "
+    depends_on:
+      test-api:
+        condition: service_healthy
+    networks:
+      - fxml4_test_network
+
+networks:
+  fxml4_test_network:
+    driver: bridge
+    name: fxml4_test_network
+
+volumes:
+  test-db-data:
+    name: fxml4-test-db-data

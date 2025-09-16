@@ -1,0 +1,107 @@
+# Exclude large directories and files
+.git
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.DS_Store
+*.sqlite
+*.db
+
+# Exclude build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Exclude IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Exclude test and development files
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Exclude documentation and examples that aren't needed
+docs/
+examples/
+archive/
+documentation/
+
+# Exclude large data files and models
+data/
+models/
+logs/
+*.csv
+*.xlsx
+*.xls
+*.parquet
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.json.gz
+*.tar.gz
+*.zip
+
+# Exclude legacy and monorepo content
+fxml4-monorepo/
+legacy/
+backtesting/
+ml/
+twsapi_macunix/
+fxml4_redesign/
+
+# Exclude CI/CD and deployment files
+.github/
+.gitignore
+docker-compose*.yml
+k8s/
+*.md
+README*
+LICENSE*
+Makefile
+
+# Exclude environment and config files
+.env*
+config/
+*.yaml
+*.yml
+
+# Exclude notebooks and analysis files
+*.ipynb
+.ipynb_checkpoints/
+
+# Exclude PDF and binary files
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+
+# Keep only essential files for the build
+!requirements*.txt
+!fxml4/
+!Dockerfile
+!.dockerignore

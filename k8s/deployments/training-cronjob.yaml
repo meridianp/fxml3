@@ -1,0 +1,122 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fxml4-training
+  namespace: fxml4
+  labels:
+    app: fxml4-training
+    component: training
+spec:
+  # Run training every Sunday at 2 AM UTC
+  schedule: "0 2 * * 0"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        app: fxml4-training
+        component: training
+    spec:
+      template:
+        metadata:
+          labels:
+            app: fxml4-training
+            component: training
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: ghcr-secret
+          containers:
+            - name: training
+              image: ghcr.io/meridianp/fxml4-training:latest
+              imagePullPolicy: Always
+              env:
+                - name: PYTHONPATH
+                  value: "/app"
+                - name: FXML4_SERVICE_NAME
+                  value: "training"
+                - name: TRAINING_MODE
+                  value: "full"
+              envFrom:
+                - configMapRef:
+                    name: fxml4-config
+                - secretRef:
+                    name: fxml4-secrets
+              command: ["python", "-m", "fxml4.training.main"]
+              resources:
+                requests:
+                  memory: "4Gi"
+                  cpu: "2"
+                limits:
+                  memory: "8Gi"
+                  cpu: "4"
+              volumeMounts:
+                - name: data-volume
+                  mountPath: /app/data
+                - name: models-volume
+                  mountPath: /app/models
+          volumes:
+            - name: data-volume
+              persistentVolumeClaim:
+                claimName: fxml4-data-pvc
+            - name: models-volume
+              persistentVolumeClaim:
+                claimName: fxml4-models-pvc
+---
+# Job for on-demand training runs
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fxml4-training-manual
+  namespace: fxml4
+  labels:
+    app: fxml4-training
+    component: training
+    type: manual
+spec:
+  template:
+    metadata:
+      labels:
+        app: fxml4-training
+        component: training
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: training
+          image: ghcr.io/meridianp/fxml4-training:latest
+          imagePullPolicy: Always
+          env:
+            - name: PYTHONPATH
+              value: "/app"
+            - name: FXML4_SERVICE_NAME
+              value: "training"
+            - name: TRAINING_MODE
+              value: "incremental"
+          envFrom:
+            - configMapRef:
+                name: fxml4-config
+            - secretRef:
+                name: fxml4-secrets
+          command: ["python", "-m", "fxml4.training.main"]
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "2"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+            - name: models-volume
+              mountPath: /app/models
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: fxml4-data-pvc
+        - name: models-volume
+          persistentVolumeClaim:
+            claimName: fxml4-models-pvc

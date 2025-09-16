@@ -1,0 +1,30 @@
+{
+  "performance": {
+    "initial_capital": 10000,
+    "final_capital": 10000,
+    "total_return": 0.0,
+    "trades_executed": 0
+  },
+  "signals": {
+    "ml": 0,
+    "elliott": 0,
+    "ta": 0,
+    "multi": 0,
+    "trades": 0,
+    "llm_used": 0,
+    "filtered": 0
+  },
+  "leverage": {
+    "average": 0,
+    "maximum": 0,
+    "p75": 0
+  },
+  "capabilities": {
+    "ml_ensemble": true,
+    "elliott_wave": true,
+    "llm_validation": true,
+    "multi_confluence": true,
+    "trailing_stops": true
+  },
+  "last_trades": []
+}

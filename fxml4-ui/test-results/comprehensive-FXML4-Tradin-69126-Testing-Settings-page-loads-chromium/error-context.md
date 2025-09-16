@@ -1,0 +1,177 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e8]: FX
+          - generic [ref=e9]:
+            - heading "FXML4" [level=1] [ref=e10]
+            - paragraph [ref=e11]: Trading Platform
+        - button [ref=e12] [cursor=pointer]:
+          - img [ref=e13] [cursor=pointer]
+      - navigation [ref=e15]:
+        - generic [ref=e16]:
+          - link "Dashboard Overview and quick access" [ref=e17] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e19] [cursor=pointer]
+            - generic [ref=e21] [cursor=pointer]:
+              - generic [ref=e22] [cursor=pointer]: Dashboard
+              - paragraph [ref=e23] [cursor=pointer]: Overview and quick access
+          - link "Data Market data and feeds" [ref=e24] [cursor=pointer]:
+            - /url: /data
+            - img [ref=e26] [cursor=pointer]
+            - generic [ref=e28] [cursor=pointer]:
+              - generic [ref=e29] [cursor=pointer]: Data
+              - paragraph [ref=e30] [cursor=pointer]: Market data and feeds
+          - link "Training ML model training" [ref=e31] [cursor=pointer]:
+            - /url: /training
+            - img [ref=e33] [cursor=pointer]
+            - generic [ref=e35] [cursor=pointer]:
+              - generic [ref=e36] [cursor=pointer]: Training
+              - paragraph [ref=e37] [cursor=pointer]: ML model training
+          - link "Analytics Performance & wave analysis" [ref=e38] [cursor=pointer]:
+            - /url: /analytics
+            - img [ref=e40] [cursor=pointer]
+            - generic [ref=e42] [cursor=pointer]:
+              - generic [ref=e43] [cursor=pointer]: Analytics
+              - paragraph [ref=e44] [cursor=pointer]: Performance & wave analysis
+          - link "Elliott Waves AI-enhanced wave analysis" [ref=e45] [cursor=pointer]:
+            - /url: /elliott-waves
+            - img [ref=e47] [cursor=pointer]
+            - generic [ref=e49] [cursor=pointer]:
+              - generic [ref=e50] [cursor=pointer]: Elliott Waves
+              - paragraph [ref=e51] [cursor=pointer]: AI-enhanced wave analysis
+          - link "Backtesting Strategy backtests" [ref=e52] [cursor=pointer]:
+            - /url: /backtesting
+            - img [ref=e54] [cursor=pointer]
+            - generic [ref=e56] [cursor=pointer]:
+              - generic [ref=e57] [cursor=pointer]: Backtesting
+              - paragraph [ref=e58] [cursor=pointer]: Strategy backtests
+          - link "5 Trading Live trading console" [ref=e59] [cursor=pointer]:
+            - /url: /trading
+            - generic [ref=e60] [cursor=pointer]:
+              - img [ref=e61] [cursor=pointer]
+              - generic [ref=e63] [cursor=pointer]: "5"
+            - generic [ref=e64] [cursor=pointer]:
+              - generic [ref=e65] [cursor=pointer]: Trading
+              - paragraph [ref=e66] [cursor=pointer]: Live trading console
+        - generic [ref=e68]:
+          - link "Settings" [ref=e69] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e70] [cursor=pointer]
+            - generic [ref=e73] [cursor=pointer]: Settings
+          - link "Profile" [ref=e74] [cursor=pointer]:
+            - /url: /profile
+            - img [ref=e75] [cursor=pointer]
+            - generic [ref=e77] [cursor=pointer]: Profile
+          - link "Help" [ref=e78] [cursor=pointer]:
+            - /url: /help
+            - img [ref=e79] [cursor=pointer]
+            - generic [ref=e81] [cursor=pointer]: Help
+      - generic [ref=e83]:
+        - generic [ref=e85]: JD
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: John Doe
+          - paragraph [ref=e88]: Pro Trader
+        - generic [ref=e89]:
+          - button "Switch theme (currently dark)" [ref=e90] [cursor=pointer]:
+            - img [ref=e91] [cursor=pointer]
+          - button [ref=e93] [cursor=pointer]:
+            - img [ref=e94] [cursor=pointer]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97] [cursor=pointer]
+    - generic [ref=e99]:
+      - banner [ref=e100]:
+        - generic [ref=e102]:
+          - generic [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e108]: Disconnected
+          - generic [ref=e110]:
+            - img [ref=e111]
+            - generic [ref=e113]: 0 symbols
+          - generic [ref=e114]:
+            - generic [ref=e117]: Market Open
+            - button [ref=e118] [cursor=pointer]:
+              - img [ref=e119] [cursor=pointer]
+            - generic [ref=e121]: 4:44:21 PM
+      - main [ref=e122]:
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - heading "Settings" [level=1] [ref=e125]
+            - paragraph [ref=e126]: Configure your trading platform preferences
+          - generic [ref=e127]:
+            - tablist [ref=e128]:
+              - tab "General" [selected] [ref=e129] [cursor=pointer]:
+                - img [ref=e130] [cursor=pointer]
+                - text: General
+              - tab "Account" [ref=e133] [cursor=pointer]:
+                - img [ref=e134] [cursor=pointer]
+                - text: Account
+              - tab "Notifications" [ref=e136] [cursor=pointer]:
+                - img [ref=e137] [cursor=pointer]
+                - text: Notifications
+              - tab "Security" [ref=e139] [cursor=pointer]:
+                - img [ref=e140] [cursor=pointer]
+                - text: Security
+              - tab "Appearance" [ref=e142] [cursor=pointer]:
+                - img [ref=e143] [cursor=pointer]
+                - text: Appearance
+              - tab "API & Data" [ref=e145] [cursor=pointer]:
+                - img [ref=e146] [cursor=pointer]
+                - text: API & Data
+            - tabpanel "General" [ref=e148]:
+              - generic [ref=e149]:
+                - heading "General Settings" [level=3] [ref=e150]
+                - generic [ref=e151]:
+                  - generic [ref=e152]:
+                    - generic [ref=e153]: Default Timeframe
+                    - combobox [ref=e154]:
+                      - option "1 Minute"
+                      - option "5 Minutes"
+                      - option "15 Minutes"
+                      - option "1 Hour" [selected]
+                      - option "4 Hours"
+                      - option "1 Day"
+                  - generic [ref=e155]:
+                    - generic [ref=e156]: Default Currency
+                    - combobox [ref=e157]:
+                      - option "USD - US Dollar" [selected]
+                      - option "EUR - Euro"
+                      - option "GBP - British Pound"
+                      - option "JPY - Japanese Yen"
+                  - generic [ref=e158]:
+                    - generic [ref=e159]: Language
+                    - combobox [ref=e160]:
+                      - option "English" [selected]
+                      - option "Spanish"
+                      - option "French"
+                      - option "German"
+                  - generic [ref=e161]:
+                    - generic [ref=e162]: Timezone
+                    - combobox [ref=e163]:
+                      - option "UTC" [selected]
+                      - option "Eastern Time"
+                      - option "Central Time"
+                      - option "Pacific Time"
+                      - option "London Time"
+          - generic [ref=e164]:
+            - button "Reset to Defaults" [ref=e165] [cursor=pointer]
+            - button "Save Changes" [ref=e166] [cursor=pointer]
+    - region "Notifications" [ref=e167]:
+      - generic [ref=e169]:
+        - generic [ref=e170]:
+          - img [ref=e171]
+          - heading "Notifications" [level=3] [ref=e173]
+        - button "all" [ref=e176] [cursor=pointer]:
+          - img [ref=e177] [cursor=pointer]
+          - generic [ref=e179] [cursor=pointer]: all
+          - img [ref=e180] [cursor=pointer]
+      - list [ref=e182]:
+        - generic [ref=e183]:
+          - img [ref=e184]
+          - paragraph [ref=e186]: No notifications
+  - alert [ref=e187]
+```

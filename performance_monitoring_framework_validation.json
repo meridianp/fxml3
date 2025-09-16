@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-08-25T16:13:55.050731",
+  "framework_components": {
+    "performance_monitoring_system": true,
+    "metrics_collector": true,
+    "monitoring_api": true,
+    "infrastructure_monitor": true,
+    "dashboard_ui": true
+  },
+  "capabilities": {
+    "metrics_collection": true,
+    "real_time_monitoring": true,
+    "load_testing": true,
+    "report_generation": true,
+    "alerting_system": true,
+    "api_integration": true
+  },
+  "integration_tests": {
+    "metrics_integration": true,
+    "api_monitoring": true,
+    "resource_monitoring": false,
+    "error_handling": true
+  },
+  "performance_targets": {
+    "api_health": true,
+    "api_data": true,
+    "api_signals": false,
+    "api_backtest": false,
+    "cpu_usage": true,
+    "memory_usage": true,
+    "db_connections": false
+  },
+  "overall_status": "mostly_ready",
+  "live_performance": {
+    "health_endpoint_response_time": {
+      "response_time_ms": 2.9327869415283203,
+      "target_ms": 50,
+      "passed": true,
+      "status": 200
+    },
+    "system_resource_usage": {
+      "cpu_percent": 13.1,
+      "cpu_target": 70,
+      "cpu_passed": true,
+      "memory_gb": 3.9055519104003906,
+      "memory_target": 4.0,
+      "memory_passed": true
+    },
+    "framework_overhead": {
+      "operations": 2000,
+      "time_ms": 2.2847652435302734,
+      "ops_per_second": 875363.4561202129,
+      "overhead_acceptable": true
+    },
+    "status": "excellent"
+  }
+}

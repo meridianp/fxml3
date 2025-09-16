@@ -1,0 +1,2 @@
+symbol,type,entry_date,entry_price,exit_date,exit_price,units,pnl,return,holding_days,exit_reason
+EURUSD,short,2024-03-26,1.08325,2025-06-17,1.14818,23078.698361412415,-1498.4998846065066,-0.059939995384260265,448,signal_reversal

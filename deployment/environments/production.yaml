@@ -1,0 +1,407 @@
+# FXML4 Production Environment Configuration
+# This file contains production-specific settings for controlled deployment
+
+environment: production
+deployment_stage: controlled_rollout # controlled_rollout | full_production
+
+# Infrastructure Configuration
+infrastructure:
+  # Primary Region
+  primary_region:
+    provider: gcp
+    region: us-east1
+    zones: [us-east1-b, us-east1-c, us-east1-d]
+
+  # Disaster Recovery Region
+  dr_region:
+    provider: gcp
+    region: us-west1
+    zones: [us-west1-a, us-west1-b]
+
+  # Kubernetes Configuration
+  kubernetes:
+    cluster_name: fxml4-prod
+    node_pools:
+      - name: default-pool
+        machine_type: n2-standard-4
+        min_nodes: 3
+        max_nodes: 10
+        preemptible: false
+      - name: ml-pool
+        machine_type: n2-highmem-8
+        min_nodes: 2
+        max_nodes: 5
+        preemptible: false
+        gpu_enabled: true
+        gpu_type: nvidia-tesla-t4
+
+  # Database Configuration
+  database:
+    primary:
+      type: timescaledb
+      instance_type: db-n1-highmem-4
+      storage_gb: 500
+      backup_retention_days: 30
+      high_availability: true
+      read_replicas: 2
+
+    failover:
+      automatic_failover: true
+      failover_timeout_seconds: 30
+
+  # Message Queue
+  message_queue:
+    type: rabbitmq
+    cluster_size: 3
+    instance_type: n2-standard-2
+    persistence: true
+    replication_factor: 3
+
+  # Cache Layer
+  cache:
+    type: redis
+    cluster_mode: true
+    nodes: 3
+    instance_type: n2-standard-2
+    persistence: true
+
+# Application Configuration
+application:
+  # API Settings
+  api:
+    replicas:
+      min: 3
+      max: 10
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+    autoscaling:
+      enabled: true
+      target_cpu_utilization: 70
+      target_memory_utilization: 80
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 100
+      burst_size: 200
+
+  # Data Collection Service
+  data_collector:
+    replicas: 2
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+    data_sources:
+      - name: interactive_brokers
+        enabled: true
+        rate_limit: 100 # requests/second
+      - name: alpha_vantage
+        enabled: true
+        rate_limit: 5 # requests/minute
+      - name: polygon_io
+        enabled: false # Not yet configured
+
+  # ML Services
+  ml_services:
+    training:
+      schedule: "0 2 * * *" # Daily at 2 AM UTC
+      resources:
+        cpu: 8000m
+        memory: 32Gi
+        gpu: 1
+      timeout_minutes: 120
+
+    inference:
+      replicas:
+        min: 2
+        max: 5
+      resources:
+        requests:
+          cpu: 2000m
+          memory: 4Gi
+        limits:
+          cpu: 4000m
+          memory: 8Gi
+      model_cache_size_gb: 10
+      batch_size: 32
+      timeout_ms: 1000
+
+  # Trading Engine
+  trading_engine:
+    replicas: 2 # Active-passive for safety
+    resources:
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+    position_update_interval_ms: 100
+    order_timeout_seconds: 30
+
+# Trading Configuration
+trading:
+  # Controlled Rollout Limits (Phase 1)
+  phase1_limits:
+    max_daily_trades: 10
+    max_position_size_usd: 10000
+    max_total_exposure_usd: 30000
+    allowed_symbols: ["EUR/USD"]
+    max_leverage: 1
+
+  # Phase 2 Limits (After 1 week of successful phase 1)
+  phase2_limits:
+    max_daily_trades: 20
+    max_position_size_usd: 25000
+    max_total_exposure_usd: 75000
+    allowed_symbols: ["EUR/USD", "GBP/USD"]
+    max_leverage: 2
+
+  # Full Production Limits
+  production_limits:
+    max_daily_trades: 50
+    max_position_size_usd: 100000
+    max_total_exposure_usd: 300000
+    allowed_symbols: ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CHF"]
+    max_leverage: 10
+
+  # Risk Controls
+  risk_controls:
+    max_drawdown_percent: 5
+    max_daily_loss_percent: 2
+    max_correlation: 0.7
+    stop_loss_pips: 50
+    take_profit_pips: 100
+    trailing_stop_enabled: true
+    trailing_stop_distance_pips: 30
+
+  # Circuit Breakers
+  circuit_breakers:
+    consecutive_losses: 3
+    error_rate_threshold: 0.1 # 10% error rate
+    latency_threshold_ms: 5000
+    market_volatility_threshold: 0.05 # 5% intraday move
+
+# Monitoring Configuration
+monitoring:
+  # Metrics Collection
+  metrics:
+    provider: prometheus
+    retention_days: 90
+    scrape_interval_seconds: 15
+    high_frequency_metrics:
+      - trading_pnl
+      - position_exposure
+      - error_rate
+      - latency_p99
+
+  # Logging
+  logging:
+    provider: stackdriver
+    retention_days: 30
+    log_levels:
+      default: INFO
+      trading: DEBUG
+      risk: DEBUG
+      error: ERROR
+    structured_logging: true
+
+  # Tracing
+  tracing:
+    provider: jaeger
+    sampling_rate: 0.1 # 10% sampling
+    retention_days: 7
+
+  # Dashboards
+  dashboards:
+    - name: system_health
+      refresh_interval: 30s
+      critical_metrics:
+        - api_availability
+        - database_connections
+        - message_queue_lag
+
+    - name: trading_performance
+      refresh_interval: 5s
+      critical_metrics:
+        - current_positions
+        - daily_pnl
+        - win_rate
+        - sharpe_ratio
+
+    - name: risk_monitoring
+      refresh_interval: 1s
+      critical_metrics:
+        - current_exposure
+        - var_95
+        - max_drawdown
+        - correlation_matrix
+
+# Alerting Configuration
+alerting:
+  # Notification Channels
+  channels:
+    - name: oncall_primary
+      type: pagerduty
+      severity: [critical, high]
+
+    - name: trading_team
+      type: slack
+      channel: "#trading-alerts"
+      severity: [high, medium]
+
+    - name: ops_team
+      type: email
+      recipients: ["ops@fxml4.com"]
+      severity: [medium, low]
+
+  # Alert Rules
+  rules:
+    # Critical Alerts
+    - name: trading_halt
+      condition: "circuit_breaker_triggered == true"
+      severity: critical
+      channels: [oncall_primary, trading_team]
+
+    - name: excessive_drawdown
+      condition: "current_drawdown > max_drawdown_percent"
+      severity: critical
+      channels: [oncall_primary, trading_team]
+
+    - name: system_down
+      condition: "api_availability < 0.95"
+      severity: critical
+      channels: [oncall_primary, ops_team]
+
+    # High Priority Alerts
+    - name: high_error_rate
+      condition: "error_rate > 0.05"
+      severity: high
+      channels: [trading_team, ops_team]
+
+    - name: database_connection_pool_exhausted
+      condition: "db_connection_usage > 0.9"
+      severity: high
+      channels: [ops_team]
+
+    # Medium Priority Alerts
+    - name: model_performance_degradation
+      condition: "model_accuracy < baseline_accuracy * 0.9"
+      severity: medium
+      channels: [trading_team]
+
+    - name: high_latency
+      condition: "p99_latency > 1000"
+      severity: medium
+      channels: [ops_team]
+
+# Security Configuration
+security:
+  # Network Security
+  network:
+    vpc_name: fxml4-prod-vpc
+    private_subnets: true
+    nat_gateway: true
+    firewall_rules:
+      - name: allow-internal
+        source: 10.0.0.0/8
+        protocol: all
+      - name: allow-https
+        source: 0.0.0.0/0
+        protocol: tcp
+        port: 443
+
+  # Access Control
+  access_control:
+    authentication: oauth2
+    rbac_enabled: true
+    mfa_required: true
+    session_timeout_minutes: 30
+
+  # Encryption
+  encryption:
+    at_rest: true
+    in_transit: true
+    key_rotation_days: 90
+
+  # Audit Logging
+  audit_logging:
+    enabled: true
+    events:
+      - authentication
+      - authorization
+      - configuration_change
+      - trade_execution
+      - risk_override
+
+# Backup and Recovery
+backup:
+  # Database Backups
+  database:
+    frequency: hourly
+    retention:
+      hourly: 24
+      daily: 7
+      weekly: 4
+      monthly: 12
+    encryption: true
+    cross_region_replication: true
+
+  # Application State
+  application_state:
+    frequency: every_5_minutes
+    includes:
+      - positions
+      - pending_orders
+      - risk_metrics
+      - model_state
+
+  # Disaster Recovery
+  disaster_recovery:
+    rto_minutes: 15 # Recovery Time Objective
+    rpo_minutes: 5 # Recovery Point Objective
+    dr_test_frequency: monthly
+
+# Deployment Configuration
+deployment:
+  # Rollout Strategy
+  strategy: blue_green
+  canary_percentage: 10
+  rollback_on_failure: true
+  health_check_timeout_seconds: 300
+
+  # Pre-deployment Checks
+  pre_deployment_checks:
+    - name: integration_tests
+      required: true
+    - name: performance_tests
+      required: true
+    - name: security_scan
+      required: true
+
+  # Post-deployment Validation
+  post_deployment_validation:
+    - name: smoke_tests
+      timeout_minutes: 5
+    - name: synthetic_transactions
+      timeout_minutes: 10
+    - name: metric_validation
+      timeout_minutes: 15
+
+# Maintenance Windows
+maintenance:
+  scheduled_windows:
+    - day: sunday
+      start_time: "02:00"
+      duration_hours: 2
+      timezone: UTC
+  emergency_maintenance:
+    approval_required: true
+    approvers: ["cto@fxml4.com", "head-of-trading@fxml4.com"]

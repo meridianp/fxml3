@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fxml4-ingress
+  namespace: fxml4
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - api.fxml4.io
+        - dashboard.fxml4.io
+      secretName: fxml4-tls
+  rules:
+    - host: api.fxml4.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fxml4-api
+                port:
+                  number: 8000
+    - host: dashboard.fxml4.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fxml4-dashboard
+                port:
+                  number: 8501

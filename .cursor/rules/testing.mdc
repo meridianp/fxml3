@@ -1,0 +1,17 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Testing and Quality Assurance
+
+---
+description: Testing and Quality Assurance
+globs:
+  - "tests/**/*.py"
+alwaysApply: true
+---
+
+- Write tests with pytest for each new feature or bug fix; maintain high coverage with coverage.py.
+- Integrate test, lint.
+- Use TDD where possible for robust, maintainable code.

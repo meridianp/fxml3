@@ -1,0 +1,18 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Configuration and Environment Management
+
+---
+description: Configuration and Environment Management
+globs:
+  - "config/**/*.py"
+alwaysApply: true
+---
+
+- Place all parameter-loading logic in config/config.py.
+- Load .env once, at startup.
+- Never modify .env.bak
+- Validate critical environment variables; fail fast if they are missing.

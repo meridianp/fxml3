@@ -1,0 +1,289 @@
+site_name: FXML4 Documentation
+site_description: Comprehensive documentation for FXML4 - An integrated forex trading platform with ML and Elliott Wave analysis
+site_author: FXML4 Team
+site_url: https://fxml4.io
+repo_url: https://github.com/yourusername/fxml4
+repo_name: fxml4
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    logo: material/chart-line
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.prune
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - content.tooltips
+    - header.autohide
+    - toc.follow
+    - toc.integrate
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/index.md
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Configuration: getting-started/configuration.md
+      - Dashboard: getting-started/dashboard.md
+
+  - Architecture:
+      - architecture/index.md
+      - System Overview: architecture.md
+      - Components: architecture/components.md
+      - Data Flow: architecture/data-flow.md
+      - Database Schema: architecture/database-schema.md
+
+  - Features:
+      - features/index.md
+      - Elliott Wave Analysis:
+          - features/elliott-wave/index.md
+          - Overview: features/elliott-wave/overview.md
+          - Visual Analysis: features/elliott-wave/visual-analysis.md
+          - Hybrid Approach: features/elliott-wave/hybrid-approach.md
+          - Implementation: features/elliott-wave/implementation.md
+          - Examples: features/elliott-wave/examples.md
+          - Performance: features/elliott-wave/performance.md
+      - Machine Learning:
+          - features/machine-learning/index.md
+          - ML Pipeline: features/machine-learning/pipeline.md
+          - Feature Engineering: features/machine-learning/features.md
+          - Model Training: features/machine-learning/training.md
+          - Signal Generation: features/machine-learning/signals.md
+      - Broker Integration:
+          - features/broker-integration/index.md
+          - FIX Protocol: features/broker-integration/fix-protocol.md
+          - Broker Adapters: features/broker-integration/adapters.md
+          - Native FIX: features/broker-integration/native-fix.md
+          - Interactive Brokers: features/broker-integration/interactive-brokers.md
+          - Manual Execution: features/broker-integration/manual-execution.md
+          - Monitoring Dashboard: features/broker-integration/monitoring.md
+      - Risk Management:
+          - features/risk-management/index.md
+          - Pre-Trade Checks: features/risk-management/pre-trade-checks.md
+          - Position Limits: features/risk-management/position-limits.md
+          - Risk Overrides: features/risk-management/overrides.md
+          - Real-time Monitoring: features/risk-management/monitoring.md
+      - Compliance & Audit:
+          - features/compliance/index.md
+          - Audit Logging: features/compliance/audit-logging.md
+          - Compliance Engine: features/compliance/compliance-engine.md
+          - Regulatory Checks: features/compliance/regulatory-checks.md
+          - Transaction Monitoring: features/compliance/transaction-monitoring.md
+          - Reporting: features/compliance/reporting.md
+      - Backtesting:
+          - features/backtesting/index.md
+          - Event-Driven Engine: features/backtesting/engine.md
+          - Performance Metrics: features/backtesting/metrics.md
+          - Visualization: features/backtesting/visualization.md
+      - Paper Trading:
+          - features/paper-trading/index.md
+          - IB Integration: features/paper-trading/ib-integration.md
+          - Live Data: features/paper-trading/live-data.md
+          - Risk Management: features/paper-trading/risk-management.md
+
+  - API Reference:
+      - api-reference/index.md
+      - Authentication: api-reference/authentication.md
+      - Endpoints:
+          - api-reference/endpoints/index.md
+          - Market Data: api-reference/endpoints/market-data.md
+          - Signals: api-reference/endpoints/signals.md
+          - Backtesting: api-reference/endpoints/backtesting.md
+          - Elliott Wave: api-reference/endpoints/elliott-wave.md
+          - Brokers: api-reference/endpoints/brokers.md
+          - Risk Management: api-reference/endpoints/risk.md
+          - Compliance: api-reference/endpoints/compliance.md
+          - Monitoring: api-reference/endpoints/monitoring.md
+          - Manual Execution: api-reference/endpoints/manual-execution.md
+      - Schemas: api-reference/schemas.md
+      - OpenAPI Spec: api-reference/swagger-spec.yaml
+
+  - User Guides:
+      - guides/index.md
+      - Trading Strategies: guides/trading-strategies.md
+      - Elliott Wave Trading: guides/elliott-wave-trading.md
+      - Risk Management: guides/risk-management.md
+      - Performance Analysis: guides/performance-analysis.md
+      - Best Practices: guides/best-practices.md
+
+  - Integrations:
+      - integrations/index.md
+      - Interactive Brokers: integrations/interactive-brokers.md
+      - Google Vertex AI: integrations/vertex-ai.md
+      - Supabase: integrations/supabase.md
+      - TimescaleDB: integrations/timescaledb.md
+      - LLM Integration: integrations/llm-integration.md
+
+  - Development:
+      - development/index.md
+      - Setup: development/setup.md
+      - Code Standards: development/code-standards.md
+      - Testing: development/testing.md
+      - Contributing: development/contributing.md
+      - API Development: development/api-development.md
+
+  - Deployment:
+      - deployment/index.md
+      - Docker: deployment/docker.md
+      - Kubernetes: deployment/kubernetes.md
+      - Production Guide: deployment/deployment-guide.md
+      - Operational Runbook: deployment/operational-runbook.md
+      - Monitoring: deployment/monitoring.md
+      - Scaling: deployment/scaling.md
+
+  - Troubleshooting:
+      - troubleshooting/index.md
+      - Common Issues: troubleshooting/common-issues.md
+      - FAQ: troubleshooting/faq.md
+      - Debugging: troubleshooting/debugging.md
+      - Performance: troubleshooting/performance-tuning-guide.md
+
+  - Reference:
+      - Technical Index: technical-documentation-index.md
+      - Changelog: changelog.md
+      - Roadmap: roadmap.md
+      - Glossary: glossary.md
+      - External Resources: references.md
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - codehilite:
+      guess_lang: false
+  - def_list
+  - footnotes
+  - md_in_html
+  - meta
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: meridianp
+      repo: fxml4
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - tables
+  - toc:
+      permalink: true
+      title: On this page
+      toc_depth: 3
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - minify:
+      minify_html: true
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          rendering:
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_object_full_path: false
+            show_category_heading: true
+            members_order: source
+          selection:
+            filters:
+              - "!^_"
+              - "^__init__$"
+          setup_commands:
+            - import sys
+            - sys.path.append(".")
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+  - tags:
+      tags_file: tags.md
+
+extra:
+  version:
+    provider: mike
+    default: latest
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/meridianp/fxml4
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/fxml4
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/company/fxml4
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX
+  consent:
+    title: Cookie consent
+    description: >-
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+copyright: >
+  Copyright &copy; 2024 FXML4 Team –
+  <a href="#__consent">Change cookie settings</a>

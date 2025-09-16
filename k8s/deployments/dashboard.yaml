@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fxml4-dashboard
+  namespace: fxml4
+  labels:
+    app: fxml4-dashboard
+    component: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fxml4-dashboard
+  template:
+    metadata:
+      labels:
+        app: fxml4-dashboard
+        component: ui
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: dashboard
+          image: ghcr.io/meridianp/fxml4-dashboard:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8501
+              name: http
+          env:
+            - name: PYTHONPATH
+              value: "/app"
+            - name: FXML4_SERVICE_NAME
+              value: "dashboard"
+            - name: FXML4_API_HOST
+              value: "fxml4-api"
+            - name: FXML4_API_PORT
+              value: "8000"
+          envFrom:
+            - configMapRef:
+                name: fxml4-config
+            - secretRef:
+                name: fxml4-secrets
+          command: ["python", "-m", "fxml4.ui.main"]
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+              readOnly: true
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: fxml4-data-pvc

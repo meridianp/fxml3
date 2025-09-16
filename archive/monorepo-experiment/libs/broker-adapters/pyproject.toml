@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "fxml4-broker-adapters"
+version = "0.1.0"
+description = "Broker adapter implementations for fxml4"
+authors = ["cnross <cnross@example.com>"]
+packages = [
+  { include = "fxml4_brokers", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fxml4-core = { path = "../../packages/core", develop = true }
+ibapi = "^9.81"
+httpx = "^0.24"
+websockets = "^11.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0"
+pytest-asyncio = "^0.20"
+pytest-mock = "^3.10"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

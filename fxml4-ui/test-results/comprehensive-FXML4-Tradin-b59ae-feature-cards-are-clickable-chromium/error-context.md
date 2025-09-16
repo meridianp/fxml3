@@ -1,0 +1,198 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e8]: FX
+          - generic [ref=e9]:
+            - heading "FXML4" [level=1] [ref=e10]
+            - paragraph [ref=e11]: Trading Platform
+        - button [ref=e12] [cursor=pointer]:
+          - img [ref=e13] [cursor=pointer]
+      - navigation [ref=e15]:
+        - generic [ref=e16]:
+          - link "Dashboard" [ref=e17] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e19] [cursor=pointer]
+            - generic [ref=e23] [cursor=pointer]: Dashboard
+          - link "Data Market data and feeds" [ref=e24] [cursor=pointer]:
+            - /url: /data
+            - img [ref=e26] [cursor=pointer]
+            - generic [ref=e28] [cursor=pointer]:
+              - generic [ref=e29] [cursor=pointer]: Data
+              - paragraph [ref=e30] [cursor=pointer]: Market data and feeds
+          - link "Training ML model training" [ref=e31] [cursor=pointer]:
+            - /url: /training
+            - img [ref=e33] [cursor=pointer]
+            - generic [ref=e35] [cursor=pointer]:
+              - generic [ref=e36] [cursor=pointer]: Training
+              - paragraph [ref=e37] [cursor=pointer]: ML model training
+          - link "Analytics Performance & wave analysis" [ref=e38] [cursor=pointer]:
+            - /url: /analytics
+            - img [ref=e40] [cursor=pointer]
+            - generic [ref=e42] [cursor=pointer]:
+              - generic [ref=e43] [cursor=pointer]: Analytics
+              - paragraph [ref=e44] [cursor=pointer]: Performance & wave analysis
+          - link "Elliott Waves AI-enhanced wave analysis" [ref=e45] [cursor=pointer]:
+            - /url: /elliott-waves
+            - img [ref=e47] [cursor=pointer]
+            - generic [ref=e49] [cursor=pointer]:
+              - generic [ref=e50] [cursor=pointer]: Elliott Waves
+              - paragraph [ref=e51] [cursor=pointer]: AI-enhanced wave analysis
+          - link "Backtesting Strategy backtests" [ref=e52] [cursor=pointer]:
+            - /url: /backtesting
+            - img [ref=e54] [cursor=pointer]
+            - generic [ref=e56] [cursor=pointer]:
+              - generic [ref=e57] [cursor=pointer]: Backtesting
+              - paragraph [ref=e58] [cursor=pointer]: Strategy backtests
+          - link "5 Trading Live trading console" [ref=e59] [cursor=pointer]:
+            - /url: /trading
+            - generic [ref=e60] [cursor=pointer]:
+              - img [ref=e61] [cursor=pointer]
+              - generic [ref=e63] [cursor=pointer]: "5"
+            - generic [ref=e64] [cursor=pointer]:
+              - generic [ref=e65] [cursor=pointer]: Trading
+              - paragraph [ref=e66] [cursor=pointer]: Live trading console
+        - generic [ref=e68]:
+          - link "Settings" [ref=e69] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e70] [cursor=pointer]
+            - generic [ref=e73] [cursor=pointer]: Settings
+          - link "Profile" [ref=e74] [cursor=pointer]:
+            - /url: /profile
+            - img [ref=e75] [cursor=pointer]
+            - generic [ref=e77] [cursor=pointer]: Profile
+          - link "Help" [ref=e78] [cursor=pointer]:
+            - /url: /help
+            - img [ref=e79] [cursor=pointer]
+            - generic [ref=e81] [cursor=pointer]: Help
+      - generic [ref=e83]:
+        - generic [ref=e85]: JD
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: John Doe
+          - paragraph [ref=e88]: Pro Trader
+        - generic [ref=e89]:
+          - button "Switch theme (currently dark)" [ref=e90] [cursor=pointer]:
+            - img [ref=e91] [cursor=pointer]
+          - button [ref=e93] [cursor=pointer]:
+            - img [ref=e94] [cursor=pointer]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97] [cursor=pointer]
+    - generic [ref=e99]:
+      - banner [ref=e100]:
+        - generic [ref=e102]:
+          - generic [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e108]: Disconnected
+          - generic [ref=e110]:
+            - img [ref=e111]
+            - generic [ref=e113]: 0 symbols
+          - generic [ref=e114]:
+            - generic [ref=e117]: Market Open
+            - button [ref=e118] [cursor=pointer]:
+              - img [ref=e119] [cursor=pointer]
+            - generic [ref=e121]: 4:43:51 PM
+      - main [ref=e122]:
+        - generic [ref=e123]:
+          - generic [ref=e125]:
+            - generic [ref=e126]:
+              - heading "FXML4 Trading Platform" [level=1] [ref=e127]
+              - paragraph [ref=e128]: Professional forex trading with ML-powered signals and comprehensive analytics
+            - generic [ref=e129]:
+              - generic [ref=e130]: disconnected
+              - generic "Session expired. Please log in again." [ref=e132]: API Connection Issues
+          - generic [ref=e133]:
+            - generic [ref=e135]:
+              - generic [ref=e136]:
+                - paragraph [ref=e137]: Active Models
+                - paragraph [ref=e138]: N/A
+              - generic [ref=e139]: API Error
+            - generic [ref=e141]:
+              - generic [ref=e142]:
+                - paragraph [ref=e143]: Running Backtests
+                - paragraph [ref=e144]: N/A
+              - generic [ref=e145]: API Error
+            - generic [ref=e147]:
+              - generic [ref=e148]:
+                - paragraph [ref=e149]: Open Positions
+                - paragraph [ref=e150]: N/A
+              - generic [ref=e151]: API Error
+            - generic [ref=e153]:
+              - generic [ref=e154]:
+                - paragraph [ref=e155]: Total P&L
+                - paragraph [ref=e156]: N/A
+              - generic [ref=e157]: API Error
+          - generic [ref=e158]:
+            - link "Data Management Monitor real-time market data, manage historical data, and configure data feeds Explore →" [ref=e159] [cursor=pointer]:
+              - /url: /data
+              - generic [ref=e161] [cursor=pointer]:
+                - img [ref=e163] [cursor=pointer]
+                - generic [ref=e165] [cursor=pointer]:
+                  - heading "Data Management" [level=3] [ref=e166] [cursor=pointer]
+                  - paragraph [ref=e167] [cursor=pointer]: Monitor real-time market data, manage historical data, and configure data feeds
+                  - generic [ref=e169] [cursor=pointer]: Explore →
+            - link "ML Training Studio Train and manage machine learning models for forex trading signals Explore →" [ref=e170] [cursor=pointer]:
+              - /url: /training
+              - generic [ref=e172] [cursor=pointer]:
+                - img [ref=e174] [cursor=pointer]
+                - generic [ref=e176] [cursor=pointer]:
+                  - heading "ML Training Studio" [level=3] [ref=e177] [cursor=pointer]
+                  - paragraph [ref=e178] [cursor=pointer]: Train and manage machine learning models for forex trading signals
+                  - generic [ref=e180] [cursor=pointer]: Explore →
+            - link "Backtesting Workbench Create and analyze trading strategy backtests with comprehensive metrics Explore →" [ref=e181] [cursor=pointer]:
+              - /url: /backtesting
+              - generic [ref=e183] [cursor=pointer]:
+                - img [ref=e185] [cursor=pointer]
+                - generic [ref=e187] [cursor=pointer]:
+                  - heading "Backtesting Workbench" [level=3] [ref=e188] [cursor=pointer]
+                  - paragraph [ref=e189] [cursor=pointer]: Create and analyze trading strategy backtests with comprehensive metrics
+                  - generic [ref=e191] [cursor=pointer]: Explore →
+            - link "Trading Console Live trading operations, order management, and portfolio monitoring Explore →" [ref=e192] [cursor=pointer]:
+              - /url: /trading
+              - generic [ref=e194] [cursor=pointer]:
+                - img [ref=e196] [cursor=pointer]
+                - generic [ref=e198] [cursor=pointer]:
+                  - heading "Trading Console" [level=3] [ref=e199] [cursor=pointer]
+                  - paragraph [ref=e200] [cursor=pointer]: Live trading operations, order management, and portfolio monitoring
+                  - generic [ref=e202] [cursor=pointer]: Explore →
+          - generic [ref=e203]:
+            - generic [ref=e204]:
+              - heading "Recent Models" [level=3] [ref=e205]:
+                - img [ref=e206]
+                - text: Recent Models
+              - generic [ref=e209]:
+                - text: API connection failed - unable to load models
+                - generic [ref=e210]: Check backend API status
+            - generic [ref=e211]:
+              - heading "Recent Backtests" [level=3] [ref=e212]:
+                - img [ref=e213]
+                - text: Recent Backtests
+              - generic [ref=e216]:
+                - text: API connection failed - unable to load backtests
+                - generic [ref=e217]: Check backend API status
+            - generic [ref=e218]:
+              - heading "Active Positions" [level=3] [ref=e219]:
+                - img [ref=e220]
+                - text: Active Positions
+              - generic [ref=e223]:
+                - text: API connection failed - unable to load positions
+                - generic [ref=e224]: Check backend API status
+          - paragraph [ref=e226]: FXML4 Professional Trading Platform - Advanced ML-Powered Forex Trading
+    - region "Notifications" [ref=e227]:
+      - generic [ref=e229]:
+        - generic [ref=e230]:
+          - img [ref=e231]
+          - heading "Notifications" [level=3] [ref=e233]
+        - button "all" [ref=e236] [cursor=pointer]:
+          - img [ref=e237] [cursor=pointer]
+          - generic [ref=e239] [cursor=pointer]: all
+          - img [ref=e240] [cursor=pointer]
+      - list [ref=e242]:
+        - generic [ref=e243]:
+          - img [ref=e244]
+          - paragraph [ref=e246]: No notifications
+  - alert [ref=e247]
+```

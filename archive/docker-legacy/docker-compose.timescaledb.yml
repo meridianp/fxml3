@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fxml4
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      # Mount migrations directory to initialize the database
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    container_name: fxml4-timescaledb
+    networks:
+      - fxml4_network
+
+volumes:
+  timescaledb_data:
+
+networks:
+  fxml4_network:
+    driver: bridge

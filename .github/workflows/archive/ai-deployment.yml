@@ -1,0 +1,578 @@
+name: AI-Assisted Production Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - "staging"
+          - "production"
+      deployment_strategy:
+        description: "Deployment strategy"
+        required: true
+        default: "blue-green"
+        type: choice
+        options:
+          - "blue-green"
+          - "canary"
+          - "rolling"
+          - "immediate"
+      ai_validation:
+        description: "Enable AI deployment validation"
+        required: false
+        default: true
+        type: boolean
+
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - ".github/**"
+
+env:
+  AI_PROVIDER: openai
+  AI_MODEL: gpt-5
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  ai-deployment-readiness:
+    name: AI Deployment Readiness Assessment
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_approved: ${{ steps.ai-assessment.outputs.approved }}
+      risk_level: ${{ steps.ai-assessment.outputs.risk_level }}
+      recommended_strategy: ${{ steps.ai-assessment.outputs.strategy }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Gather deployment context
+        id: context
+        run: |
+          echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "author=${{ github.actor }}" >> $GITHUB_OUTPUT
+
+          # Get recent changes
+          recent_changes=$(git log --oneline -10)
+          echo "recent_changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$recent_changes" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Get changed files
+          changed_files=$(git diff --name-only HEAD~5..HEAD)
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$changed_files" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: AI Deployment Readiness Assessment
+        id: ai-assessment
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p reports/deployment
+
+          # Assessment prompt
+          cat > /tmp/deployment_assessment.txt << 'EOF'
+          Assess deployment readiness for FXML4 trading system:
+
+          Deployment Context:
+          - Target Environment: ${{ github.event.inputs.environment || 'staging' }}
+          - Commit: ${{ steps.context.outputs.commit_sha }}
+          - Branch: ${{ steps.context.outputs.branch }}
+          - Triggered by: ${{ steps.context.outputs.author }}
+
+          Recent Changes:
+          ${{ steps.context.outputs.recent_changes }}
+
+          Changed Files:
+          ${{ steps.context.outputs.changed_files }}
+
+          Assessment Criteria for Trading System:
+          1. Code Quality & Testing
+             - Test coverage and quality
+             - Critical system components changed
+             - Regression risk assessment
+
+          2. Trading System Impact
+             - Broker integration changes
+             - Risk management modifications
+             - Trading logic alterations
+             - Database schema changes
+             - API breaking changes
+
+          3. Operational Risk
+             - Market hours consideration (avoid during active trading)
+             - System dependencies affected
+             - Rollback complexity
+             - Recovery time objectives
+
+          4. Compliance & Regulatory
+             - Audit trail maintenance
+             - Regulatory reporting impact
+             - Data integrity preservation
+             - Security controls maintained
+
+          Output JSON with:
+          {
+            "approved": true/false,
+            "risk_level": "low|medium|high|critical",
+            "strategy": "blue-green|canary|rolling|immediate",
+            "concerns": ["list of concerns"],
+            "recommendations": ["list of recommendations"],
+            "rollback_plan": "rollback strategy",
+            "monitoring_requirements": ["monitoring points"],
+            "timing_restrictions": "deployment timing guidance"
+          }
+          EOF
+
+          # Run AI assessment
+          codex exec -p fxml4_ci "$(cat /tmp/deployment_assessment.txt)" > reports/deployment/ai-assessment-${{ github.run_id }}.json
+
+          # Extract results
+          approved=$(jq -r '.approved' reports/deployment/ai-assessment-${{ github.run_id }}.json)
+          risk_level=$(jq -r '.risk_level' reports/deployment/ai-assessment-${{ github.run_id }}.json)
+          strategy=$(jq -r '.strategy' reports/deployment/ai-assessment-${{ github.run_id }}.json)
+
+          echo "approved=$approved" >> $GITHUB_OUTPUT
+          echo "risk_level=$risk_level" >> $GITHUB_OUTPUT
+          echo "strategy=$strategy" >> $GITHUB_OUTPUT
+
+      - name: Upload Assessment Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-deployment-assessment
+          path: reports/deployment/ai-assessment-*.json
+
+  staging-deployment:
+    name: Staging Deployment with AI Monitoring
+    runs-on: ubuntu-latest
+    needs: ai-deployment-readiness
+    if: needs.ai-deployment-readiness.outputs.deployment_approved == 'true'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Build and push Docker image
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Deploy to staging
+        run: |
+          # Simulate deployment to staging
+          echo "Deploying to staging environment..."
+          echo "Using strategy: ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}"
+
+          # Deploy application (placeholder - replace with actual deployment commands)
+          ./scripts/deploy/deploy-staging.sh ${{ github.sha }}
+
+      - name: Setup Python for E2E Testing
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install E2E Test Dependencies
+        run: |
+          pip install aiohttp psycopg2-binary redis pika pytest-asyncio
+
+      - name: CRITICAL - End-to-End User Journey Validation
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL || 'http://staging-api.fxml4.com' }}
+          STAGING_UI_URL: ${{ vars.STAGING_UI_URL || 'http://staging-app.fxml4.com' }}
+        run: |
+          echo "🚀 Running END-TO-END USER JOURNEY TESTS - Complete user workflows"
+
+          # Wait for deployment to be ready
+          sleep 60
+
+          # Run complete user journey validation
+          python tests/e2e/test_complete_user_journey.py $STAGING_URL $STAGING_UI_URL
+
+          if [ $? -ne 0 ]; then
+            echo "❌ END-TO-END USER JOURNEY FAILED - User workflows broken"
+            echo "Rolling back deployment..."
+            ./scripts/deploy/rollback-staging.sh
+            exit 1
+          fi
+
+          echo "✅ End-to-end user journeys passed - Complete user flows validated"
+
+      - name: AI-Powered Health Check Validation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p reports/deployment
+
+          # Wait for deployment to stabilize
+          sleep 30
+
+          # Gather health check data
+          health_status=$(curl -s http://staging-api.fxml4.com/health || echo "Health check failed")
+          api_response_time=$(curl -w "%{time_total}" -s -o /dev/null http://staging-api.fxml4.com/health || echo "0")
+
+          # AI health validation prompt
+          cat > /tmp/health_validation.txt << 'EOF'
+          Validate staging deployment health for FXML4 trading system:
+
+          Health Check Results:
+          - API Health: $health_status
+          - Response Time: ${api_response_time}s
+          - Deployment Strategy: ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}
+
+          Validate against expected baselines:
+          - API health endpoint should return 200 OK
+          - Response time should be < 500ms
+          - All critical services should be operational
+          - Database connectivity verified
+          - Broker connections established (if applicable)
+
+          Assessment should include:
+          1. Service availability validation
+          2. Performance baseline comparison
+          3. Critical functionality verification
+          4. Rollback trigger evaluation
+          5. Production readiness assessment
+
+          Output JSON with pass/fail decision and detailed analysis.
+          EOF
+
+          # Run AI health validation
+          codex exec -p fxml4_ci "$(cat /tmp/health_validation.txt)" > reports/deployment/ai-health-validation-${{ github.run_id }}.json
+
+          # Check if validation passed
+          validation_passed=$(jq -r '.passed' reports/deployment/ai-health-validation-${{ github.run_id }}.json)
+          if [ "$validation_passed" != "true" ]; then
+            echo "❌ AI health validation failed"
+            exit 1
+          fi
+
+      - name: Upload Staging Deployment Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-deployment-report
+          path: reports/deployment/
+
+  production-deployment:
+    name: Production Deployment with AI Oversight
+    runs-on: ubuntu-latest
+    needs: [ai-deployment-readiness, staging-deployment]
+    if: |
+      github.event.inputs.environment == 'production' &&
+      needs.ai-deployment-readiness.outputs.deployment_approved == 'true' &&
+      needs.ai-deployment-readiness.outputs.risk_level != 'critical'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Pre-deployment AI Safety Check
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p reports/deployment
+
+          # Final safety check prompt
+          cat > /tmp/safety_check.txt << 'EOF'
+          Final safety check before FXML4 production deployment:
+
+          Deployment Context:
+          - Risk Level: ${{ needs.ai-deployment-readiness.outputs.risk_level }}
+          - Strategy: ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}
+          - Market Status: Check if markets are currently active
+          - System Load: Assess current production load
+
+          Critical Safety Validations:
+          1. Market Hours Check - avoid deployment during active trading
+          2. System Dependencies - ensure all external services operational
+          3. Rollback Readiness - verify rollback procedures are tested
+          4. Monitoring Setup - confirm alerts and monitoring are active
+          5. Backup Status - ensure recent backups are available
+          6. Team Availability - verify support team is available
+
+          Trading System Specific Checks:
+          - Broker connections stable
+          - Risk management systems operational
+          - Audit logging functional
+          - Database replication healthy
+
+          Output go/no-go decision with detailed reasoning.
+          EOF
+
+          # Run final safety check
+          codex exec -p fxml4_ci "$(cat /tmp/safety_check.txt)" > reports/deployment/ai-safety-check-${{ github.run_id }}.json
+
+          # Validate go/no-go decision
+          go_decision=$(jq -r '.decision' reports/deployment/ai-safety-check-${{ github.run_id }}.json)
+          if [ "$go_decision" != "go" ]; then
+            echo "❌ AI safety check failed - deployment aborted"
+            jq -r '.reasoning' reports/deployment/ai-safety-check-${{ github.run_id }}.json
+            exit 1
+          fi
+
+      - name: Execute Production Deployment
+        run: |
+          echo "🚀 Deploying to production..."
+          echo "Strategy: ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}"
+
+          # Production deployment (placeholder - replace with actual deployment commands)
+          ./scripts/deploy/deploy-production.sh ${{ github.sha }} ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}
+
+      - name: Setup Python for Production Testing
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Production Test Dependencies
+        run: |
+          pip install aiohttp psycopg2-binary redis pika pytest-asyncio
+
+      - name: CRITICAL - Production Login Validation
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://api.fxml4.com' }}
+        run: |
+          echo "🔐 CRITICAL - Testing production login functionality"
+
+          # Test production login (read-only operations)
+          python tests/critical/test_mandatory_login.py $PRODUCTION_URL
+
+          if [ $? -ne 0 ]; then
+            echo "❌ PRODUCTION LOGIN TEST FAILED - INITIATING EMERGENCY ROLLBACK"
+            ./scripts/deploy/emergency-rollback.sh
+            exit 1
+          fi
+
+          echo "✅ Production login validation successful"
+
+      - name: CRITICAL - Production Environment Validation
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://api.fxml4.com' }}
+          PRODUCTION_DB_URL: ${{ secrets.PRODUCTION_DB_URL }}
+          PRODUCTION_REDIS_URL: ${{ secrets.PRODUCTION_REDIS_URL }}
+          PRODUCTION_RABBITMQ_URL: ${{ secrets.PRODUCTION_RABBITMQ_URL }}
+        run: |
+          echo "🌍 CRITICAL - Validating production environment health"
+
+          # Test production environment (read-only mode)
+          python tests/environments/test_real_environment.py production
+
+          if [ $? -ne 0 ]; then
+            echo "❌ PRODUCTION ENVIRONMENT VALIDATION FAILED - INITIATING EMERGENCY ROLLBACK"
+            ./scripts/deploy/emergency-rollback.sh
+            exit 1
+          fi
+
+          echo "✅ Production environment validation successful"
+
+      - name: CRITICAL - Production E2E User Journey (Read-Only)
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL || 'https://api.fxml4.com' }}
+          PRODUCTION_UI_URL: ${{ vars.PRODUCTION_UI_URL || 'https://app.fxml4.com' }}
+        run: |
+          echo "🚀 CRITICAL - Testing production user journeys (read-only)"
+
+          # Run read-only E2E tests in production
+          pytest tests/e2e/test_complete_user_journey.py::test_e2e_production_environment -v
+
+          if [ $? -ne 0 ]; then
+            echo "❌ PRODUCTION E2E TESTS FAILED - User workflows broken in production"
+            echo "INITIATING EMERGENCY ROLLBACK"
+            ./scripts/deploy/emergency-rollback.sh
+            exit 1
+          fi
+
+          echo "✅ Production E2E validation successful - User workflows operational"
+
+      - name: AI-Monitored Production Health Check
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Extended monitoring period for production
+          sleep 120
+
+          # Comprehensive health checks
+          api_health=$(curl -s https://api.fxml4.com/health || echo "FAILED")
+          dashboard_health=$(curl -s https://dashboard.fxml4.com/health || echo "FAILED")
+          db_health=$(curl -s https://api.fxml4.com/health/db || echo "FAILED")
+          brokers_health=$(curl -s https://api.fxml4.com/health/brokers || echo "FAILED")
+
+          # AI production validation
+          cat > /tmp/production_validation.txt << 'EOF'
+          Validate production deployment success for FXML4 trading system:
+
+          Health Check Results:
+          - API Health: $api_health
+          - Dashboard Health: $dashboard_health
+          - Database Health: $db_health
+          - Brokers Health: $brokers_health
+
+          Critical Production Validations:
+          1. All services responding within SLA (<500ms)
+          2. Database connections stable
+          3. Broker integrations operational
+          4. Real-time data feeds active
+          5. Risk management systems functional
+          6. Audit logging operational
+          7. No error spikes in logs
+          8. Performance metrics within baseline
+
+          If any critical issues detected, provide:
+          - Immediate rollback recommendation
+          - Impact assessment
+          - Recovery procedures
+
+          Output deployment success status and monitoring recommendations.
+          EOF
+
+          # Validate production deployment
+          codex exec -p fxml4_ci "$(cat /tmp/production_validation.txt)" > reports/deployment/ai-production-validation-${{ github.run_id }}.json
+
+          # Check deployment success
+          deployment_success=$(jq -r '.success' reports/deployment/ai-production-validation-${{ github.run_id }}.json)
+          if [ "$deployment_success" != "true" ]; then
+            echo "❌ Production deployment validation failed"
+            echo "Initiating emergency rollback..."
+            ./scripts/deploy/emergency-rollback.sh
+            exit 1
+          fi
+
+      - name: Setup Post-Deployment Monitoring
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # AI monitoring setup
+          cat > /tmp/monitoring_setup.txt << 'EOF'
+          Setup intelligent monitoring for FXML4 production deployment:
+
+          Deployment Details:
+          - Version: ${{ github.sha }}
+          - Strategy: ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}
+          - Risk Level: ${{ needs.ai-deployment-readiness.outputs.risk_level }}
+
+          Configure monitoring for:
+          1. Performance Metrics
+             - API response times
+             - Database query performance
+             - Memory and CPU utilization
+             - Network latency to brokers
+
+          2. Business Metrics
+             - Trading signal accuracy
+             - Order execution latency
+             - Risk management effectiveness
+             - Revenue/PnL tracking
+
+          3. Error Tracking
+             - Application errors
+             - Broker connectivity issues
+             - Database connection failures
+             - Authentication failures
+
+          4. Alert Thresholds
+             - Response time > 1s (warning)
+             - Response time > 2s (critical)
+             - Error rate > 1% (warning)
+             - Error rate > 5% (critical)
+             - Trading accuracy < 60% (warning)
+
+          Generate monitoring configuration and alert rules.
+          EOF
+
+          # Setup AI-driven monitoring
+          codex exec -p fxml4_ci "$(cat /tmp/monitoring_setup.txt)" > reports/deployment/ai-monitoring-setup-${{ github.run_id }}.json
+
+      - name: Create Deployment Summary Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read AI reports
+            const assessment = JSON.parse(fs.readFileSync('reports/deployment/ai-assessment-${{ github.run_id }}.json', 'utf8'));
+            const validation = JSON.parse(fs.readFileSync('reports/deployment/ai-production-validation-${{ github.run_id }}.json', 'utf8'));
+
+            const issueBody = `
+            ## 🚀 Production Deployment Summary
+
+            **Deployment Successful:** ✅
+            **Version:** \`${{ github.sha }}\`
+            **Strategy:** ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}
+            **Risk Level:** ${{ needs.ai-deployment-readiness.outputs.risk_level }}
+
+            ### AI Assessment Results
+            - **Deployment Approved:** ${{ needs.ai-deployment-readiness.outputs.deployment_approved }}
+            - **Risk Level:** ${{ needs.ai-deployment-readiness.outputs.risk_level }}
+            - **Recommended Strategy:** ${{ needs.ai-deployment-readiness.outputs.recommended_strategy }}
+
+            ### Health Check Status
+            ${validation.health_summary || 'All systems operational'}
+
+            ### Monitoring & Alerts
+            - Post-deployment monitoring configured
+            - AI-driven alert thresholds set
+            - Performance baseline established
+
+            ### Rollback Plan
+            ${assessment.rollback_plan || 'Standard rollback procedures available'}
+
+            ### Next Steps
+            - [ ] Monitor system performance for 24 hours
+            - [ ] Validate trading accuracy metrics
+            - [ ] Review AI-generated monitoring alerts
+            - [ ] Update documentation if needed
+
+            ---
+            *Deployment executed with AI assistance via OpenAI GPT-5*
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚀 Production Deployment - ${context.sha.substring(0, 8)}`,
+              body: issueBody,
+              labels: ['deployment', 'production', 'ai-assisted']
+            });
+
+      - name: Upload Production Deployment Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-deployment-reports
+          path: reports/deployment/

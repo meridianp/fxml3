@@ -1,0 +1,39 @@
+================================================================================
+FXML4 PERFORMANCE MONITORING REPORT
+================================================================================
+Timestamp: 2025-08-25T16:09:51.649832
+Overall Status: TARGETS NOT MET
+Targets Passed: 3/7
+
+API PERFORMANCE TARGETS
+----------------------------------------
+/health                   | ✅ PASS | P95:    7.8ms | Target:     50ms
+                         | Samples:  20 | Success: 100.0% | Errors: 0
+/api/data/symbols         | ❌ FAIL | P95:    0.0ms | Target:    500ms
+                         | Samples:   0 | Success:   0.0% | Errors: 20
+/api/backtest/run         | ❌ FAIL | P95:    0.0ms | Target:   5000ms
+                         | Samples:   0 | Success:   0.0% | Errors: 20
+/api/data/candles         | ❌ FAIL | P95:    0.0ms | Target:    500ms
+                         | Samples:   0 | Success:   0.0% | Errors: 20
+
+RESOURCE USAGE TARGETS
+----------------------------------------
+cpu             | ✅ PASS | Current:   13.9% | Target:   70.0%
+                | Max:   27.0% | Sustained:   0.0s | Samples: 24
+memory          | ✅ PASS | Current:    3.7GB | Target:    4.0GB
+                | Max:    3.8GB | Sustained:   0.0s | Samples: 24
+database_connections | ❌ FAIL | Current:   70.5connections | Target:   50.0connections
+                | Max:  130.0connections | Sustained:  85.0s | Samples: 24
+
+RECOMMENDATIONS
+----------------------------------------
+• API performance: /api/data/symbols P95 0.0ms exceeds target 500ms
+• API performance: /api/backtest/run P95 0.0ms exceeds target 5000ms
+• API performance: /api/data/candles P95 0.0ms exceeds target 500ms
+• Resource usage: database_connections 130.0connections exceeds target 50connections
+
+PERFORMANCE SUMMARY
+----------------------------------------
+🚨 ATTENTION: Performance targets not met, optimization required
+
+================================================================================

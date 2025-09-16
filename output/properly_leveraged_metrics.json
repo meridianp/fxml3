@@ -1,0 +1,21 @@
+{
+  "total_trades": 590,
+  "win_rate": 0.5271186440677966,
+  "avg_win": 83.28357241541448,
+  "avg_loss": -76.34274748378859,
+  "profit_factor": 1.220413922024261,
+  "total_return": 0.046779072207008575,
+  "sharpe_ratio": 1.9209883794237759,
+  "max_drawdown": -0.014149919545525032,
+  "avg_holding_hours": 15.125423728813558,
+  "trades_per_day": 4.521072796934866,
+  "exit_reasons": {
+    "quick_profit_20pips": 216,
+    "time_stop_12h": 179,
+    "stop_loss": 124,
+    "signal_reversal": 39,
+    "momentum_exit": 17,
+    "max_time": 13,
+    "end_of_test": 2
+  }
+}

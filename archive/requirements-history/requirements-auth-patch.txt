@@ -1,0 +1,2 @@
+# Auth patch for existing fxml4 image
+python-jose[cryptography]==3.3.0

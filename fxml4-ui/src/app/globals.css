@@ -1,0 +1,179 @@
+/**
+ * Global CSS
+ *
+ * Tailwind CSS and custom styles for FXML4 trading platform
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables for theming */
+:root {
+  --font-inter: 'Inter', sans-serif;
+
+  /* Trading Colors */
+  --color-buy: #10b981;
+  --color-sell: #ef4444;
+  --color-neutral: #6b7280;
+
+  /* Chart Colors */
+  --color-up: #10b981;
+  --color-down: #ef4444;
+  --color-volume: #3b82f6;
+  --color-grid: #374151;
+}
+
+/* Dark theme (default) */
+.dark {
+  color-scheme: dark;
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --border-primary: #475569;
+}
+
+/* Light theme */
+.light {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #e2e8f0;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --border-primary: #cbd5e1;
+}
+
+/* Light theme specific overrides */
+.light .bg-gray-950 {
+  background-color: var(--bg-primary) !important;
+}
+
+.light .bg-gray-900 {
+  background-color: var(--bg-secondary) !important;
+}
+
+.light .bg-gray-800 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.light .text-white {
+  color: var(--text-primary) !important;
+}
+
+.light .text-gray-300,
+.light .text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+.light .border-gray-700,
+.light .border-gray-600 {
+  border-color: var(--border-primary) !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Trading specific classes */
+.price-up {
+  @apply text-green-400;
+  animation: flash-green 0.5s ease-in-out;
+}
+
+.price-down {
+  @apply text-red-400;
+  animation: flash-red 0.5s ease-in-out;
+}
+
+@keyframes flash-green {
+  0% { background-color: rgba(16, 185, 129, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(239, 68, 68, 0.3); }
+  100% { background-color: transparent; }
+}
+
+/* Chart animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Loading states */
+.loading-skeleton {
+  @apply animate-pulse bg-gray-700 rounded;
+}
+
+/* Focus states for trading platform */
+.focus-trading {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+}
+
+/* Button variants for trading actions */
+.btn-buy {
+  @apply bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+}
+
+.btn-sell {
+  @apply bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+}
+
+/* Status indicators */
+.status-connected {
+  @apply w-2 h-2 bg-green-500 rounded-full animate-pulse;
+}
+
+.status-disconnected {
+  @apply w-2 h-2 bg-red-500 rounded-full;
+}
+
+.status-connecting {
+  @apply w-2 h-2 bg-yellow-500 rounded-full animate-pulse;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none;
+  }
+
+  .mobile-full {
+    width: 100%;
+  }
+
+  .mobile-stack {
+    flex-direction: column;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --color-buy: #00ff00;
+    --color-sell: #ff0000;
+  }
+}

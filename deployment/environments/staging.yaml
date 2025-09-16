@@ -1,0 +1,205 @@
+# FXML4 Staging Environment Configuration
+# This environment mirrors production but with reduced resources and relaxed limits
+
+environment: staging
+deployment_stage: testing
+
+# Infrastructure Configuration
+infrastructure:
+  # Single Region Setup
+  primary_region:
+    provider: gcp
+    region: us-central1
+    zones: [us-central1-a, us-central1-b]
+
+  # Kubernetes Configuration
+  kubernetes:
+    cluster_name: fxml4-staging
+    node_pools:
+      - name: default-pool
+        machine_type: n2-standard-2
+        min_nodes: 2
+        max_nodes: 5
+        preemptible: true # Cost savings
+      - name: ml-pool
+        machine_type: n2-standard-4
+        min_nodes: 1
+        max_nodes: 2
+        preemptible: true
+
+  # Database Configuration
+  database:
+    primary:
+      type: timescaledb
+      instance_type: db-n1-standard-2
+      storage_gb: 100
+      backup_retention_days: 7
+      high_availability: false
+      read_replicas: 0
+
+  # Message Queue
+  message_queue:
+    type: rabbitmq
+    cluster_size: 1
+    instance_type: n2-standard-1
+    persistence: true
+
+  # Cache Layer
+  cache:
+    type: redis
+    cluster_mode: false
+    nodes: 1
+    instance_type: n2-standard-1
+
+# Application Configuration
+application:
+  # API Settings
+  api:
+    replicas:
+      min: 1
+      max: 3
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+
+  # Data Collection Service
+  data_collector:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+    data_sources:
+      - name: interactive_brokers
+        enabled: true
+        rate_limit: 50 # Lower rate for staging
+      - name: alpha_vantage
+        enabled: true
+        rate_limit: 5
+
+  # ML Services
+  ml_services:
+    training:
+      schedule: "0 4 * * *" # Daily at 4 AM UTC
+      resources:
+        cpu: 4000m
+        memory: 16Gi
+      timeout_minutes: 60
+
+    inference:
+      replicas:
+        min: 1
+        max: 2
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 2Gi
+        limits:
+          cpu: 2000m
+          memory: 4Gi
+
+  # Trading Engine
+  trading_engine:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+
+# Trading Configuration
+trading:
+  # Staging Limits (Paper Trading Only)
+  limits:
+    max_daily_trades: 100
+    max_position_size_usd: 100000
+    max_total_exposure_usd: 500000
+    allowed_symbols: ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CHF"]
+    max_leverage: 10
+    paper_trading_only: true # No real money in staging
+
+  # Risk Controls (More relaxed for testing)
+  risk_controls:
+    max_drawdown_percent: 10
+    max_daily_loss_percent: 5
+    stop_loss_pips: 100
+    take_profit_pips: 200
+
+# Monitoring Configuration
+monitoring:
+  metrics:
+    provider: prometheus
+    retention_days: 30
+    scrape_interval_seconds: 30
+
+  logging:
+    provider: stackdriver
+    retention_days: 7
+    log_levels:
+      default: DEBUG # More verbose for debugging
+
+  dashboards:
+    - name: staging_overview
+      refresh_interval: 60s
+
+# Alerting Configuration
+alerting:
+  channels:
+    - name: staging_alerts
+      type: slack
+      channel: "#staging-alerts"
+      severity: [high, medium]
+
+  # Fewer, less sensitive alerts for staging
+  rules:
+    - name: staging_system_down
+      condition: "api_availability < 0.8"
+      severity: high
+      channels: [staging_alerts]
+
+# Security Configuration
+security:
+  # Less restrictive for testing
+  access_control:
+    authentication: basic_auth
+    mfa_required: false
+    session_timeout_minutes: 120
+
+  # Still encrypted but simplified
+  encryption:
+    at_rest: true
+    in_transit: true
+
+# Backup and Recovery
+backup:
+  database:
+    frequency: daily
+    retention:
+      daily: 7
+
+  # No DR for staging
+  disaster_recovery:
+    enabled: false
+
+# Deployment Configuration
+deployment:
+  strategy: rolling_update
+  health_check_timeout_seconds: 120
+
+  # Minimal checks for faster iteration
+  pre_deployment_checks:
+    - name: unit_tests
+      required: true
+
+  post_deployment_validation:
+    - name: smoke_tests
+      timeout_minutes: 5

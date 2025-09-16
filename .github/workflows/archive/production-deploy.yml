@@ -1,0 +1,467 @@
+name: FXML4 Production Deployment
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "archive/**"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - staging
+          - production
+      force_deploy:
+        description: "Force deployment (skip some checks)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_API: ${{ github.repository }}/fxml4-api
+  IMAGE_NAME_UI: ${{ github.repository }}/fxml4-ui
+  IMAGE_NAME_WS: ${{ github.repository }}/fxml4-websocket
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "18"
+  KUBECTL_VERSION: "v1.28.0"
+
+jobs:
+  # Pre-flight checks
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.changes.outputs.should_deploy }}
+      api_changed: ${{ steps.changes.outputs.api }}
+      ui_changed: ${{ steps.changes.outputs.ui }}
+      k8s_changed: ${{ steps.changes.outputs.k8s }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            api:
+              - 'fxml4/**'
+              - 'requirements*.txt'
+              - 'pyproject.toml'
+              - 'Dockerfile.api'
+            ui:
+              - 'fxml4-ui/**'
+              - 'package*.json'
+              - 'Dockerfile.ui'
+            k8s:
+              - 'k8s/**'
+              - 'terraform/**'
+            should_deploy:
+              - 'fxml4/**'
+              - 'fxml4-ui/**'
+              - 'k8s/**'
+              - 'requirements*.txt'
+              - 'package*.json'
+              - 'Dockerfile.*'
+
+      - name: Check deployment conditions
+        run: |
+          echo "API changed: ${{ steps.changes.outputs.api }}"
+          echo "UI changed: ${{ steps.changes.outputs.ui }}"
+          echo "K8s changed: ${{ steps.changes.outputs.k8s }}"
+          echo "Should deploy: ${{ steps.changes.outputs.should_deploy }}"
+
+  # Security and quality checks
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: preflight
+    if: needs.preflight.outputs.should_deploy == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  # Test suite execution
+  test-api:
+    runs-on: ubuntu-latest
+    needs: [preflight, security-scan]
+    if: needs.preflight.outputs.api_changed == 'true'
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: fxml4_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test environment
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_password@localhost:5432/fxml4_test"
+          export REDIS_URL="redis://localhost:6379/0"
+          export PYTHONPATH="${PYTHONPATH}:${GITHUB_WORKSPACE}"
+          echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
+          echo "REDIS_URL=$REDIS_URL" >> $GITHUB_ENV
+          echo "PYTHONPATH=$PYTHONPATH" >> $GITHUB_ENV
+
+      - name: Run database migrations
+        run: |
+          python -c "
+          import asyncio
+          from fxml4.core.database import init_database
+          asyncio.run(init_database())
+          "
+
+      - name: Run unit tests
+        run: |
+          pytest tests/ -v --cov=fxml4 --cov-report=xml --cov-report=html --cov-fail-under=80 \
+                 -m "not requires_ib and not requires_fxcm and not slow" \
+                 --maxfail=5 --tb=short
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v --tb=short -m "not requires_ib and not requires_fxcm"
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: api
+          name: fxml4-api-coverage
+
+  # Frontend tests
+  test-ui:
+    runs-on: ubuntu-latest
+    needs: [preflight, security-scan]
+    if: needs.preflight.outputs.ui_changed == 'true'
+    defaults:
+      run:
+        working-directory: ./fxml4-ui
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: fxml4-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run type checking
+        run: npm run type-check
+
+      - name: Run unit tests
+        run: npm run test:coverage
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          NEXT_PUBLIC_WS_URL: ${{ secrets.PRODUCTION_WS_URL }}
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./fxml4-ui/coverage/clover.xml
+          flags: ui
+          name: fxml4-ui-coverage
+
+  # Build and push Docker images
+  build-api:
+    runs-on: ubuntu-latest
+    needs: [preflight, test-api]
+    if: needs.preflight.outputs.api_changed == 'true' && (github.event_name == 'push' || github.event.inputs.force_deploy == 'true')
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push API image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom-api.spdx.json
+
+      - name: Scan image for vulnerabilities
+        uses: anchore/scan-action@v3
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:${{ github.sha }}
+          fail-build: true
+          severity-cutoff: critical
+
+  build-ui:
+    runs-on: ubuntu-latest
+    needs: [preflight, test-ui]
+    if: needs.preflight.outputs.ui_changed == 'true' && (github.event_name == 'push' || github.event.inputs.force_deploy == 'true')
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_UI }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push UI image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./fxml4-ui
+          file: ./fxml4-ui/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            NODE_ENV=production
+            NEXT_PUBLIC_API_URL=${{ secrets.PRODUCTION_API_URL }}
+            NEXT_PUBLIC_WS_URL=${{ secrets.PRODUCTION_WS_URL }}
+
+  # Deploy to Kubernetes
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [build-api, build-ui]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://app.fxml4.trading
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster connectivity
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Update deployment images
+        run: |
+          # Update API deployment
+          kubectl set image deployment/fxml4-api \
+            fxml4-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_API }}:${{ github.sha }} \
+            -n fxml4-production
+
+          # Update UI deployment
+          kubectl set image deployment/fxml4-ui \
+            fxml4-ui=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_UI }}:${{ github.sha }} \
+            -n fxml4-production
+
+      - name: Wait for rollout to complete
+        run: |
+          kubectl rollout status deployment/fxml4-api -n fxml4-production --timeout=600s
+          kubectl rollout status deployment/fxml4-ui -n fxml4-production --timeout=600s
+
+      - name: Run post-deployment health checks
+        run: |
+          chmod +x ./scripts/deploy/health-check.sh
+          ./scripts/deploy/health-check.sh production
+
+      - name: Run smoke tests
+        run: |
+          # Basic API health check  # pragma: allowlist secret
+          curl -f https://api.fxml4.trading/health || exit 1
+
+          # Basic UI health check  # pragma: allowlist secret
+          curl -f https://app.fxml4.trading/api/health || exit 1
+
+          # WebSocket health check  # pragma: allowlist secret
+          curl -f https://ws.fxml4.trading/health || exit 1
+
+  # Rollback on failure
+  rollback:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: failure() && github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Rollback deployments
+        run: |
+          kubectl rollout undo deployment/fxml4-api -n fxml4-production
+          kubectl rollout undo deployment/fxml4-ui -n fxml4-production
+          kubectl rollout status deployment/fxml4-api -n fxml4-production --timeout=300s
+          kubectl rollout status deployment/fxml4-ui -n fxml4-production --timeout=300s
+
+      - name: Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: "🔄 FXML4 Production deployment failed and was rolled back"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Notification
+  notify:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always()
+    steps:
+      - name: Notify success
+        if: needs.deploy-production.result == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: "✅ FXML4 Production deployment successful"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Notify failure
+        if: needs.deploy-production.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: "❌ FXML4 Production deployment failed"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

@@ -1,0 +1,20 @@
+# Dependabot configuration for FXML4
+# Note: forex-connect dependencies are legacy and cannot be updated
+version: 2
+updates:
+  # Disable Python dependency updates due to forex-connect legacy requirements
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "never"
+
+  # Disable npm dependency updates for forex-connect related packages
+  - package-ecosystem: "npm"
+    directory: "/fxml4-ui"
+    schedule:
+      interval: "never"
+    ignore:
+      # Ignore forex-connect related packages
+      - dependency-name: "*"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]

@@ -1,0 +1,291 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fxml4-api-hpa
+  namespace: fxml4-production
+  labels:
+    app: fxml4-api
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fxml4-api
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Custom metrics for trading-specific scaling
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "500"
+  - type: Pods
+    pods:
+      metric:
+        name: api_response_time_p95_ms
+      target:
+        type: AverageValue
+        averageValue: "100"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5 minutes
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60   # 1 minute
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 30
+      - type: Pods
+        value: 4
+        periodSeconds: 30
+      selectPolicy: Max
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fxml4-trading-hpa
+  namespace: fxml4-production
+  labels:
+    app: fxml4-trading
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fxml4-trading
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  # CPU-based scaling (more aggressive for trading)
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Trading-specific metrics
+  - type: Pods
+    pods:
+      metric:
+        name: orders_per_second
+      target:
+        type: AverageValue
+        averageValue: "50"
+  - type: Pods
+    pods:
+      metric:
+        name: trading_volume_usd_per_minute
+      target:
+        type: AverageValue
+        averageValue: "1000000"  # $1M per minute
+  - type: Pods
+    pods:
+      metric:
+        name: order_queue_length
+      target:
+        type: AverageValue
+        averageValue: "100"
+  - type: Pods
+    pods:
+      metric:
+        name: order_execution_latency_p99_ms
+      target:
+        type: AverageValue
+        averageValue: "10"  # 10ms P99 latency
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600  # 10 minutes (conservative for trading)
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 120
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 30   # 30 seconds (aggressive for trading spikes)
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 3
+        periodSeconds: 30
+      selectPolicy: Max
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fxml4-websocket-hpa
+  namespace: fxml4-production
+  labels:
+    app: fxml4-websocket
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fxml4-websocket
+  minReplicas: 2
+  maxReplicas: 15
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 75
+  # WebSocket-specific metrics
+  - type: Pods
+    pods:
+      metric:
+        name: websocket_connections_count
+      target:
+        type: AverageValue
+        averageValue: "1000"  # 1K connections per pod
+  - type: Pods
+    pods:
+      metric:
+        name: websocket_message_rate
+      target:
+        type: AverageValue
+        averageValue: "5000"  # 5K messages/second per pod
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5 minutes
+      policies:
+      - type: Percent
+        value: 20
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60   # 1 minute
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 30
+      - type: Pods
+        value: 3
+        periodSeconds: 30
+      selectPolicy: Max
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fxml4-ml-inference-hpa
+  namespace: fxml4-production
+  labels:
+    app: fxml4-ml-inference
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fxml4-ml-inference
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+  # CPU-based scaling (ML inference is CPU-intensive)
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # ML-specific metrics
+  - type: Pods
+    pods:
+      metric:
+        name: ml_inference_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+  - type: Pods
+    pods:
+      metric:
+        name: ml_model_queue_length
+      target:
+        type: AverageValue
+        averageValue: "50"
+  - type: Pods
+    pods:
+      metric:
+        name: ml_inference_latency_p95_ms
+      target:
+        type: AverageValue
+        averageValue: "500"  # 500ms P95 for ML inference
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600  # 10 minutes (ML models take time to load)
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 180
+      - type: Pods
+        value: 1
+        periodSeconds: 180
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 120  # 2 minutes (time to load models)
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max

@@ -1,0 +1,541 @@
+name: FXML4 CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Code Quality and Security Checks
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-dev.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Install pre-commit
+        run: |
+          pre-commit install
+
+      - name: Run pre-commit hooks
+        run: |
+          pre-commit run --all-files
+
+      - name: Security scan
+        run: |
+          python scripts/validate_security.py
+
+  # Unit and Integration Tests
+  test-suite:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: fxml4_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-dev.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test database
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+        run: |
+          PGPASSWORD=postgres  # pragma: allowlist secret psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/001_initial_schema.sql
+          PGPASSWORD=postgres  # pragma: allowlist secret psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/006_order_management_schema.sql
+
+      - name: Run unit tests
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          pytest tests/ -m "unit and not requires_ib and not requires_fxcm" -v --cov=fxml4 --cov-report=xml
+
+      - name: Run integration tests
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          pytest tests/ -m "integration and not requires_ib and not requires_fxcm" -v
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+
+  # Containerized E2E Tests
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [test-suite]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build test containers
+        run: |
+          docker-compose -f docker-compose.test.yml build
+
+      - name: Run E2E Authentication Tests
+        run: |
+          ./scripts/run_e2e_auth_tests.sh run
+        timeout-minutes: 10
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-results
+          path: test-results/
+
+      - name: Clean up containers
+        if: always()
+        run: |
+          docker-compose -f docker-compose.test.yml down -v --remove-orphans
+
+  # Frontend-Backend Integration Tests
+  frontend-backend-integration:
+    runs-on: ubuntu-latest
+    needs: [e2e-tests]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-integration-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-integration-
+            ${{ runner.os }}-buildx-
+
+      - name: Build integration test containers
+        run: |
+          docker-compose -f docker-compose.integration.yml build
+
+      - name: Run Frontend-Backend Integration Tests
+        run: |
+          ./scripts/run_frontend_backend_integration_tests.sh run
+        timeout-minutes: 20
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-test-results
+          path: integration-test-results/
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker-compose -f docker-compose.integration.yml down -v --remove-orphans
+
+  # Performance and API Tests
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: [code-quality]
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: fxml4_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test database
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+        run: |
+          PGPASSWORD=postgres  # pragma: allowlist secret psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/001_initial_schema.sql
+          PGPASSWORD=postgres  # pragma: allowlist secret psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/006_order_management_schema.sql
+
+      - name: Start API for performance testing
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          python scripts/start_fxml4_api.py &
+          sleep 10
+
+      - name: Run performance tests
+        run: |
+          python scripts/test_complete_api_performance.py
+
+      - name: Validate Order Management
+        run: |
+          python scripts/validate_order_management_complete.py
+
+  # Performance Regression Tests
+  performance-regression:
+    runs-on: ubuntu-latest
+    needs: [frontend-backend-integration]
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: fxml4_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements-dev.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test database
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+        run: |
+          PGPASSWORD=postgres  # pragma: allowlist secret psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/001_initial_schema.sql
+          PGPASSWORD=postgres  # pragma: allowlist secret psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/006_order_management_schema.sql
+
+      - name: Start API for performance testing
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          python scripts/start_fxml4_api.py &
+          sleep 15
+
+      - name: Run Performance Regression Tests
+        env:
+          FXML4_ENV: ci
+          GIT_COMMIT: ${{ github.sha }}
+        run: |
+          ./scripts/run_performance_regression_tests.sh test --api-url http://localhost:8001 --environment ci
+        timeout-minutes: 15
+
+      - name: Upload performance regression results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-regression-results
+          path: performance-regression-results/
+
+  # Build and Push Docker Images
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [test-suite, performance-tests, performance-regression]
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/api.Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Build and push Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/worker.Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Deploy to Staging Environment
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Deploy to staging
+        run: |
+          kubectl apply -f k8s/namespace/staging.yaml
+          kubectl apply -f k8s/secrets/staging-secrets.yaml
+          kubectl apply -f k8s/deployments/staging/
+          kubectl rollout status deployment/fxml4-api -n staging --timeout=300s
+
+      - name: Run staging health checks
+        run: |
+          kubectl get pods -n staging
+          kubectl logs -l app=fxml4-api -n staging --tail=50
+
+  # Security and Compliance Checks
+  security-compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  # Documentation and Release
+  documentation:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Generate API documentation
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+          python fxml4/api/docs_generator.py
+
+      - name: Validate system architecture
+        run: |
+          python scripts/validate_architecture.py
+
+      - name: Generate validation report
+        run: |
+          echo "## FXML4 System Status" > system-status.md
+          echo "Generated: $(date)" >> system-status.md
+          echo "" >> system-status.md
+          python scripts/demo_order_management_success.py >> system-status.md
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-documentation
+          path: |
+            system-status.md
+            complete_fxml4_validation_report.md

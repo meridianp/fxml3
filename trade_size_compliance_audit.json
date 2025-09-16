@@ -1,0 +1,81 @@
+{
+  "last_updated": "2025-08-26T06:08:36.779681",
+  "total_validations": 4,
+  "total_violations": 6,
+  "single_trade_limit": 10000.0,
+  "daily_exposure_limit": 50000.0,
+  "violations": [
+    {
+      "violation_type": "single_trade_exceeded",
+      "timestamp": "2025-08-26T06:08:36.766562",
+      "symbol": "GBPUSD",
+      "attempted_trade_size": 48000.0,
+      "trade_value_usd": 60000.0,
+      "current_daily_exposure": 0.0,
+      "limit_exceeded": 10000.0,
+      "violation_amount": 50000.0,
+      "message": "Single trade $60,000.00 exceeds maximum $10,000",
+      "trade_rejected": true
+    },
+    {
+      "violation_type": "daily_exposure_exceeded",
+      "timestamp": "2025-08-26T06:08:36.766646",
+      "symbol": "GBPUSD",
+      "attempted_trade_size": 48000.0,
+      "trade_value_usd": 60000.0,
+      "current_daily_exposure": 60000.0,
+      "limit_exceeded": 50000.0,
+      "violation_amount": 10000.0,
+      "message": "Daily exposure $60,000.00 would exceed maximum $50,000",
+      "trade_rejected": true
+    },
+    {
+      "violation_type": "daily_exposure_exceeded",
+      "timestamp": "2025-08-26T06:08:36.771636",
+      "symbol": "EURUSD",
+      "attempted_trade_size": 9090.0,
+      "trade_value_usd": 9999.0,
+      "current_daily_exposure": 59999.0,
+      "limit_exceeded": 50000.0,
+      "violation_amount": 9999.0,
+      "message": "Daily exposure $59,999.00 would exceed maximum $50,000",
+      "trade_rejected": true
+    },
+    {
+      "violation_type": "single_trade_exceeded",
+      "timestamp": "2025-08-26T06:08:36.774591",
+      "symbol": "GBPUSD",
+      "attempted_trade_size": 16000.0,
+      "trade_value_usd": 20000.0,
+      "current_daily_exposure": 0.0,
+      "limit_exceeded": 10000.0,
+      "violation_amount": 10000.0,
+      "message": "Single trade $20,000.00 exceeds maximum $10,000",
+      "trade_rejected": true
+    },
+    {
+      "violation_type": "single_trade_exceeded",
+      "timestamp": "2025-08-26T06:08:36.778125",
+      "symbol": "EURUSD",
+      "attempted_trade_size": 15000.0,
+      "trade_value_usd": 16500.0,
+      "current_daily_exposure": 5000.0,
+      "limit_exceeded": 10000.0,
+      "violation_amount": 6500.0,
+      "message": "Single trade $16,500.00 exceeds maximum $10,000",
+      "trade_rejected": true
+    },
+    {
+      "violation_type": "single_trade_exceeded",
+      "timestamp": "2025-08-26T06:08:36.779606",
+      "symbol": "USDCHF",
+      "attempted_trade_size": 20000.0,
+      "trade_value_usd": 21000.0,
+      "current_daily_exposure": 5499.996,
+      "limit_exceeded": 10000.0,
+      "violation_amount": 11000.0,
+      "message": "Single trade $21,000.00 exceeds maximum $10,000",
+      "trade_rejected": true
+    }
+  ]
+}

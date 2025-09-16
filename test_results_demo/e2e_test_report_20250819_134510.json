@@ -1,0 +1,41 @@
+{
+  "suite_name": "FXML4-ForexConnect Integration E2E Tests",
+  "start_time": "2025-08-19T13:45:10.868322",
+  "end_time": "2025-08-19T13:45:10.887870",
+  "total_tests": 2,
+  "passed_tests": 0,
+  "failed_tests": 2,
+  "total_execution_time_ms": 18.74942588619888,
+  "average_throughput": 0,
+  "peak_memory_usage_mb": 0,
+  "test_results": [
+    {
+      "test_suite": "MarketDataStreaming",
+      "test_name": "websocket_broadcasting_performance",
+      "success": false,
+      "execution_time_ms": 16.222086967900395,
+      "assertions_passed": 0,
+      "assertions_total": 3,
+      "error_details": null,
+      "performance_metrics": {
+        "clients_count": 10,
+        "messages_per_client": 100,
+        "total_broadcasts": 1000
+      }
+    },
+    {
+      "test_suite": "MarketDataStreaming",
+      "test_name": "ohlc_aggregation_performance",
+      "success": false,
+      "execution_time_ms": 2.527338918298483,
+      "assertions_passed": 0,
+      "assertions_total": 3,
+      "error_details": null,
+      "performance_metrics": {
+        "ticks_processed": 1000,
+        "bars_completed": 0
+      }
+    }
+  ],
+  "benchmark_results": []
+}

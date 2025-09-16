@@ -1,0 +1,229 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e8]: FX
+          - generic [ref=e9]:
+            - heading "FXML4" [level=1] [ref=e10]
+            - paragraph [ref=e11]: Trading Platform
+        - button [ref=e12] [cursor=pointer]:
+          - img [ref=e13] [cursor=pointer]
+      - navigation [ref=e15]:
+        - generic [ref=e16]:
+          - link "Dashboard Overview and quick access" [ref=e17] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e19] [cursor=pointer]
+            - generic [ref=e21] [cursor=pointer]:
+              - generic [ref=e22] [cursor=pointer]: Dashboard
+              - paragraph [ref=e23] [cursor=pointer]: Overview and quick access
+          - link "Data Market data and feeds" [ref=e24] [cursor=pointer]:
+            - /url: /data
+            - img [ref=e26] [cursor=pointer]
+            - generic [ref=e28] [cursor=pointer]:
+              - generic [ref=e29] [cursor=pointer]: Data
+              - paragraph [ref=e30] [cursor=pointer]: Market data and feeds
+          - link "Training ML model training" [ref=e31] [cursor=pointer]:
+            - /url: /training
+            - img [ref=e33] [cursor=pointer]
+            - generic [ref=e35] [cursor=pointer]:
+              - generic [ref=e36] [cursor=pointer]: Training
+              - paragraph [ref=e37] [cursor=pointer]: ML model training
+          - link "Analytics Performance & wave analysis" [ref=e38] [cursor=pointer]:
+            - /url: /analytics
+            - img [ref=e40] [cursor=pointer]
+            - generic [ref=e42] [cursor=pointer]:
+              - generic [ref=e43] [cursor=pointer]: Analytics
+              - paragraph [ref=e44] [cursor=pointer]: Performance & wave analysis
+          - link "Elliott Waves AI-enhanced wave analysis" [ref=e45] [cursor=pointer]:
+            - /url: /elliott-waves
+            - img [ref=e47] [cursor=pointer]
+            - generic [ref=e49] [cursor=pointer]:
+              - generic [ref=e50] [cursor=pointer]: Elliott Waves
+              - paragraph [ref=e51] [cursor=pointer]: AI-enhanced wave analysis
+          - link "Backtesting Strategy backtests" [ref=e52] [cursor=pointer]:
+            - /url: /backtesting
+            - img [ref=e54] [cursor=pointer]
+            - generic [ref=e56] [cursor=pointer]:
+              - generic [ref=e57] [cursor=pointer]: Backtesting
+              - paragraph [ref=e58] [cursor=pointer]: Strategy backtests
+          - link "5 Trading Live trading console" [ref=e59] [cursor=pointer]:
+            - /url: /trading
+            - generic [ref=e60] [cursor=pointer]:
+              - img [ref=e61] [cursor=pointer]
+              - generic [ref=e63] [cursor=pointer]: "5"
+            - generic [ref=e64] [cursor=pointer]:
+              - generic [ref=e65] [cursor=pointer]: Trading
+              - paragraph [ref=e66] [cursor=pointer]: Live trading console
+        - generic [ref=e68]:
+          - link "Settings" [ref=e69] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e70] [cursor=pointer]
+            - generic [ref=e73] [cursor=pointer]: Settings
+          - link "Profile" [ref=e74] [cursor=pointer]:
+            - /url: /profile
+            - img [ref=e75] [cursor=pointer]
+            - generic [ref=e77] [cursor=pointer]: Profile
+          - link "Help" [ref=e78] [cursor=pointer]:
+            - /url: /help
+            - img [ref=e79] [cursor=pointer]
+            - generic [ref=e81] [cursor=pointer]: Help
+      - generic [ref=e83]:
+        - generic [ref=e85]: JD
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: John Doe
+          - paragraph [ref=e88]: Pro Trader
+        - generic [ref=e89]:
+          - button "Switch theme (currently dark)" [ref=e90] [cursor=pointer]:
+            - img [ref=e91] [cursor=pointer]
+          - button [ref=e93] [cursor=pointer]:
+            - img [ref=e94] [cursor=pointer]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97] [cursor=pointer]
+    - generic [ref=e99]:
+      - banner [ref=e100]:
+        - generic [ref=e102]:
+          - generic [ref=e104]:
+            - img [ref=e106]
+            - generic [ref=e108]: Disconnected
+          - generic [ref=e110]:
+            - img [ref=e111]
+            - generic [ref=e113]: 0 symbols
+          - generic [ref=e114]:
+            - generic [ref=e117]: Market Open
+            - button [ref=e118] [cursor=pointer]:
+              - img [ref=e119] [cursor=pointer]
+            - generic [ref=e121]: 4:44:35 PM
+      - main [ref=e122]:
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - heading "Help & Documentation" [level=1] [ref=e125]
+            - paragraph [ref=e126]: Find answers and learn how to use FXML4 effectively
+          - generic [ref=e127]:
+            - img [ref=e128]
+            - textbox "Search help articles, FAQs, and guides..." [ref=e130]
+          - generic [ref=e131]:
+            - generic [ref=e133]:
+              - heading "Categories" [level=3] [ref=e134]
+              - navigation [ref=e135]:
+                - button "Getting Started" [ref=e136] [cursor=pointer]:
+                  - img [ref=e137] [cursor=pointer]
+                  - generic [ref=e139] [cursor=pointer]: Getting Started
+                - button "Trading" [ref=e140] [cursor=pointer]:
+                  - img [ref=e141] [cursor=pointer]
+                  - generic [ref=e143] [cursor=pointer]: Trading
+                - button "ML & Backtesting" [ref=e144] [cursor=pointer]:
+                  - img [ref=e145] [cursor=pointer]
+                  - generic [ref=e147] [cursor=pointer]: ML & Backtesting
+                - button "Technical Support" [ref=e148] [cursor=pointer]:
+                  - img [ref=e149] [cursor=pointer]
+                  - generic [ref=e151] [cursor=pointer]: Technical Support
+              - generic [ref=e152]:
+                - heading "Quick Links" [level=4] [ref=e153]
+                - generic [ref=e154]:
+                  - link "Video Tutorials" [ref=e155] [cursor=pointer]:
+                    - /url: "#"
+                    - img [ref=e156] [cursor=pointer]
+                    - text: Video Tutorials
+                    - img [ref=e158] [cursor=pointer]
+                  - link "API Documentation" [ref=e160] [cursor=pointer]:
+                    - /url: "#"
+                    - img [ref=e161] [cursor=pointer]
+                    - text: API Documentation
+                    - img [ref=e163] [cursor=pointer]
+                  - link "Community Forum" [ref=e165] [cursor=pointer]:
+                    - /url: "#"
+                    - img [ref=e166] [cursor=pointer]
+                    - text: Community Forum
+                    - img [ref=e168] [cursor=pointer]
+            - generic [ref=e170]:
+              - generic [ref=e171]:
+                - generic [ref=e172]:
+                  - img [ref=e173]
+                  - heading "Getting Started" [level=2] [ref=e175]
+                - generic [ref=e176]:
+                  - link "Platform Overview" [ref=e177] [cursor=pointer]:
+                    - /url: "#"
+                    - generic [ref=e178] [cursor=pointer]:
+                      - generic [ref=e179] [cursor=pointer]: Platform Overview
+                      - img [ref=e180] [cursor=pointer]
+                  - link "Setting Up Your Account" [ref=e182] [cursor=pointer]:
+                    - /url: "#"
+                    - generic [ref=e183] [cursor=pointer]:
+                      - generic [ref=e184] [cursor=pointer]: Setting Up Your Account
+                      - img [ref=e185] [cursor=pointer]
+                  - link "First Time Login" [ref=e187] [cursor=pointer]:
+                    - /url: "#"
+                    - generic [ref=e188] [cursor=pointer]:
+                      - generic [ref=e189] [cursor=pointer]: First Time Login
+                      - img [ref=e190] [cursor=pointer]
+                  - link "Basic Navigation" [ref=e192] [cursor=pointer]:
+                    - /url: "#"
+                    - generic [ref=e193] [cursor=pointer]:
+                      - generic [ref=e194] [cursor=pointer]: Basic Navigation
+                      - img [ref=e195] [cursor=pointer]
+                  - link "Understanding the Dashboard" [ref=e197] [cursor=pointer]:
+                    - /url: "#"
+                    - generic [ref=e198] [cursor=pointer]:
+                      - generic [ref=e199] [cursor=pointer]: Understanding the Dashboard
+                      - img [ref=e200] [cursor=pointer]
+              - generic [ref=e202]:
+                - heading "Frequently Asked Questions" [level=2] [ref=e203]:
+                  - img [ref=e204]
+                  - text: Frequently Asked Questions
+                - generic [ref=e206]:
+                  - button "How do I connect my broker account?" [ref=e208] [cursor=pointer]:
+                    - generic [ref=e209] [cursor=pointer]: How do I connect my broker account?
+                    - img [ref=e210] [cursor=pointer]
+                  - button "Can I use paper trading to test strategies?" [ref=e213] [cursor=pointer]:
+                    - generic [ref=e214] [cursor=pointer]: Can I use paper trading to test strategies?
+                    - img [ref=e215] [cursor=pointer]
+                  - button "How accurate are the ML predictions?" [ref=e218] [cursor=pointer]:
+                    - generic [ref=e219] [cursor=pointer]: How accurate are the ML predictions?
+                    - img [ref=e220] [cursor=pointer]
+                  - button "What data sources does FXML4 support?" [ref=e223] [cursor=pointer]:
+                    - generic [ref=e224] [cursor=pointer]: What data sources does FXML4 support?
+                    - img [ref=e225] [cursor=pointer]
+                  - button "How do I backup my strategies and models?" [ref=e228] [cursor=pointer]:
+                    - generic [ref=e229] [cursor=pointer]: How do I backup my strategies and models?
+                    - img [ref=e230] [cursor=pointer]
+              - generic [ref=e232]:
+                - generic [ref=e233]:
+                  - img [ref=e235]
+                  - generic [ref=e237]:
+                    - heading "Need More Help?" [level=3] [ref=e238]
+                    - paragraph [ref=e239]: Our support team is here to help you succeed
+                - generic [ref=e240]:
+                  - link "Live Chat Get instant help" [ref=e241] [cursor=pointer]:
+                    - /url: "#"
+                    - img [ref=e242] [cursor=pointer]
+                    - generic [ref=e244] [cursor=pointer]: Live Chat
+                    - generic [ref=e245] [cursor=pointer]: Get instant help
+                  - link "Email Support Detailed assistance" [ref=e246] [cursor=pointer]:
+                    - /url: "#"
+                    - img [ref=e247] [cursor=pointer]
+                    - generic [ref=e249] [cursor=pointer]: Email Support
+                    - generic [ref=e250] [cursor=pointer]: Detailed assistance
+                  - link "Schedule Call Personalized help" [ref=e251] [cursor=pointer]:
+                    - /url: "#"
+                    - img [ref=e252] [cursor=pointer]
+                    - generic [ref=e254] [cursor=pointer]: Schedule Call
+                    - generic [ref=e255] [cursor=pointer]: Personalized help
+    - region "Notifications" [ref=e256]:
+      - generic [ref=e258]:
+        - generic [ref=e259]:
+          - img [ref=e260]
+          - heading "Notifications" [level=3] [ref=e262]
+        - button "all" [ref=e265] [cursor=pointer]:
+          - img [ref=e266] [cursor=pointer]
+          - generic [ref=e268] [cursor=pointer]: all
+          - img [ref=e269] [cursor=pointer]
+      - list [ref=e271]:
+        - generic [ref=e272]:
+          - img [ref=e273]
+          - paragraph [ref=e275]: No notifications
+  - alert [ref=e276]
+```

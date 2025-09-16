@@ -1,0 +1,1 @@
+"""Integration tests for fxml4-web-ui package."""

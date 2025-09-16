@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-08-24T22:11:12.456143",
+  "symbol": "GBPUSD",
+  "test_results": {
+    "api_health": true,
+    "market_data": true,
+    "signal_generation": true,
+    "backtesting": true
+  },
+  "performance_score": 65,
+  "backtest_metrics": {
+    "total_return": 14.18,
+    "annualized_return": 28.37,
+    "sharpe_ratio": 0.54,
+    "max_drawdown": -11.7,
+    "win_rate": 49.5,
+    "profit_factor": 2.35,
+    "total_trades": 114,
+    "avg_trade_return": -0.11
+  },
+  "production_readiness": "READY"
+}

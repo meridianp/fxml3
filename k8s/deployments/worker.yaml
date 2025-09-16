@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fxml4-worker
+  namespace: fxml4
+  labels:
+    app: fxml4-worker
+    component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fxml4-worker
+  template:
+    metadata:
+      labels:
+        app: fxml4-worker
+        component: worker
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: worker
+          image: ghcr.io/meridianp/fxml4-worker:latest
+          imagePullPolicy: Always
+          env:
+            - name: PYTHONPATH
+              value: "/app"
+            - name: FXML4_SERVICE_NAME
+              value: "worker"
+          envFrom:
+            - configMapRef:
+                name: fxml4-config
+            - secretRef:
+                name: fxml4-secrets
+          command: ["python", "-m", "fxml4.worker.main"]
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import sys; sys.exit(0)"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+            - name: models-volume
+              mountPath: /app/models
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: fxml4-data-pvc
+        - name: models-volume
+          persistentVolumeClaim:
+            claimName: fxml4-models-pvc

@@ -1,0 +1,55 @@
+# Multi-stage build for microservices
+FROM python:3.11-slim as builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install poetry
+RUN pip install poetry==1.5.1
+
+# Set working directory
+WORKDIR /app
+
+# Copy monorepo structure
+COPY pyproject.toml poetry.lock* ./
+COPY packages/ ./packages/
+
+# Build argument for specific service
+ARG SERVICE
+
+# Install dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi
+
+# Runtime stage
+FROM python:3.11-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Set working directory
+WORKDIR /app
+
+# Copy service code
+ARG SERVICE
+COPY packages/${SERVICE}/src/ ./
+
+# Set environment
+ENV PYTHONUNBUFFERED=1
+ENV SERVICE_NAME=${SERVICE}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run service
+CMD ["python", "-m", "fxml4_${SERVICE_NAME//-/_}"]

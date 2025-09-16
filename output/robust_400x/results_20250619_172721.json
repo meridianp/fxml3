@@ -1,0 +1,26 @@
+{
+  "config": {
+    "initial_capital": 10000,
+    "max_leverage": 400.0,
+    "target_leverage": 50.0,
+    "min_position_value": 1000
+  },
+  "performance": {
+    "final_capital": 10000,
+    "total_return": 0.0,
+    "trades_executed": 0,
+    "max_leverage_used": 0,
+    "avg_leverage_used": 0
+  },
+  "signal_stats": {
+    "total_signals": 895,
+    "ml_signals": 0,
+    "ew_signals": 0,
+    "ta_signals": 895,
+    "multi_confluence": 0,
+    "trades_executed": 0,
+    "filters_passed": 0,
+    "filters_failed": 895
+  },
+  "trades": []
+}

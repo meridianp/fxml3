@@ -1,0 +1,50 @@
+# Minimal requirements for FXML4 core functionality
+# This file contains only essential dependencies for basic operation
+
+# Core data processing
+numpy>=1.20.0
+pandas>=1.5.0
+
+# Web framework
+fastapi==0.108.0
+uvicorn==0.25.0
+starlette==0.32.0.post1
+
+# Database
+SQLAlchemy==2.0.34
+psycopg2-binary>=2.9.6
+
+# Configuration
+python-dotenv==1.0.1
+pyyaml==6.0.2
+
+# Basic ML
+scikit-learn>=1.2.0
+
+# Technical analysis (essential)
+pandas-ta==0.3.14b0
+
+# Dashboard
+streamlit>=1.25.0
+
+# Visualization (basic)
+matplotlib>=3.5.0
+plotly>=5.14.0
+
+# Testing
+pytest>=7.3.1
+
+# Utilities
+requests==2.32.3
+tqdm>=4.64.0
+rich==13.9.4
+
+# Data validation
+pydantic==2.10.6
+
+# Authentication
+passlib[bcrypt]>=1.7.4
+
+# Development tools
+black==24.8.0
+isort>=5.12.0

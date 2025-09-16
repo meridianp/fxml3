@@ -1,0 +1,379 @@
+# FXML4-ForexConnect Integration Configuration
+# Complete configuration for unified trading system
+
+# System-wide settings
+system:
+  name: "fxml4-forexconnect-integration"
+  version: "1.0.0"
+  environment: ${ENVIRONMENT:-development} # development, staging, production
+  debug: ${DEBUG:-false}
+
+# RabbitMQ Configuration (shared between systems)
+rabbitmq:
+  host: ${FXML4_RABBITMQ_HOST:-rabbitmq}
+  port: ${FXML4_RABBITMQ_PORT:-5672}
+  username: ${FXML4_RABBITMQ_USERNAME:-fxml4}
+  password: ${FXML4_RABBITMQ_PASSWORD:-fxml4_pass}
+  vhost: ${FXML4_RABBITMQ_VHOST:-/}
+
+  # Connection settings
+  connection:
+    heartbeat: 600
+    connection_timeout: 30
+    retry_attempts: 5
+    retry_delay: 5
+
+  # Queue settings
+  queues:
+    # FXML4 queues
+    fxml4_orders_inbound:
+      name: "fxml4.orders.inbound"
+      durable: true
+      ttl: 300000 # 5 minutes
+      max_length: 10000
+
+    fxml4_executions_reports:
+      name: "fxml4.executions.reports"
+      durable: true
+      ttl: 600000 # 10 minutes
+      max_length: 50000
+
+    fxml4_market_data_prices:
+      name: "fxml4.market_data.prices"
+      durable: false
+      auto_delete: true
+      ttl: 10000 # 10 seconds
+      max_length: 1000
+
+    # ForexConnect queues
+    forex_orders_request:
+      name: "forex.orders.request"
+      durable: true
+      ttl: 300000 # 5 minutes
+      max_length: 10000
+
+    forex_orders_response:
+      name: "forex.orders.response"
+      durable: true
+      ttl: 300000 # 5 minutes
+      max_length: 10000
+
+    forex_market_data_stream:
+      name: "forex.market_data.stream"
+      durable: false
+      auto_delete: true
+      ttl: 5000 # 5 seconds
+      max_length: 1000
+
+# FXML4 Configuration
+fxml4:
+  api:
+    host: ${FXML4_API_HOST:-0.0.0.0}
+    port: ${FXML4_API_PORT:-8000}
+    workers: ${FXML4_API_WORKERS:-4}
+
+  database:
+    host: ${FXML4_DATABASE_HOST:-db}
+    port: ${FXML4_DATABASE_PORT:-5432}
+    name: ${POSTGRES_DB:-fxml4}
+    user: ${POSTGRES_USER:-postgres}
+    password: ${POSTGRES_PASSWORD:-postgres}
+    pool_size: 20
+    max_overflow: 30
+
+  redis:
+    host: ${FXML4_REDIS_HOST:-redis}
+    port: ${FXML4_REDIS_PORT:-6379}
+    db: ${FXML4_REDIS_DB:-0}
+    password: ${FXML4_REDIS_PASSWORD:-}
+
+  # Broker adapter settings
+  brokers:
+    fxcm_bridge:
+      enabled: true
+      adapter_class: "fxml4.brokers.adapters.fxcm_bridge_adapter.FXCMBridgeAdapter"
+      priority: 1
+
+      connection:
+        bridge_url: ${FOREX_BRIDGE_URL:-http://forex-middleware:8080}
+        api_key: ${FOREX_BRIDGE_API_KEY:-}
+        timeout: 30
+        retry_attempts: 3
+        retry_delay: 5
+
+        # Health check settings
+        health_check_interval: 30
+        health_check_timeout: 10
+
+      features:
+        market_data: true
+        order_management: true
+        account_monitoring: true
+        real_time_updates: true
+
+      limits:
+        max_orders_per_second: 20
+        max_daily_volume: 100000000
+        max_position_size: 10000000
+        max_concurrent_orders: 100
+
+      # Symbol mappings and configurations
+      instruments:
+        major_pairs:
+          - EURUSD
+          - GBPUSD
+          - USDJPY
+          - USDCHF
+          - AUDUSD
+          - USDCAD
+          - NZDUSD
+
+        cross_pairs:
+          - EURGBP
+          - EURJPY
+          - GBPJPY
+          - EURCHF
+          - EURAUD
+          - EURCAD
+
+        lot_sizes:
+          default: 100000
+          EURUSD: 100000
+          GBPUSD: 100000
+          USDJPY: 100000
+
+        min_quantities:
+          default: 1000
+          EURUSD: 1000
+          GBPUSD: 1000
+
+      # Risk management
+      risk:
+        enabled: true
+        max_order_size: 10000000
+        max_daily_loss: 50000
+        max_drawdown: 0.1
+        position_limits:
+          EURUSD: 5000000
+          GBPUSD: 5000000
+          USDJPY: 5000000
+
+# ForexConnect Middleware Configuration
+forex_connect:
+  # Service settings
+  service:
+    host: ${FOREX_MIDDLEWARE_HOST:-forex-middleware}
+    port: ${FOREX_MIDDLEWARE_PORT:-8080}
+    metrics_port: ${FOREX_METRICS_PORT:-9090}
+
+  # FXCM API credentials
+  api:
+    user_id: ${FOREX_USER_ID}
+    password: ${FOREX_PASSWORD}
+    url: ${FOREX_URL:-www.fxcorporate.com/Hosts.jsp}
+    connection: ${FOREX_CONNECTION:-Demo} # Demo or Real
+    session_id: ${FOREX_SESSION_ID:-}
+    pin: ${FOREX_PIN:-}
+
+  # Connection management
+  connection:
+    timeout: 30
+    heartbeat_interval: 60
+    reconnect_attempts: 5
+    reconnect_delay: 30
+    session_timeout: 3600
+
+  # Market data configuration
+  market_data:
+    instruments:
+      - EUR/USD
+      - GBP/USD
+      - USD/JPY
+      - USD/CHF
+      - AUD/USD
+      - USD/CAD
+      - NZD/USD
+      - EUR/GBP
+      - EUR/JPY
+      - GBP/JPY
+
+    update_throttle_ms: 100
+    buffer_size: 1000
+    compression: true
+
+  # Order management
+  orders:
+    default_time_in_force: "IOC"
+    max_order_lifetime: 300 # seconds
+    batch_size: 10
+    confirmation_timeout: 30
+
+  # Account monitoring
+  account:
+    update_interval: 5 # seconds
+    balance_threshold: 1000 # minimum balance
+    margin_threshold: 0.8 # margin level threshold
+
+# Integration Bridge Settings
+bridge:
+  # Message translation settings
+  translation:
+    symbol_validation: true
+    quantity_validation: true
+    price_precision: 5
+    auto_conversion: true
+
+  # Message routing
+  routing:
+    order_timeout: 300 # seconds
+    response_timeout: 30 # seconds
+    max_retries: 3
+    retry_delay: 1 # seconds
+
+  # Correlation tracking
+  correlation:
+    cleanup_interval: 600 # seconds
+    max_pending_orders: 1000
+    correlation_timeout: 3600 # seconds
+
+  # Performance monitoring
+  monitoring:
+    latency_tracking: true
+    throughput_tracking: true
+    error_tracking: true
+    metrics_interval: 10 # seconds
+
+# Logging Configuration
+logging:
+  level: ${LOG_LEVEL:-INFO} # DEBUG, INFO, WARNING, ERROR
+  format: "structured" # structured or simple
+
+  # File logging
+  file:
+    enabled: true
+    path: "/var/log/fxml4-forex"
+    max_size: "100MB"
+    backup_count: 10
+    rotation: "daily"
+
+  # Structured logging fields
+  fields:
+    service: "fxml4-forex-integration"
+    version: "1.0.0"
+    environment: ${ENVIRONMENT:-development}
+
+  # Component-specific levels
+  components:
+    fxml4.brokers.adapters: DEBUG
+    forex_connect: INFO
+    rabbitmq: WARNING
+    translation: DEBUG
+
+# Monitoring and Metrics
+monitoring:
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+
+  # Health checks
+  health:
+    enabled: true
+    port: 8080
+    path: "/health"
+    check_interval: 30
+
+  # Performance metrics
+  metrics:
+    - name: "orders_submitted_total"
+      type: "counter"
+      description: "Total orders submitted"
+
+    - name: "orders_executed_total"
+      type: "counter"
+      description: "Total orders executed"
+
+    - name: "order_latency_seconds"
+      type: "histogram"
+      description: "Order processing latency"
+
+    - name: "market_data_updates_total"
+      type: "counter"
+      description: "Total market data updates"
+
+    - name: "bridge_connection_status"
+      type: "gauge"
+      description: "Bridge connection status"
+
+  # Alerting thresholds
+  alerts:
+    order_failure_rate: 0.05 # 5%
+    latency_p95: 2.0 # seconds
+    connection_downtime: 60 # seconds
+    queue_depth: 1000 # messages
+
+# Security Configuration
+security:
+  # API authentication
+  api:
+    enabled: true
+    jwt_secret: ${JWT_SECRET:-change-me-in-production}
+    jwt_expiry: 3600 # seconds
+    api_key_required: false
+
+  # Network security
+  network:
+    allowed_hosts:
+      - "api"
+      - "forex-middleware"
+      - "rabbitmq"
+      - "localhost"
+      - "127.0.0.1"
+
+    cors:
+      enabled: true
+      origins:
+        - "http://localhost:8501" # Dashboard
+        - "http://localhost:3000" # Grafana
+
+  # Credential protection
+  credentials:
+    encryption_key: ${ENCRYPTION_KEY:-}
+    mask_in_logs: true
+    rotate_interval: 86400 # daily
+
+# Environment-specific overrides
+environments:
+  development:
+    fxml4:
+      database:
+        pool_size: 5
+        max_overflow: 10
+    logging:
+      level: DEBUG
+    security:
+      api:
+        jwt_expiry: 86400 # longer for dev
+
+  staging:
+    forex_connect:
+      connection:
+        connection: Demo
+    monitoring:
+      alerts:
+        enabled: false
+
+  production:
+    forex_connect:
+      connection:
+        connection: Real
+    logging:
+      level: WARNING
+    security:
+      api:
+        enabled: true
+        api_key_required: true
+    monitoring:
+      alerts:
+        enabled: true

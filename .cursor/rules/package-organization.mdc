@@ -1,0 +1,19 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Organizing Internal Packages
+
+---
+title: Organizing Internal Packages
+description: Organizing Internal Packages
+globs:
+  - "src/**/"
+alwaysApply: true
+---
+
+- Each package has its own directory under src/, with a clear, lowercase name.
+- Each package’s __init__.py file declares the public API via __all__.
+- Avoid circular dependencies by extracting shared logic into dedicated modules.
+- Keep code modular by grouping related functionality into separate packages.

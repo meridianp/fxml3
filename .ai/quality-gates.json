@@ -1,0 +1,261 @@
+{
+  "quality_gates": {
+    "version": "1.0",
+    "last_updated": "2025-09-08",
+    "description": "AI-enhanced quality gates for FXML4 trading system",
+
+    "coverage": {
+      "minimum_overall": 80,
+      "minimum_api": 94,
+      "minimum_new_code": 90,
+      "branches": 75,
+      "functions": 85,
+      "allow_decrease": false,
+      "enforcement": "strict"
+    },
+
+    "testing": {
+      "required_test_types": ["unit", "integration", "api", "security"],
+      "optional_test_types": ["performance", "stress", "e2e"],
+      "max_execution_time_minutes": 15,
+      "flaky_test_threshold": 0.1,
+      "parallel_execution": true,
+      "fail_fast_on_critical": true
+    },
+
+    "security": {
+      "codeql_required": true,
+      "dependency_review_required": true,
+      "secret_scanning_required": true,
+      "max_vulnerability_severity": "medium",
+      "block_high_severity": true,
+      "block_critical_severity": true,
+
+      "security_checks": {
+        "authentication": "required",
+        "authorization": "required",
+        "input_validation": "required",
+        "sensitive_data_handling": "required",
+        "crypto_practices": "required"
+      }
+    },
+
+    "code_quality": {
+      "linting": {
+        "backend": {
+          "tool": "flake8",
+          "command": "make lint-backend",
+          "max_errors": 0,
+          "max_warnings": 10
+        },
+        "frontend": {
+          "tool": "eslint",
+          "command": "make lint-frontend",
+          "max_errors": 0,
+          "max_warnings": 5
+        }
+      },
+
+      "type_checking": {
+        "backend": {
+          "tool": "mypy",
+          "required": true,
+          "strict_mode": false
+        },
+        "frontend": {
+          "tool": "typescript",
+          "required": true,
+          "strict_mode": true
+        }
+      },
+
+      "formatting": {
+        "backend": {
+          "tool": "black",
+          "check_only": true
+        },
+        "frontend": {
+          "tool": "prettier",
+          "check_only": true
+        }
+      }
+    },
+
+    "performance": {
+      "api_response_times": {
+        "health_endpoint": "50ms",
+        "data_endpoint": "500ms",
+        "signals_endpoint": "2s",
+        "backtest_endpoint": "5min"
+      },
+
+      "resource_usage": {
+        "max_cpu_percent": 70,
+        "max_memory_gb": 4,
+        "max_db_connections": 50
+      },
+
+      "load_testing": {
+        "required_for_api_changes": true,
+        "concurrent_users": 100,
+        "duration_minutes": 5
+      }
+    },
+
+    "deployment": {
+      "environments": {
+        "staging": {
+          "required": true,
+          "approval_required": false,
+          "automated_tests": true,
+          "health_checks": true,
+          "rollback_on_failure": true
+        },
+        "production": {
+          "required": true,
+          "approval_required": true,
+          "required_approvers": 1,
+          "automated_tests": true,
+          "health_checks": true,
+          "rollback_on_failure": true,
+          "canary_deployment": true
+        }
+      },
+
+      "health_checks": {
+        "api_health": "/health",
+        "database_health": "/health/db",
+        "broker_connectivity": "/health/brokers",
+        "timeout_seconds": 30,
+        "retry_count": 3
+      }
+    },
+
+    "compliance": {
+      "required_checks": [
+        "trade_audit_logging",
+        "risk_limit_enforcement",
+        "regulatory_reporting",
+        "data_retention_policy"
+      ],
+
+      "financial_regulations": {
+        "mifid_ii_compliance": "required",
+        "emir_compliance": "required",
+        "dodd_frank_compliance": "required"
+      }
+    },
+
+    "branch_protection": {
+      "main": {
+        "required_status_checks": [
+          "ci/tests",
+          "ci/security",
+          "ci/lint",
+          "ci/type-check",
+          "ci/coverage"
+        ],
+        "enforce_admins": true,
+        "required_pull_request_reviews": {
+          "required_approving_review_count": 1,
+          "dismiss_stale_reviews": true,
+          "require_code_owner_reviews": true
+        },
+        "restrictions": null,
+        "allow_force_pushes": false,
+        "allow_deletions": false
+      }
+    },
+
+    "pr_requirements": {
+      "checklist": [
+        "New/updated tests added and passing",
+        "Coverage ≥80% (API ≥94%)",
+        "Security checks green (CodeQL, Dependency Review)",
+        "Migrations reviewed and reversible (if any)",
+        "Rollback plan documented",
+        "Performance impact assessed",
+        "Breaking changes documented"
+      ],
+
+      "labels": {
+        "breaking_change": "required_for_major_changes",
+        "security": "required_for_security_changes",
+        "performance": "required_for_performance_changes",
+        "database": "required_for_db_changes"
+      }
+    },
+
+    "ai_review_criteria": {
+      "correctness": {
+        "weight": 0.3,
+        "checks": [
+          "logic_correctness",
+          "edge_case_handling",
+          "error_handling",
+          "algorithm_efficiency"
+        ]
+      },
+
+      "security": {
+        "weight": 0.3,
+        "checks": [
+          "owasp_top_10",
+          "input_validation",
+          "authentication_authorization",
+          "sensitive_data_exposure",
+          "security_misconfiguration"
+        ]
+      },
+
+      "performance": {
+        "weight": 0.2,
+        "checks": [
+          "time_complexity",
+          "space_complexity",
+          "database_queries",
+          "caching_strategy",
+          "resource_usage"
+        ]
+      },
+
+      "maintainability": {
+        "weight": 0.15,
+        "checks": [
+          "code_clarity",
+          "documentation",
+          "test_coverage",
+          "design_patterns",
+          "technical_debt"
+        ]
+      },
+
+      "style": {
+        "weight": 0.05,
+        "checks": [
+          "coding_standards",
+          "naming_conventions",
+          "formatting",
+          "comments_quality"
+        ]
+      }
+    }
+  },
+
+  "overrides": {
+    "emergency_hotfix": {
+      "description": "Emergency production hotfix overrides",
+      "coverage_minimum": 60,
+      "required_approvers": 2,
+      "skip_non_critical_checks": true,
+      "accelerated_deployment": true
+    },
+
+    "dependency_updates": {
+      "description": "Automated dependency update overrides",
+      "coverage_enforcement": false,
+      "security_checks_only": true,
+      "auto_merge_minor": true
+    }
+  }
+}

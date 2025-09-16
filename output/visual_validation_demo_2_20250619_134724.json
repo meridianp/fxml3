@@ -1,0 +1,18 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "SELL",
+    "confidence": 0.68,
+    "entry_price": 1.36115881695204,
+    "stop_loss": 1.36515881695204,
+    "take_profit": 1.35315881695204,
+    "timeframe": "4H",
+    "timestamp": "2025-06-13 00:00:00",
+    "reason": "Resistance rejection"
+  },
+  "validation": {
+    "valid": false,
+    "error": "Unknown style: 'v'",
+    "confidence": 0.0
+  }
+}

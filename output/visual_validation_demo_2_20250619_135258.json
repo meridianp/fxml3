@@ -1,0 +1,25 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "SELL",
+    "confidence": 0.68,
+    "entry_price": 1.36115881695204,
+    "stop_loss": 1.36515881695204,
+    "take_profit": 1.35315881695204,
+    "timeframe": "4H",
+    "timestamp": "2025-06-13 00:00:00",
+    "reason": "Resistance rejection"
+  },
+  "validation": {
+    "valid": true,
+    "llm_confidence": 0.5,
+    "visual_patterns": [],
+    "key_observations": [
+      "Fallback validation used"
+    ],
+    "concerns": [],
+    "suggested_adjustments": {},
+    "pattern_clarity": 0.3,
+    "overall_assessment": "Technical rule-based validation only"
+  }
+}

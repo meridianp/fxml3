@@ -1,0 +1,15 @@
+{
+  "performance": {
+    "initial_capital": 10000,
+    "final_capital": 10000,
+    "total_return": 0.0
+  },
+  "signals": {
+    "ml": 16,
+    "elliott": 0,
+    "ta": 0,
+    "multi": 0,
+    "trades": 0
+  },
+  "trades": []
+}

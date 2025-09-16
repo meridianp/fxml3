@@ -1,0 +1,45 @@
+{
+  "missing_modules": [
+    "api",
+    "api.auth",
+    "api.middleware",
+    "api.schemas",
+    "data_engineering",
+    "data_engineering.data_feeds",
+    "features",
+    "llm_integration",
+    "ml",
+    "strategy",
+    "ui",
+    "utils",
+    "visualization",
+    "wave_analysis",
+    "worker"
+  ],
+  "incomplete_modules": {
+    "backtesting": [
+      "combined_strategy",
+      "enhanced_position_sizing",
+      "event",
+      "event_driven_engine",
+      "llm_enhanced_backtester",
+      "market_impact",
+      "multi_timeframe_sizing",
+      "news_filter",
+      "paper_trading",
+      "performance_metrics",
+      "position_sizing_factory",
+      "risk_management"
+    ]
+  },
+  "old_ml_files": [
+    "advanced_cv.py",
+    "cross_validation.py",
+    "feature_selection.py",
+    "features.py",
+    "model_registry.py",
+    "models.py",
+    "training.py",
+    "vertex_ai.py"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "timestamp": "2025-08-26T04:32:06.772114",
+  "results": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "iterations": 10,
+      "successful_requests": 10,
+      "error_rate": 0.0,
+      "mean_response_time": 0.002164459484629333,
+      "p95_response_time": 0.004042915068566799,
+      "min_response_time": 0.001062470953911543,
+      "max_response_time": 0.004042915068566799,
+      "errors": []
+    },
+    {
+      "endpoint": "/data",
+      "method": "POST",
+      "iterations": 5,
+      "successful_requests": 5,
+      "error_rate": 0.0,
+      "mean_response_time": 0.07418886860832571,
+      "p95_response_time": 0.10118922498077154,
+      "min_response_time": 0.051736671943217516,
+      "max_response_time": 0.10118922498077154,
+      "errors": []
+    },
+    {
+      "endpoint": "/signals",
+      "method": "POST",
+      "iterations": 3,
+      "successful_requests": 3,
+      "error_rate": 0.0,
+      "mean_response_time": 0.7880240772695591,
+      "p95_response_time": 0.9145711569581181,
+      "min_response_time": 0.7226626980118454,
+      "max_response_time": 0.9145711569581181,
+      "errors": []
+    },
+    {
+      "endpoint": "/backtest",
+      "method": "POST",
+      "iterations": 1,
+      "successful_requests": 1,
+      "error_rate": 0.0,
+      "mean_response_time": 0.6854938140604645,
+      "p95_response_time": 0.6854938140604645,
+      "min_response_time": 0.6854938140604645,
+      "max_response_time": 0.6854938140604645,
+      "errors": []
+    }
+  ],
+  "sla_targets": {
+    "/health": 0.05,
+    "/data": 0.5,
+    "/signals": 2.0,
+    "/backtest": 300.0
+  },
+  "overall_pass_rate": 100.0
+}

@@ -1,0 +1,289 @@
+{
+  "rabbit_version": "3.12.0",
+  "users": [
+    {
+      "name": "fxml4",
+      "password_hash": "mXnYr6qcM8p7nnV8K5SkAlQZdGQj+qVJQq5s8V3jUqMsPlR5",
+      "tags": "administrator"
+    },
+    {
+      "name": "guest",
+      "password_hash": "gX7VbQ2QmgUTAGCmZ3JtqyN8m5SkAlQZdGQj+qVJQq5s8V3j",
+      "tags": ""
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "fxml4",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "fxml4.orders",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "fxml4.executions",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "fxml4.market_data",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "fxml4.admin",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "forex.market_data",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "forex.orders",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "forex.account",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "fxml4.orders.inbound",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-max-length": 10000
+      }
+    },
+    {
+      "name": "fxml4.orders.outbound",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-max-length": 10000
+      }
+    },
+    {
+      "name": "fxml4.executions.reports",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 600000,
+        "x-max-length": 50000
+      }
+    },
+    {
+      "name": "fxml4.market_data.prices",
+      "vhost": "/",
+      "durable": false,
+      "auto_delete": true,
+      "arguments": {
+        "x-message-ttl": 10000,
+        "x-max-length": 1000
+      }
+    },
+    {
+      "name": "forex.orders.request",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-max-length": 10000
+      }
+    },
+    {
+      "name": "forex.orders.response",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-max-length": 10000
+      }
+    },
+    {
+      "name": "forex.market_data.stream",
+      "vhost": "/",
+      "durable": false,
+      "auto_delete": true,
+      "arguments": {
+        "x-message-ttl": 5000,
+        "x-max-length": 1000
+      }
+    },
+    {
+      "name": "forex.account.updates",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 300000,
+        "x-max-length": 5000
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "fxml4.orders",
+      "vhost": "/",
+      "destination": "fxml4.orders.inbound",
+      "destination_type": "queue",
+      "routing_key": "order.new",
+      "arguments": {}
+    },
+    {
+      "source": "fxml4.orders",
+      "vhost": "/",
+      "destination": "fxml4.orders.inbound",
+      "destination_type": "queue",
+      "routing_key": "order.cancel",
+      "arguments": {}
+    },
+    {
+      "source": "fxml4.orders",
+      "vhost": "/",
+      "destination": "fxml4.orders.inbound",
+      "destination_type": "queue",
+      "routing_key": "order.modify",
+      "arguments": {}
+    },
+    {
+      "source": "fxml4.orders",
+      "vhost": "/",
+      "destination": "fxml4.orders.outbound",
+      "destination_type": "queue",
+      "routing_key": "order.fxcm.*",
+      "arguments": {}
+    },
+    {
+      "source": "fxml4.executions",
+      "vhost": "/",
+      "destination": "fxml4.executions.reports",
+      "destination_type": "queue",
+      "routing_key": "execution.*",
+      "arguments": {}
+    },
+    {
+      "source": "fxml4.market_data",
+      "vhost": "/",
+      "destination": "fxml4.market_data.prices",
+      "destination_type": "queue",
+      "routing_key": "price.#",
+      "arguments": {}
+    },
+    {
+      "source": "forex.orders",
+      "vhost": "/",
+      "destination": "forex.orders.request",
+      "destination_type": "queue",
+      "routing_key": "order.request",
+      "arguments": {}
+    },
+    {
+      "source": "forex.orders",
+      "vhost": "/",
+      "destination": "forex.orders.response",
+      "destination_type": "queue",
+      "routing_key": "order.response",
+      "arguments": {}
+    },
+    {
+      "source": "forex.market_data",
+      "vhost": "/",
+      "destination": "forex.market_data.stream",
+      "destination_type": "queue",
+      "routing_key": "*.price",
+      "arguments": {}
+    },
+    {
+      "source": "forex.account",
+      "vhost": "/",
+      "destination": "forex.account.updates",
+      "destination_type": "queue",
+      "routing_key": "account.#",
+      "arguments": {}
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "ha-policy",
+      "pattern": "^(fxml4|forex)\\.",
+      "apply-to": "queues",
+      "definition": {
+        "ha-mode": "all",
+        "ha-sync-mode": "automatic"
+      },
+      "priority": 0
+    },
+    {
+      "vhost": "/",
+      "name": "ttl-policy",
+      "pattern": ".*\\.price.*",
+      "apply-to": "queues",
+      "definition": {
+        "message-ttl": 10000,
+        "max-length": 1000
+      },
+      "priority": 1
+    }
+  ],
+  "parameters": [],
+  "global_parameters": [
+    {
+      "name": "cluster_name",
+      "value": "fxml4-forex-cluster"
+    }
+  ]
+}

@@ -1,0 +1,518 @@
+name: AI-Enhanced Security Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # Daily security scan at 2 AM
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Security scan type'
+        required: true
+        default: 'comprehensive'
+        type: choice
+        options:
+          - 'comprehensive'
+          - 'quick'
+          - 'critical-only'
+          - 'compliance-focused'
+
+env:
+  AI_PROVIDER: openai
+  AI_MODEL: gpt-5
+
+permissions:
+  security-events: write
+  contents: read
+  actions: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  ai-threat-modeling:
+    name: AI Threat Modeling & Risk Assessment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: AI-Powered Threat Modeling
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p reports/security
+
+          # Threat modeling prompt
+          cat > /tmp/threat_model_prompt.txt << 'EOF'
+          Perform comprehensive threat modeling for FXML4 trading system:
+
+          System Components:
+          1. Trading API (FastAPI, JWT authentication)
+          2. Broker Integrations (Interactive Brokers, FXCM via FIX protocol)
+          3. ML Pipeline (model training, inference, backtesting)
+          4. Database (TimescaleDB with sensitive trading data)
+          5. Message Queue (RabbitMQ for order routing)
+          6. Frontend (Next.js dashboard)
+          7. Authentication Service (JWT, 2FA)
+
+          Focus on:
+          - STRIDE threat modeling methodology
+          - Financial industry specific threats (market manipulation, insider trading)
+          - API security (injection, broken authentication, sensitive data exposure)
+          - Broker integration security (FIX protocol vulnerabilities)
+          - Data protection (PCI DSS, financial data privacy)
+          - Real-time system security (race conditions, timing attacks)
+
+          Output structured threat model with:
+          - Identified threats by component
+          - Risk ratings (Critical/High/Medium/Low)
+          - Attack vectors and scenarios
+          - Mitigation strategies
+          - Monitoring and detection recommendations
+          EOF
+
+          # Generate threat model
+          codex exec -p fxml4_ci "$(cat /tmp/threat_model_prompt.txt)" > reports/security/ai-threat-model-${{ github.run_id }}.json
+
+      - name: Upload Threat Model
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-threat-model
+          path: reports/security/ai-threat-model-*.json
+
+  codeql-analysis:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python', 'javascript']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config: |
+            name: "FXML4 Security Config"
+            disable-default-queries: false
+            queries:
+              - uses: security-extended
+              - uses: security-and-quality
+            paths:
+              - fxml4/
+              - fxml4-ui/
+              - scripts/
+            paths-ignore:
+              - tests/
+              - docs/
+              - archive/
+
+      - name: Setup Python (for Python analysis)
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        if: matrix.language == 'python'
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Setup Node.js (for JavaScript analysis)
+        if: matrix.language == 'javascript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'fxml4-ui/package-lock.json'
+
+      - name: Install Node.js dependencies
+        if: matrix.language == 'javascript'
+        run: |
+          cd fxml4-ui
+          npm ci
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  dependency-review:
+    name: AI-Enhanced Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-3-Clause, BSD-2-Clause, ISC
+          deny-licenses: GPL-2.0, GPL-3.0
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: AI Dependency Risk Analysis
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p reports/security
+
+          # Generate dependency reports
+          pip list --format=json > /tmp/python-deps.json
+          cd fxml4-ui && npm list --json > /tmp/node-deps.json && cd ..
+
+          # AI dependency analysis prompt
+          cat > /tmp/dep_analysis_prompt.txt << 'EOF'
+          Analyze dependencies for FXML4 trading system security risks:
+
+          Python Dependencies: $(cat /tmp/python-deps.json)
+          Node.js Dependencies: $(cat /tmp/node-deps.json)
+
+          Focus on:
+          1. Known security vulnerabilities (CVEs)
+          2. Supply chain security risks
+          3. License compliance issues
+          4. Outdated packages with security implications
+          5. Packages with excessive permissions
+          6. Trading/financial specific security concerns
+          7. Transitive dependency risks
+
+          For financial trading systems, pay special attention to:
+          - Cryptographic libraries
+          - Network communication packages
+          - Data processing libraries
+          - Authentication/authorization packages
+
+          Output structured risk assessment with remediation steps.
+          EOF
+
+          # Run AI dependency analysis
+          codex exec -p fxml4_ci "$(cat /tmp/dep_analysis_prompt.txt)" > reports/security/ai-dependency-analysis-${{ github.run_id }}.json
+
+      - name: Upload Dependency Analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-dependency-analysis
+          path: reports/security/ai-dependency-analysis-*.json
+
+  secret-scanning:
+    name: AI-Enhanced Secret Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Install detect-secrets
+        run: pip install detect-secrets
+
+      - name: Run detect-secrets scan
+        run: |
+          mkdir -p reports/security
+          detect-secrets scan --all-files --baseline .secrets.baseline
+          detect-secrets audit .secrets.baseline --report reports/security/secrets-report.json
+
+      - name: AI-Enhanced Secret Analysis
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # AI secret analysis prompt
+          cat > /tmp/secret_analysis_prompt.txt << 'EOF'
+          Analyze potential secrets and sensitive data in FXML4 trading system:
+
+          Secret scan results: $(cat reports/security/secrets-report.json)
+
+          For a financial trading system, identify:
+          1. API keys (broker APIs, data feeds, cloud services)
+          2. Database credentials and connection strings
+          3. Cryptographic keys and certificates
+          4. Trading account credentials
+          5. JWT secrets and signing keys
+          6. Third-party service tokens
+          7. Configuration files with sensitive data
+          8. Hardcoded passwords or tokens in code
+
+          Assess risk level and provide remediation:
+          - Critical: Active API keys, database passwords
+          - High: Cryptographic material, broker credentials
+          - Medium: Configuration secrets, internal tokens
+          - Low: Test keys, dummy data
+
+          Include specific remediation steps for each finding.
+          EOF
+
+          # Run AI secret analysis
+          codex exec -p fxml4_ci "$(cat /tmp/secret_analysis_prompt.txt)" > reports/security/ai-secret-analysis-${{ github.run_id }}.json
+
+      - name: Upload Secret Analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-secret-analysis
+          path: reports/security/ai-secret-analysis-*.json
+
+  compliance-audit:
+    name: AI Compliance & Regulatory Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: AI Compliance Analysis
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p reports/security
+
+          # Compliance analysis prompt
+          cat > /tmp/compliance_prompt.txt << 'EOF'
+          Perform comprehensive compliance analysis for FXML4 trading system:
+
+          Regulatory Framework Analysis:
+          1. MiFID II (Markets in Financial Instruments Directive)
+             - Transaction reporting requirements
+             - Best execution obligations
+             - Client asset protection
+             - Risk management systems
+
+          2. EMIR (European Market Infrastructure Regulation)
+             - Trade reporting to trade repositories
+             - Risk mitigation techniques
+             - Central clearing requirements
+
+          3. Dodd-Frank Act
+             - Swap execution facilities
+             - Real-time reporting
+             - Risk management standards
+
+          4. PCI DSS (for payment data protection)
+             - Data encryption requirements
+             - Access control measures
+             - Network security
+
+          5. GDPR (for EU client data)
+             - Data minimization
+             - Consent management
+             - Right to be forgotten
+
+          System Components to Analyze:
+          - Trading API and order management
+          - Broker integrations (IB, FXCM)
+          - Data storage and retention
+          - Audit logging and monitoring
+          - Client authentication and authorization
+          - Risk management systems
+
+          Output structured compliance report with:
+          - Compliance status by regulation
+          - Identified gaps and risks
+          - Implementation requirements
+          - Documentation needs
+          - Monitoring and reporting obligations
+          EOF
+
+          # Run AI compliance analysis
+          codex exec -p fxml4_ci "$(cat /tmp/compliance_prompt.txt)" > reports/security/ai-compliance-analysis-${{ github.run_id }}.json
+
+      - name: Upload Compliance Analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-compliance-analysis
+          path: reports/security/ai-compliance-analysis-*.json
+
+  security-report:
+    name: Consolidated AI Security Report
+    runs-on: ubuntu-latest
+    needs: [ai-threat-modeling, codeql-analysis, dependency-review, secret-scanning, compliance-audit]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all security artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/security/
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Generate Consolidated Security Report
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Consolidation prompt
+          cat > /tmp/consolidation_prompt.txt << 'EOF'
+          Generate executive security report for FXML4 trading system:
+
+          Input Data:
+          - Threat Model: $(find reports/security -name "*threat-model*" -exec cat {} \;)
+          - Dependency Analysis: $(find reports/security -name "*dependency-analysis*" -exec cat {} \;)
+          - Secret Analysis: $(find reports/security -name "*secret-analysis*" -exec cat {} \;)
+          - Compliance Analysis: $(find reports/security -name "*compliance-analysis*" -exec cat {} \;)
+
+          Generate consolidated report with:
+          1. Executive Summary
+             - Overall security posture (Excellent/Good/Fair/Poor)
+             - Critical findings count
+             - Risk trend analysis
+
+          2. Critical Issues (requiring immediate attention)
+          3. High Priority Issues (address within 30 days)
+          4. Medium Priority Issues (address within 90 days)
+          5. Compliance Status Summary
+          6. Recommended Security Roadmap
+          7. Metrics and KPIs for security monitoring
+
+          Format for leadership consumption with clear action items.
+          EOF
+
+          # Generate consolidated report
+          codex exec -p fxml4_ci "$(cat /tmp/consolidation_prompt.txt)" > reports/security/ai-security-executive-report-${{ github.run_id }}.md
+
+      - name: Create Security Issue (if critical findings)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Check for critical security findings
+            const reportFiles = fs.readdirSync('reports/security/').filter(f => f.includes('analysis'));
+            let criticalCount = 0;
+
+            for (const file of reportFiles) {
+              const content = fs.readFileSync(`reports/security/${file}`, 'utf8');
+              const matches = content.match(/critical/gi) || [];
+              criticalCount += matches.length;
+            }
+
+            if (criticalCount > 0) {
+              const issueBody = `
+              ## 🚨 Critical Security Findings Detected
+
+              The AI security analysis has identified **${criticalCount}** critical security issues that require immediate attention.
+
+              **Workflow Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+              ### Next Steps:
+              1. Review the detailed security reports in the workflow artifacts
+              2. Address critical findings immediately
+              3. Update security documentation
+              4. Re-run security analysis after fixes
+
+              ### Reports Available:
+              - Threat Model Analysis
+              - Dependency Security Review
+              - Secret Scanning Results
+              - Compliance Assessment
+              - Executive Security Report
+
+              **⚠️ This issue will remain open until all critical findings are resolved.**
+              `;
+
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Critical Security Findings - Run ${context.runId}`,
+                body: issueBody,
+                labels: ['security', 'critical', 'ai-generated']
+              });
+            }
+
+      - name: Upload Consolidated Security Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-security-executive-report
+          path: reports/security/ai-security-executive-report-*.md
+
+      - name: Comment PR with Security Summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = fs.readdirSync('reports/security/').find(f => f.includes('executive-report'));
+
+            if (reportPath) {
+              const report = fs.readFileSync(`reports/security/${reportPath}`, 'utf8');
+              const summary = report.split('\n').slice(0, 20).join('\n'); // First 20 lines
+
+              const body = `
+              ## 🔒 AI Security Analysis Summary
+
+              ${summary}
+
+              **Full Report:** Available in workflow artifacts
+              **Analysis Powered By:** OpenAI GPT-5
+
+              ---
+              *Automated security analysis by AI-Enhanced CI/CD*
+              `;
+
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }

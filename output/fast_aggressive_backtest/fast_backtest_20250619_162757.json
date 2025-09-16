@@ -1,0 +1,653 @@
+{
+  "config": {
+    "initial_capital": 10000,
+    "max_leverage": 400.0,
+    "target_leverage": 50.0,
+    "start_date": "2024-01-01T00:00:00",
+    "end_date": "2024-12-31T00:00:00"
+  },
+  "results": {
+    "total_trades": 39,
+    "winning_trades": 20,
+    "losing_trades": 19,
+    "win_rate": 0.5128205128205128,
+    "avg_win": 256.14472212342173,
+    "avg_loss": 400.5300908721226,
+    "profit_factor": 0.6731729511276494,
+    "total_pnl": -2487.1772841018947,
+    "final_capital": 7455.428115898105,
+    "total_return": -0.2544571884101895,
+    "max_drawdown": 0.25878982127181216,
+    "sharpe_ratio": -1.8459653115915842,
+    "avg_leverage": 3.842431891511614,
+    "max_leverage": 7.120412872646081,
+    "avg_pnl_pips": -11.581279487179325,
+    "total_commission": 55.94684,
+    "signal_sources": {
+      "RSI Oversold": {
+        "count": 14,
+        "pnl": -2306.077033074281
+      },
+      "BB Reversion": {
+        "count": 1,
+        "pnl": 94.06327942016961
+      },
+      "RSI Overbought": {
+        "count": 18,
+        "pnl": 1611.6921759055872
+      },
+      "MACD Cross": {
+        "count": 4,
+        "pnl": -248.0610084277404
+      },
+      "MA Cross": {
+        "count": 2,
+        "pnl": -1638.79469792563
+      }
+    }
+  },
+  "sample_trades": [
+    {
+      "timestamp": "2024-01-02T08:00:00",
+      "direction": "BUY",
+      "entry_price": 1.2728,
+      "exit_price": 1.266436,
+      "position_size": 47140.0,
+      "leverage_used": 4.714,
+      "pnl": -237.58560000000136,
+      "pnl_pips": -63.64000000000036,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-02T08:00:00",
+      "direction": "BUY",
+      "entry_price": 1.2731,
+      "exit_price": 1.2667344999999999,
+      "position_size": 47120.0,
+      "leverage_used": 4.7128886622861605,
+      "pnl": -237.48480000000092,
+      "pnl_pips": -63.65500000000024,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-02T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.272,
+      "exit_price": 1.26564,
+      "position_size": 47152.0,
+      "leverage_used": 4.716978489569707,
+      "pnl": -237.64607999999706,
+      "pnl_pips": -63.59999999999921,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-05T08:00:00",
+      "direction": "BUY",
+      "entry_price": 1.26245,
+      "exit_price": 1.2660803299999999,
+      "position_size": 33172.0,
+      "leverage_used": 3.4852499121711142,
+      "pnl": 94.06327942016961,
+      "pnl_pips": 36.30329999999793,
+      "signal_source": "BB Reversion",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-05T08:00:00",
+      "direction": "BUY",
+      "entry_price": 1.26199,
+      "exit_price": 1.2660803299999999,
+      "position_size": 24705.0,
+      "leverage_used": 2.6625059797265442,
+      "pnl": 79.08501979571788,
+      "pnl_pips": 40.9032999999992,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-05T08:00:00",
+      "direction": "BUY",
+      "entry_price": 1.26217,
+      "exit_price": 1.2660803299999999,
+      "position_size": 24698.0,
+      "leverage_used": 2.6620350834624196,
+      "pnl": 75.52897577473423,
+      "pnl_pips": 39.10329999999851,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-05T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.26809,
+      "exit_price": 1.2744304499999999,
+      "position_size": 30726.0,
+      "leverage_used": 3.312106259974828,
+      "pnl": -154.8590399999986,
+      "pnl_pips": -63.404499999999416,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-05T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.26784,
+      "exit_price": 1.2741791999999998,
+      "position_size": 30728.0,
+      "leverage_used": 3.3127607384085893,
+      "pnl": -154.86911999999435,
+      "pnl_pips": -63.39199999999767,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-08T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.27514,
+      "exit_price": 1.27450243,
+      "position_size": 35848.0,
+      "leverage_used": 3.7643222621561585,
+      "pnl": 16.49007999999621,
+      "pnl_pips": 6.375699999998652,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-11T00:00:00",
+      "direction": "SELL",
+      "entry_price": 1.2698,
+      "exit_price": 1.2748792,
+      "position_size": 43606.0,
+      "leverage_used": 4.725184154822178,
+      "pnl": -176.1682399999983,
+      "pnl_pips": -50.791999999999504,
+      "signal_source": "MACD Cross",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-11T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.27643,
+      "exit_price": 1.2727784999999998,
+      "position_size": 64431.0,
+      "leverage_used": 7.120412872646081,
+      "pnl": -186.89584462384076,
+      "pnl_pips": -36.51500000000141,
+      "signal_source": "MA Cross",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-01-16T00:00:00",
+      "direction": "BUY",
+      "entry_price": 1.27419,
+      "exit_price": 1.26909324,
+      "position_size": 43447.0,
+      "leverage_used": 4.708844782632321,
+      "pnl": -175.52588000000114,
+      "pnl_pips": -50.96760000000033,
+      "signal_source": "MACD Cross",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-07-12T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.27254,
+      "exit_price": 1.27190373,
+      "position_size": 31329.0,
+      "leverage_used": 3.536283924860558,
+      "pnl": 14.411339999999862,
+      "pnl_pips": 6.362699999999943,
+      "signal_source": "MACD Cross",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-07-12T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.2681,
+      "exit_price": 1.280781,
+      "position_size": 25147.0,
+      "leverage_used": 2.8388876910593446,
+      "pnl": 250.46411999999887,
+      "pnl_pips": 126.80999999999942,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Take Profit"
+    },
+    {
+      "timestamp": "2024-07-12T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.26728,
+      "exit_price": 1.2799528,
+      "position_size": 17263.0,
+      "leverage_used": 1.9884778105683543,
+      "pnl": 171.93948000000054,
+      "pnl_pips": 126.72800000000039,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Take Profit"
+    },
+    {
+      "timestamp": "2024-08-16T16:00:00",
+      "direction": "SELL",
+      "entry_price": 1.29842,
+      "exit_price": 1.2936292799999998,
+      "position_size": 22464.0,
+      "leverage_used": 2.5877726215030754,
+      "pnl": 81.98581799787672,
+      "pnl_pips": 47.90720000000137,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-16T16:00:00",
+      "direction": "SELL",
+      "entry_price": 1.29857,
+      "exit_price": 1.2936292799999998,
+      "position_size": 33699.0,
+      "leverage_used": 3.6963867247349427,
+      "pnl": 126.86794155325305,
+      "pnl_pips": 49.40720000000232,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-16T16:00:00",
+      "direction": "SELL",
+      "entry_price": 1.2989,
+      "exit_price": 1.2936292799999998,
+      "position_size": 33685.0,
+      "leverage_used": 3.6953974729693395,
+      "pnl": 135.34072318115778,
+      "pnl_pips": 52.707200000001734,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-20T08:00:00",
+      "direction": "SELL",
+      "entry_price": 1.2943,
+      "exit_price": 1.3007715,
+      "position_size": 43822.0,
+      "leverage_used": 4.6356986697857945,
+      "pnl": -220.86287999999877,
+      "pnl_pips": -64.71499999999963,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-20T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.29457,
+      "exit_price": 1.3010428499999998,
+      "position_size": 43805.0,
+      "leverage_used": 4.634759743268966,
+      "pnl": -220.7771999999916,
+      "pnl_pips": -64.72849999999752,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-20T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.29537,
+      "exit_price": 1.3018468499999998,
+      "position_size": 43770.0,
+      "leverage_used": 4.63191530344925,
+      "pnl": -220.60079999999553,
+      "pnl_pips": -64.76849999999868,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-21T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.29207,
+      "exit_price": 1.3049907,
+      "position_size": 42323.0,
+      "leverage_used": 4.643711714955275,
+      "pnl": 421.53708000000023,
+      "pnl_pips": 129.20700000000008,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Take Profit"
+    },
+    {
+      "timestamp": "2024-08-21T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.29103,
+      "exit_price": 1.3039402999999998,
+      "position_size": 42349.0,
+      "leverage_used": 4.647427707288359,
+      "pnl": 421.79603999999773,
+      "pnl_pips": 129.1029999999993,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Take Profit"
+    },
+    {
+      "timestamp": "2024-08-21T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.29121,
+      "exit_price": 1.3041221,
+      "position_size": 42335.0,
+      "leverage_used": 4.646755149617602,
+      "pnl": 421.6566000000031,
+      "pnl_pips": 129.12100000000092,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Take Profit"
+    },
+    {
+      "timestamp": "2024-08-21T20:00:00",
+      "direction": "SELL",
+      "entry_price": 1.30257,
+      "exit_price": 1.3090828499999998,
+      "position_size": 42502.0,
+      "leverage_used": 4.60624377023059,
+      "pnl": -214.21007999999324,
+      "pnl_pips": -65.12849999999793,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-22T08:00:00",
+      "direction": "SELL",
+      "entry_price": 1.30324,
+      "exit_price": 1.3097561999999998,
+      "position_size": 28308.0,
+      "leverage_used": 3.22269120948126,
+      "pnl": -142.67231999999697,
+      "pnl_pips": -65.16199999999861,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-08-22T08:00:00",
+      "direction": "SELL",
+      "entry_price": 1.30332,
+      "exit_price": 1.3098366,
+      "position_size": 28303.0,
+      "leverage_used": 3.2225374000369773,
+      "pnl": -142.64711999999722,
+      "pnl_pips": -65.16599999999872,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-09-11T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.31305,
+      "exit_price": 1.30648475,
+      "position_size": 24420.0,
+      "leverage_used": 2.558903492465751,
+      "pnl": -123.07679999999938,
+      "pnl_pips": -65.65249999999966,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-09-11T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.3128,
+      "exit_price": 1.306236,
+      "position_size": 24422.0,
+      "leverage_used": 2.5593750346199435,
+      "pnl": -123.08688000000028,
+      "pnl_pips": -65.64000000000014,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-09-12T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.30862,
+      "exit_price": 1.30796569,
+      "position_size": 45082.0,
+      "leverage_used": 4.585008944148141,
+      "pnl": 20.737719999993963,
+      "pnl_pips": 6.5430999999982475,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-09-12T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.30935,
+      "exit_price": 1.30621693,
+      "position_size": 24495.0,
+      "leverage_used": 2.566169518322207,
+      "pnl": 57.63290832856131,
+      "pnl_pips": 31.33070000000071,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-09-12T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.3084,
+      "exit_price": 1.3077458000000002,
+      "position_size": 30638.0,
+      "leverage_used": 3.2100580876504337,
+      "pnl": 14.093479999995951,
+      "pnl_pips": 6.541999999998271,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-10-03T08:00:00",
+      "direction": "BUY",
+      "entry_price": 1.30799,
+      "exit_price": 1.3119523,
+      "position_size": 29847.0,
+      "leverage_used": 3.2110699322401826,
+      "pnl": 89.22177157225914,
+      "pnl_pips": 39.62299999999974,
+      "signal_source": "MACD Cross",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-10-04T04:00:00",
+      "direction": "SELL",
+      "entry_price": 1.3159,
+      "exit_price": 1.3152420500000002,
+      "position_size": 34223.0,
+      "leverage_used": 3.6476961336241858,
+      "pnl": 15.742579999997584,
+      "pnl_pips": 6.579499999999072,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "timestamp": "2024-11-15T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.31459,
+      "exit_price": 1.26277,
+      "position_size": 36795.0,
+      "leverage_used": 3.9200737828311545,
+      "pnl": -1451.8988533017894,
+      "pnl_pips": -518.1999999999998,
+      "signal_source": "MA Cross",
+      "exit_reason": "Forced Close"
+    },
+    {
+      "timestamp": "2024-11-15T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.31221,
+      "exit_price": 1.26277,
+      "position_size": 34329.0,
+      "leverage_used": 3.657924107085879,
+      "pnl": 1292.0370106281807,
+      "pnl_pips": 494.4000000000015,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Forced Close"
+    },
+    {
+      "timestamp": "2024-11-15T12:00:00",
+      "direction": "SELL",
+      "entry_price": 1.31347,
+      "exit_price": 1.26277,
+      "position_size": 34291.0,
+      "leverage_used": 3.654409721976607,
+      "pnl": 1322.26247421654,
+      "pnl_pips": 506.99999999999966,
+      "signal_source": "RSI Overbought",
+      "exit_reason": "Forced Close"
+    },
+    {
+      "timestamp": "2024-11-15T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.31126,
+      "exit_price": 1.26277,
+      "position_size": 42924.0,
+      "leverage_used": 4.575769438856287,
+      "pnl": -1589.0335562509388,
+      "pnl_pips": -484.90000000000146,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Forced Close"
+    },
+    {
+      "timestamp": "2024-11-15T12:00:00",
+      "direction": "BUY",
+      "entry_price": 1.31114,
+      "exit_price": 1.26277,
+      "position_size": 43328.0,
+      "leverage_used": 4.57614946346638,
+      "pnl": -1600.1706323937958,
+      "pnl_pips": -483.7000000000002,
+      "signal_source": "RSI Oversold",
+      "exit_reason": "Forced Close"
+    }
+  ],
+  "equity_curve_sample": [
+    {
+      "timestamp": "2024-01-01T00:00:00",
+      "equity": 10000
+    },
+    {
+      "timestamp": "2024-01-11T12:00:00",
+      "equity": 8697.161255502231
+    },
+    {
+      "timestamp": "2024-01-23T12:00:00",
+      "equity": 8787.70091323678
+    },
+    {
+      "timestamp": "2024-02-04T20:00:00",
+      "equity": 8748.304493993475
+    },
+    {
+      "timestamp": "2024-02-15T00:00:00",
+      "equity": 8696.89481686432
+    },
+    {
+      "timestamp": "2024-02-27T00:00:00",
+      "equity": 8798.91917611548
+    },
+    {
+      "timestamp": "2024-03-08T04:00:00",
+      "equity": 8909.423482109594
+    },
+    {
+      "timestamp": "2024-03-20T04:00:00",
+      "equity": 8830.277312508695
+    },
+    {
+      "timestamp": "2024-04-01T04:00:00",
+      "equity": 8747.244500650608
+    },
+    {
+      "timestamp": "2024-04-11T08:00:00",
+      "equity": 8675.694950006937
+    },
+    {
+      "timestamp": "2024-04-23T08:00:00",
+      "equity": 8553.0890533484
+    },
+    {
+      "timestamp": "2024-05-03T12:00:00",
+      "equity": 8683.11490340702
+    },
+    {
+      "timestamp": "2024-05-15T12:00:00",
+      "equity": 8778.779302600964
+    },
+    {
+      "timestamp": "2024-05-27T12:00:00",
+      "equity": 8881.598656859276
+    },
+    {
+      "timestamp": "2024-06-06T16:00:00",
+      "equity": 8896.880227552308
+    },
+    {
+      "timestamp": "2024-06-18T16:00:00",
+      "equity": 8824.977345794347
+    },
+    {
+      "timestamp": "2024-06-28T20:00:00",
+      "equity": 8769.062696957997
+    },
+    {
+      "timestamp": "2024-07-10T20:00:00",
+      "equity": 8953.9432025101
+    },
+    {
+      "timestamp": "2024-07-23T00:00:00",
+      "equity": 9655.813049073291
+    },
+    {
+      "timestamp": "2024-08-02T04:00:00",
+      "equity": 9020.704573785344
+    },
+    {
+      "timestamp": "2024-08-14T04:00:00",
+      "equity": 9385.789886485301
+    },
+    {
+      "timestamp": "2024-08-26T04:00:00",
+      "equity": 8727.717002781834
+    },
+    {
+      "timestamp": "2024-09-05T08:00:00",
+      "equity": 9103.30851030955
+    },
+    {
+      "timestamp": "2024-09-17T08:00:00",
+      "equity": 9269.259450386307
+    },
+    {
+      "timestamp": "2024-09-27T12:00:00",
+      "equity": 8793.256533461295
+    },
+    {
+      "timestamp": "2024-10-09T12:00:00",
+      "equity": 9334.433636867943
+    },
+    {
+      "timestamp": "2024-10-21T12:00:00",
+      "equity": 8918.580561096873
+    },
+    {
+      "timestamp": "2024-10-31T16:00:00",
+      "equity": 8560.000663425995
+    },
+    {
+      "timestamp": "2024-11-12T16:00:00",
+      "equity": 7913.394783135248
+    },
+    {
+      "timestamp": "2024-11-22T20:00:00",
+      "equity": 7455.428115898105
+    },
+    {
+      "timestamp": "2024-12-05T12:00:00",
+      "equity": 7455.428115898105
+    },
+    {
+      "timestamp": "2024-12-17T12:00:00",
+      "equity": 7455.428115898105
+    },
+    {
+      "timestamp": "2024-12-27T16:00:00",
+      "equity": 7455.428115898105
+    }
+  ]
+}

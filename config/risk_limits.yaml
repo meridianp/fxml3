@@ -1,0 +1,172 @@
+# Risk Management Configuration
+# This file defines risk limits and controls for the trading system
+
+# Position Limits
+position_limits:
+  # Maximum total portfolio notional value
+  max_portfolio_notional: 10000000 # $10M
+
+  # Maximum single position notional value
+  max_single_position_notional: 1000000 # $1M
+
+  # Maximum position size per symbol
+  max_position_size:
+    "EUR/USD": 5000000
+    "GBP/USD": 3000000
+    "USD/JPY": 5000000
+    "AUD/USD": 2000000
+    "USD/CAD": 2000000
+    "USD/CHF": 2000000
+    "NZD/USD": 1000000
+    # Default for other pairs
+    "DEFAULT": 1000000
+
+# Order Limits
+order_limits:
+  # Maximum single order notional value
+  max_order_notional: 500000 # $500K
+
+  # Minimum order size
+  min_order_size: 10000 # 10K units
+
+  # Maximum order size per symbol
+  max_order_size:
+    "EUR/USD": 2000000
+    "GBP/USD": 1500000
+    "USD/JPY": 2000000
+    "AUD/USD": 1000000
+    "USD/CAD": 1000000
+    "USD/CHF": 1000000
+    "NZD/USD": 500000
+    # Default for other pairs
+    "DEFAULT": 500000
+
+# Loss Limits
+loss_limits:
+  # Maximum daily loss
+  max_daily_loss: 50000 # $50K
+
+  # Maximum weekly loss
+  max_weekly_loss: 150000 # $150K
+
+  # Maximum monthly loss
+  max_monthly_loss: 500000 # $500K
+
+# Price Limits
+price_limits:
+  # Maximum price deviation from market (percentage)
+  max_price_deviation_pct: 2.0 # 2%
+
+# Symbol Restrictions
+symbol_restrictions:
+  # List of allowed symbols (if specified, only these can be traded)
+  # allowed_symbols:
+  #   - "EUR/USD"
+  #   - "GBP/USD"
+  #   - "USD/JPY"
+
+  # List of blocked symbols (cannot be traded)
+  blocked_symbols:
+    - "TRY/USD" # Turkish Lira
+    - "RUB/USD" # Russian Ruble
+    - "CNY/USD" # Chinese Yuan (offshore)
+
+# Time Restrictions
+time_restrictions:
+  # Restricted trading hours (UTC)
+  restricted_hours:
+    # No trading during maintenance window
+    - start: 22 # 10 PM UTC Friday
+      end: 23 # 11 PM UTC Friday
+
+    # No trading during low liquidity hours
+    - start: 21 # 9 PM UTC Sunday
+      end: 22 # 10 PM UTC Sunday
+
+# Counterparty/Broker Limits
+counterparty_limits:
+  # Maximum orders per broker
+  max_orders_per_broker:
+    ib: 100
+    fxcm: 50
+    fix: 200
+    manual: 20
+
+  # Maximum notional exposure per broker
+  max_notional_per_broker:
+    ib: 5000000 # $5M
+    fxcm: 3000000 # $3M
+    fix: 10000000 # $10M
+    manual: 1000000 # $1M
+
+# Risk Check Configuration
+risk_checks:
+  # Enable/disable specific checks
+  enabled_checks:
+    position_limit: true
+    order_size_limit: true
+    daily_loss_limit: true
+    price_deviation: true
+    symbol_restriction: true
+    time_restriction: true
+    duplicate_order: true
+    counterparty_limit: true
+
+  # Check-specific settings
+  duplicate_order:
+    lookback_seconds: 60 # Check for duplicates in last 60 seconds
+
+# Override Authority Levels
+override_authority:
+  # Define who can override which risk checks
+  levels:
+    risk_manager:
+      - position_limit
+      - order_size_limit
+      - duplicate_order
+      - time_restriction
+
+    senior_trader:
+      - position_limit
+      - order_size_limit
+      - daily_loss_limit
+      - price_deviation
+      - time_restriction
+      - counterparty_limit
+
+    compliance:
+      - symbol_restriction
+      - all # Can override any check
+
+# Monitoring and Alerts
+monitoring:
+  # Alert thresholds (percentage of limits)
+  alert_thresholds:
+    position_limit_warning: 80 # Alert at 80% of position limit
+    daily_loss_warning: 75 # Alert at 75% of daily loss limit
+    portfolio_notional_warning: 90 # Alert at 90% of portfolio limit
+
+  # Alert destinations
+  alert_channels:
+    - type: "log"
+      level: "WARNING"
+
+    - type: "rabbitmq"
+      exchange: "risk.alerts"
+      routing_key: "risk.limit.warning"
+
+    # - type: "email"
+    #   recipients:
+    #     - "risk@example.com"
+    #     - "trading@example.com"
+
+# Default Settings
+defaults:
+  # Default action when risk check fails
+  on_risk_fail: "reject" # reject, queue_for_approval, alert_only
+
+  # Default override timeout
+  override_timeout_minutes: 30
+
+  # Risk metrics update frequency
+  metrics_update_interval_seconds: 5

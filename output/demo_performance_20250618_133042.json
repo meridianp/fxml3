@@ -1,0 +1,48 @@
+[
+  {
+    "initial_capital": 10000,
+    "final_capital": 10000,
+    "total_return": 0.0,
+    "total_trades": 0,
+    "performance_stats": {
+      "total_signals": 0,
+      "ml_signals": 0,
+      "ew_signals": 0,
+      "ta_signals": 0,
+      "multi_confluence": 0,
+      "trades_executed": 0,
+      "filters_passed": 0,
+      "filters_failed": 0
+    },
+    "max_drawdown": 0.0,
+    "avg_drawdown": NaN,
+    "sharpe_ratio": 0,
+    "signal_attempts": 39,
+    "signals_filtered": 39,
+    "filter_rate": 1.0,
+    "symbol": "EURUSD"
+  },
+  {
+    "initial_capital": 10000,
+    "final_capital": 10000,
+    "total_return": 0.0,
+    "total_trades": 0,
+    "performance_stats": {
+      "total_signals": 3,
+      "ml_signals": 0,
+      "ew_signals": 0,
+      "ta_signals": 3,
+      "multi_confluence": 0,
+      "trades_executed": 0,
+      "filters_passed": 0,
+      "filters_failed": 0
+    },
+    "max_drawdown": 0.0,
+    "avg_drawdown": NaN,
+    "sharpe_ratio": 0,
+    "signal_attempts": 39,
+    "signals_filtered": 39,
+    "filter_rate": 1.0,
+    "symbol": "GBPUSD"
+  }
+]

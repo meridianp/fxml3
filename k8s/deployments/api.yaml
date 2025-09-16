@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fxml4-api
+  namespace: fxml4
+  labels:
+    app: fxml4-api
+    component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fxml4-api
+  template:
+    metadata:
+      labels:
+        app: fxml4-api
+        component: api
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: api
+          image: ghcr.io/meridianp/fxml4-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: PYTHONPATH
+              value: "/app"
+            - name: FXML4_SERVICE_NAME
+              value: "api"
+          envFrom:
+            - configMapRef:
+                name: fxml4-config
+            - secretRef:
+                name: fxml4-secrets
+          command: ["python", "-m", "fxml4.api.main"]
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+            - name: models-volume
+              mountPath: /app/models
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: fxml4-data-pvc
+        - name: models-volume
+          persistentVolumeClaim:
+            claimName: fxml4-models-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fxml4-data-pvc
+  namespace: fxml4
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fxml4-models-pvc
+  namespace: fxml4
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

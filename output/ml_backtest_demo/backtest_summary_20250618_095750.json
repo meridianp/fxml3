@@ -1,0 +1,13 @@
+{
+  "model_type": "logistic_regression",
+  "symbol": "EURUSD",
+  "timeframe": "4h",
+  "period_start": "2024-06-18T09:57:45.180573",
+  "period_end": "2025-05-19T05:57:45.180573",
+  "initial_capital": 10000.0,
+  "final_capital": 9650.963117972486,
+  "total_return": -349.03688202751437,
+  "total_return_pct": -3.4903688202751435,
+  "trade_count": 1,
+  "timestamp": "2025-06-18T09:57:50.455403"
+}

@@ -1,0 +1,309 @@
+version: "3.8"
+
+# Unified Docker composition for FXML4 + ForexConnect integration
+# This extends the base FXML4 services with RabbitMQ and ForexConnect middleware
+
+services:
+  # ============================================================================
+  # Core FXML4 Services (Extended from base docker-compose.yml)
+  # ============================================================================
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - FXML4_API_HOST=0.0.0.0
+      - FXML4_API_PORT=8000
+      - FXML4_DATABASE_HOST=db
+      - FXML4_REDIS_HOST=redis
+      - FXML4_RABBITMQ_HOST=rabbitmq
+      - FXML4_RABBITMQ_PORT=5672
+      - FXML4_RABBITMQ_USERNAME=${RABBITMQ_USERNAME:-fxml4}
+      - FXML4_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-fxml4_pass}
+      - PYTHONPATH=/app
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    command: ["python", "-m", "fxml4.api.main"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - FXML4_API_HOST=api
+      - FXML4_API_PORT=8000
+      - FXML4_UI_HOST=0.0.0.0
+      - FXML4_UI_PORT=8501
+      - PYTHONPATH=/app
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    command: ["python", "-m", "fxml4.ui.main"]
+    depends_on:
+      - api
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+
+  # Background worker for ML training and signal processing
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - FXML4_API_HOST=api
+      - FXML4_API_PORT=8000
+      - FXML4_DATABASE_HOST=db
+      - FXML4_REDIS_HOST=redis
+      - FXML4_RABBITMQ_HOST=rabbitmq
+      - FXML4_RABBITMQ_PORT=5672
+      - FXML4_RABBITMQ_USERNAME=${RABBITMQ_USERNAME:-fxml4}
+      - FXML4_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-fxml4_pass}
+      - PYTHONPATH=/app
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    command: ["python", "-m", "fxml4.worker.main"]
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+
+  # FXCM Broker Adapter Service
+  fxcm-adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - FXML4_RABBITMQ_HOST=rabbitmq
+      - FXML4_RABBITMQ_PORT=5672
+      - FXML4_RABBITMQ_USERNAME=${RABBITMQ_USERNAME:-fxml4}
+      - FXML4_RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-fxml4_pass}
+      - FOREX_BRIDGE_URL=http://forex-middleware:8080
+      - PYTHONPATH=/app
+    volumes:
+      - ./config:/app/config
+      - ./logs:/var/log/fxml4
+    command: ["python", "-m", "fxml4.brokers.adapters.fxcm_bridge_adapter"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      forex-middleware:
+        condition: service_healthy
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import requests; requests.get('http://forex-middleware:8080/health').raise_for_status()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================================
+  # Message Broker and Database Services
+  # ============================================================================
+
+  # Shared RabbitMQ for both FXML4 and ForexConnect middleware
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: fxml4-forex-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-fxml4}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-fxml4_pass}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+
+  # TimescaleDB for FXML4 data storage
+  db:
+    image: timescale/timescaledb:latest-pg14
+    container_name: fxml4-forex-db
+    ports:
+      - "5432:5432"
+    environment:
+      # SECURITY: Database credentials loaded from environment variables
+      - POSTGRES_DB=${POSTGRES_DB:-fxml4}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching and session management
+  redis:
+    image: redis:alpine
+    container_name: fxml4-forex-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================================
+  # ForexConnect Integration Services
+  # ============================================================================
+
+  # ForexConnect Middleware (Python 3.7 in isolated container)
+  forex-middleware:
+    build:
+      context: /home/cnross/code/forex-connect
+      dockerfile: Dockerfile
+    container_name: forex-connect-middleware
+    environment:
+      # ForexConnect API Configuration
+      - FOREX_USER_ID=${FOREX_USER_ID}
+      - FOREX_PASSWORD=${FOREX_PASSWORD}
+      - FOREX_URL=${FOREX_URL:-www.fxcorporate.com/Hosts.jsp}
+      - FOREX_CONNECTION=${FOREX_CONNECTION:-Demo}
+      - FOREX_SESSION_ID=${FOREX_SESSION_ID:-}
+      - FOREX_PIN=${FOREX_PIN:-}
+      # RabbitMQ Configuration (shared with FXML4)
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME:-fxml4}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-fxml4_pass}
+      - RABBITMQ_VHOST=/
+      # Service Configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CONFIG_PATH=/app/config/config.yaml
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    volumes:
+      - /home/cnross/code/forex-connect/config:/app/config:ro
+      - forex_logs:/var/log/forex-middleware
+    ports:
+      - "8080:8080" # Health check endpoint
+      - "9091:9090" # Prometheus metrics (avoid conflict with FXML4)
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================================
+  # Monitoring Services
+  # ============================================================================
+
+  # Prometheus monitoring for both systems
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fxml4-forex-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    depends_on:
+      - api
+      - forex-middleware
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+
+  # Grafana dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fxml4-forex-grafana
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - fxml4_forex_network
+    restart: unless-stopped
+
+# ============================================================================
+# Volumes and Networks
+# ============================================================================
+
+volumes:
+  # FXML4 volumes
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+  # ForexConnect volumes
+  rabbitmq_data:
+  forex_logs:
+
+networks:
+  fxml4_forex_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.22.0.0/16

@@ -1,0 +1,12 @@
+# Custom TimescaleDB image with initialization scripts
+FROM timescale/timescaledb:2.11.0-pg15
+
+# Copy initialization scripts
+COPY init-db.sql /docker-entrypoint-initdb.d/
+
+# Set proper permissions
+RUN chmod 644 /docker-entrypoint-initdb.d/init-db.sql
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
+  CMD pg_isready -U fxml4 || exit 1

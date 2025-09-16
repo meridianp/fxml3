@@ -1,0 +1,181 @@
+{
+  "performance": {
+    "initial_capital": 10000,
+    "final_capital": 5069.862868879461,
+    "total_return": -0.49301371311205394,
+    "trades_executed": 269
+  },
+  "signals": {
+    "ml": 268,
+    "elliott": 0,
+    "ta": 7,
+    "multi": 10,
+    "trades": 269,
+    "llm_used": 0,
+    "filtered": 0,
+    "ml_attempts": 303,
+    "ew_attempts": 303,
+    "ta_attempts": 303
+  },
+  "leverage": {
+    "average": 7.117797104083517,
+    "maximum": 7.359744301455343
+  },
+  "settings": {
+    "min_confidence": 0.55,
+    "min_confluences": 1,
+    "target_leverage": 30.0
+  },
+  "last_trades": [
+    {
+      "entry_time": "2024-09-24 08:00:00",
+      "exit_time": "2024-09-24 12:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.336905,
+      "exit_price": 1.3390604700000002,
+      "size": 28377.763757982542,
+      "leverage": 6.980907218756475,
+      "pnl": -63.0673955311888,
+      "pnl_pct": -0.0016622709565589306,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-24 12:00:00",
+      "exit_time": "2024-09-24 16:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.3374249999999999,
+      "exit_price": 1.33958125,
+      "size": 28016.76083294342,
+      "leverage": 6.978193146417491,
+      "pnl": -62.2876769209138,
+      "pnl_pct": -0.0016622273364486591,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-25 00:00:00",
+      "exit_time": "2024-09-25 04:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.342195,
+      "exit_price": 1.3389893250000002,
+      "size": 27466.5009818648,
+      "leverage": 6.953394870877858,
+      "pnl": 86.20980795454291,
+      "pnl_pct": 0.002338371217228871,
+      "reason": "Take Profit",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-25 08:00:00",
+      "exit_time": "2024-09-25 12:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.337485,
+      "exit_price": 1.3396413400000002,
+      "size": 28090.613958020196,
+      "leverage": 6.977880120019168,
+      "pnl": -62.454481888450154,
+      "pnl_pct": -0.0016622223055415837,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-25 20:00:00",
+      "exit_time": "2024-09-26 00:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.331285,
+      "exit_price": 1.3334320400000002,
+      "size": 27994.48532668165,
+      "leverage": 7.010375355526159,
+      "pnl": -61.97171695969673,
+      "pnl_pct": -0.0016627445634539869,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-26 04:00:00",
+      "exit_time": "2024-09-26 08:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.334335,
+      "exit_price": 1.336486615,
+      "size": 27522.43308539665,
+      "leverage": 6.994352060711128,
+      "pnl": -61.05684803458041,
+      "pnl_pct": -0.0016624870397779175,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-26 08:00:00",
+      "exit_time": "2024-09-26 12:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.337335,
+      "exit_price": 1.339491115,
+      "size": 27070.918942143537,
+      "leverage": 6.978662738676776,
+      "pnl": -60.18107716483451,
+      "pnl_pct": -0.001662234883655733,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-27 00:00:00",
+      "exit_time": "2024-09-27 04:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.339195,
+      "exit_price": 1.335996825,
+      "size": 26645.38113408645,
+      "leverage": 6.9689706581444,
+      "pnl": 83.43668457870045,
+      "pnl_pct": 0.002338120885818288,
+      "reason": "Take Profit",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-27 04:00:00",
+      "exit_time": "2024-09-27 08:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.336665,
+      "exit_price": 1.3388201100000001,
+      "size": 27172.831126440436,
+      "leverage": 6.982160579718706,
+      "pnl": -60.37941672679211,
+      "pnl_pct": -0.0016622911003636657,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    },
+    {
+      "entry_time": "2024-09-27 08:00:00",
+      "exit_time": "2024-09-27 12:00:00",
+      "direction": "SHORT",
+      "entry_price": 1.338705,
+      "exit_price": 1.3408631700000002,
+      "size": 26766.20837424347,
+      "leverage": 6.9715213353448116,
+      "pnl": -59.56051907752432,
+      "pnl_pct": -0.0016621201082330042,
+      "reason": "Stop Loss",
+      "sources": [
+        "ML Ensemble"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+# AI-Enhanced Test Strategy Configuration
+# Test generation and coverage thresholds for FXML4 project
+
+# Global test configuration
+global:
+  coverage:
+    minimum_threshold: 80 # FXML4 targets 80% overall coverage
+    api_threshold: 94 # API testing framework targets 94%
+    lines: 80
+    branches: 75
+
+  test_types:
+    - unit
+    - integration
+    - api
+    - security
+    - performance
+    - e2e
+
+# Backend Python configuration (FXML4 trading system)
+backend:
+  language: python
+  framework: pytest
+  test_directory: tests/
+  coverage_threshold: 80
+  test_patterns:
+    - "test_*.py"
+    - "*_test.py"
+
+  markers:
+    - unit: "Unit tests"
+    - integration: "Integration tests"
+    - api: "API endpoint tests"
+    - security: "Security tests"
+    - performance: "Performance tests"
+    - ml: "Machine learning tests"
+    - auth: "Authentication tests"
+    - slow: "Slow running tests"
+    - requires_ib: "Tests requiring Interactive Brokers"
+    - requires_fxcm: "Tests requiring FXCM connection"
+    - stress: "Stress tests"
+    - compliance: "Compliance tests"
+    - database: "Database tests"
+    - fix_protocol: "FIX protocol tests"
+    - broker: "Broker integration tests"
+    - real_time: "Real-time data tests"
+    - backtesting: "Backtesting tests"
+    - risk_management: "Risk management tests"
+    - wave_analysis: "Elliott Wave analysis tests"
+    - rabbitmq: "RabbitMQ tests"
+    - monitoring: "Monitoring tests"
+    - production: "Production readiness tests"
+
+  exclude_slow_ci: true
+  exclude_external_deps: true
+
+# Frontend configuration (FXML4-UI Next.js)
+frontend:
+  language: typescript
+  framework: jest
+  e2e_framework: playwright
+  test_directory: fxml4-ui/__tests__/
+  e2e_directory: fxml4-ui/e2e/
+  coverage_threshold: 60
+
+  test_patterns:
+    unit: "**/__tests__/**/*.test.{ts,tsx}"
+    e2e: "e2e/**/*.spec.{ts,tsx}"
+
+  exclude_patterns:
+    - "node_modules/**"
+    - ".next/**"
+    - "out/**"
+
+# Elliott Wave system (FXML3)
+fxml3:
+  language: python
+  framework: pytest
+  test_directory: fxml3/tests/
+  coverage_threshold: 70
+
+  test_patterns:
+    - "test_*.py"
+    - "*_test.py"
+
+  markers:
+    - unit: "Unit tests"
+    - integration: "Integration tests"
+    - llm: "LLM integration tests"
+    - wave_patterns: "Elliott Wave pattern tests"
+
+# AI test generation preferences
+ai_generation:
+  test_types:
+    - positive_cases: true
+    - negative_cases: true
+    - boundary_cases: true
+    - error_cases: true
+    - security_cases: true
+    - performance_cases: false # Generate only for critical paths
+
+  mocking_strategy: minimal # Prefer real objects when safe
+
+  focus_areas:
+    - api_endpoints
+    - trading_logic
+    - risk_management
+    - authentication
+    - fix_protocol
+    - broker_integration
+    - ml_models
+    - data_validation
+
+# Quality gates
+quality_gates:
+  test_execution:
+    max_duration_minutes: 15 # Fast feedback
+    parallel_execution: true
+    fail_fast: false
+
+  coverage_enforcement:
+    enforce_on_pr: true
+    allow_coverage_decrease: false
+    minimum_new_code_coverage: 90
+
+  flaky_test_detection:
+    retry_count: 3
+    failure_rate_threshold: 0.1
+    quarantine_flaky_tests: true
+
+# Environment-specific configuration
+environments:
+  ci:
+    exclude_markers:
+      - slow
+      - requires_ib
+      - requires_fxcm
+      - stress
+    parallel_workers: 4
+
+  local:
+    include_all_markers: true
+    parallel_workers: auto
+
+  production:
+    smoke_tests_only: true
+    critical_path_tests: true

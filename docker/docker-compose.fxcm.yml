@@ -1,0 +1,87 @@
+version: "3.8"
+
+services:
+  fxcm-bridge:
+    build:
+      context: ./fxcm
+      dockerfile: Dockerfile
+    container_name: fxcm-bridge
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    environment:
+      # Bridge service configuration
+      BRIDGE_HOST: "0.0.0.0"
+      BRIDGE_PORT: "9090"
+      BRIDGE_API_KEY: "${FXCM_BRIDGE_API_KEY}"
+
+      # FXCM connection settings
+      FXCM_URL: "www.fxcorporate.com/Hosts.jsp"
+      FXCM_USERNAME: "${FXCM_USERNAME}"
+      FXCM_PASSWORD: "${FXCM_PASSWORD}"
+      FXCM_CONNECTION: "${FXCM_CONNECTION:-Demo}"
+      FXCM_ACCOUNT_ID: "${FXCM_ACCOUNT_ID}"
+
+      # ForexConnect API location
+      FOREXCONNECT_ROOT: "/app/ForexConnectAPI"
+
+      # Connection settings
+      RECONNECT_ATTEMPTS: "5"
+      RECONNECT_DELAY: "10"
+      HEARTBEAT_INTERVAL: "30"
+
+      # Logging
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      LOG_FORMAT: "json"
+
+      # Performance
+      MAX_CONCURRENT_ORDERS: "100"
+      ORDER_TIMEOUT: "60"
+
+    volumes:
+      # Mount ForexConnect API (must be downloaded separately)
+      - ./fxcm/ForexConnectAPI:/app/ForexConnectAPI:ro
+
+    networks:
+      - fxml4-network
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9090/health')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    read_only: false # Need write access for logs
+    tmpfs:
+      - /tmp
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  fxml4-network:
+    external: true

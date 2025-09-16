@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "fxml4-web-ui"
+version = "0.1.0"
+description = "Web interface and API for FXML4 trading system"
+authors = ["FXML4 Team"]
+readme = "README.md"
+packages = [{include = "fxml4_web", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fxml4-core = { path = "../core", develop = true }
+fxml4-trade-manager = { path = "../trade-manager", develop = true }
+fxml4-signal-generator = { path = "../signal-generator", develop = true }
+fxml4-backtesting = { path = "../backtesting", develop = true }
+fastapi = "^0.104.0"
+uvicorn = "^0.24.0"
+streamlit = "^1.28.0"
+plotly = "^5.17.0"
+pydantic = "^2.4.0"
+httpx = "^0.25.0"
+websockets = "^12.0"
+python-jose = "^3.3.0"
+passlib = "^1.7.4"
+python-multipart = "^0.0.6"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+mypy = "^1.4.0"
+flake8 = "^6.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,223 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: api
+    image: ghcr.io/meridianp/fxml4-api:latest
+    container_name: fxml4-api
+    ports:
+      - "8000:8000"
+      - "9090:9090" # Metrics port
+    environment:
+      - FXML4_ENV=production
+      - FXML4_API_HOST=0.0.0.0
+      - FXML4_API_PORT=8000
+      - FXML4_API_DEBUG=false
+      - FXML4_DATABASE_HOST=${DB_HOST}
+      - FXML4_DATABASE_PORT=${DB_PORT}
+      - FXML4_DATABASE_USER=${DB_USER}
+      - FXML4_DATABASE_NAME=${DB_NAME}
+      - FXML4_REDIS_HOST=redis
+      - FXML4_REDIS_PORT=6379
+      - RABBITMQ_HOST=rabbitmq
+      - PYTHONPATH=/app
+    env_file:
+      - .env.production
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./models:/app/models
+      - ./logs:/app/logs
+    command: ["python", "-m", "fxml4.api.main"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: dashboard
+    image: ghcr.io/meridianp/fxml4-dashboard:latest
+    container_name: fxml4-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - FXML4_ENV=production
+      - FXML4_API_HOST=api
+      - FXML4_API_PORT=8000
+      - FXML4_UI_HOST=0.0.0.0
+      - FXML4_UI_PORT=8501
+      - PYTHONPATH=/app
+    env_file:
+      - .env.production
+    volumes:
+      - ./data:/app/data:ro
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    command:
+      [
+        "streamlit",
+        "run",
+        "fxml4/ui/streamlit_app.py",
+        "--server.port=8501",
+        "--server.address=0.0.0.0",
+      ]
+    depends_on:
+      - api
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: worker
+    image: ghcr.io/meridianp/fxml4-worker:latest
+    container_name: fxml4-worker
+    environment:
+      - FXML4_DATABASE_HOST=${DB_HOST}
+      - FXML4_DATABASE_PORT=${DB_PORT}
+      - FXML4_DATABASE_USER=${DB_USER}
+      - FXML4_DATABASE_NAME=${DB_NAME}
+      - FXML4_REDIS_HOST=redis
+      - FXML4_RABBITMQ_HOST=rabbitmq
+      - PYTHONPATH=/app
+    env_file:
+      - .env.production
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./models:/app/models
+    command: ["python", "-m", "fxml4.worker.main"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+
+  # External database - no container needed
+  # Database connection configured via environment variables
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--auth", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=fxml4
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  fxml4_network:
+    driver: bridge

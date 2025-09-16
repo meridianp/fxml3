@@ -1,0 +1,87 @@
+# FIX Session Configuration
+# This file defines FIX protocol session configurations for different brokers
+
+sessions:
+  # Currenex Production
+  currenex_prod:
+    enabled: true
+    adapter_type: fix_rabbitmq # Use RabbitMQ integration
+    connection:
+      host: fix.currenex.com
+      port: 9876
+      use_ssl: true
+      ssl_cert: /path/to/currenex.crt
+      ssl_key: /path/to/currenex.key
+    session:
+      sender_comp_id: FXML4_PROD
+      target_comp_id: CURRENEX
+      fix_version: FIX.4.4
+      heartbeat_interval: 30
+      logon_timeout: 10
+      reset_on_logon: true
+    features:
+      supports_market_data: true
+      supports_trading: true
+      max_orders_per_second: 10
+    rabbitmq:
+      host: localhost
+      port: 5672
+      vhost: /fxml4
+      user: fxml4
+      password: ${RABBITMQ_PASSWORD}
+
+  # LMAX UAT Environment
+  lmax_uat:
+    enabled: false
+    adapter_type: fix
+    connection:
+      host: fix-uat.lmax.com
+      port: 443
+      use_ssl: true
+    session:
+      sender_comp_id: FXML4_UAT
+      target_comp_id: LMAX_UAT
+      fix_version: FIX.4.4
+      heartbeat_interval: 20
+    features:
+      supports_market_data: true
+      supports_trading: true
+
+  # Mock FIX for Testing
+  mock_fix:
+    enabled: true
+    adapter_type: fix_rabbitmq
+    connection:
+      host: localhost
+      port: 9876
+      mock: true # Enable mock mode
+    session:
+      sender_comp_id: FXML4_TEST
+      target_comp_id: MOCK_BROKER
+      fix_version: FIX.4.2
+      heartbeat_interval: 30
+    features:
+      simulate_fills: true
+      fill_delay_ms: 1000
+      simulate_partial_fills: true
+      reject_rate: 0.05 # 5% rejection rate
+    rabbitmq:
+      host: localhost
+      port: 5672
+      vhost: /test
+      user: guest
+      password: guest
+
+# Default settings applied to all sessions
+defaults:
+  session:
+    heartbeat_interval: 30
+    logon_timeout: 10
+    reconnect_interval: 5
+    reset_on_logon: true
+    persist_messages: false
+    max_messages_in_memory: 10000
+  features:
+    max_orders_per_second: 100
+    supports_cancel_replace: false
+    supports_execution_reports: true

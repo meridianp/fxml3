@@ -1,0 +1,71 @@
+version: "3.8"
+
+# Override file for IB Gateway development and testing
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.ib-gateway.yml up
+
+services:
+  # Override the default IB Gateway service with development settings
+  ib-gateway:
+    image: ghcr.io/extrange/ibkr:stable
+    ports:
+      - "127.0.0.1:8888:8888" # IB API access
+      - "127.0.0.1:6080:6080" # noVNC browser access
+    ulimits:
+      nofile: 10000
+    environment:
+      # Demo account credentials (safe for development)
+      - USERNAME=edemo
+      - PASSWORD=demouser
+      - GATEWAY_OR_TWS=gateway
+      - TWOFA_TIMEOUT_ACTION=restart
+      - IBC_TradingMode=paper
+      - IBC_ReadOnlyApi=no
+      - IBC_ExistingSessionDetectedAction=manual
+      - IBC_AcceptIncomingConnectionAction=accept
+      # Additional development settings
+      - IBC_LogComponents=never
+      - IBC_MinimizeMainWindow=yes
+      - IBC_ClosedownAt=00:00
+    volumes:
+      - ib_settings:/settings
+    networks:
+      - fxml4_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 4001 || nc -z localhost 4002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Allow time for IB Gateway to initialize
+
+  # Add API service dependency on IB Gateway for development
+  api:
+    depends_on:
+      - db
+      - redis
+      - ib-gateway
+    environment:
+      # Override IB connection settings for containerized gateway
+      - IB_HOST=ib-gateway
+      - IB_PORT=8888
+      - IB_CLIENT_ID=0
+
+  # Add worker service dependency on IB Gateway
+  worker:
+    depends_on:
+      - db
+      - redis
+      - ib-gateway
+    environment:
+      # Override IB connection settings for containerized gateway
+      - IB_HOST=ib-gateway
+      - IB_PORT=8888
+      - IB_CLIENT_ID=1 # Different client ID to avoid conflicts
+
+volumes:
+  ib_settings:
+    driver: local
+
+networks:
+  fxml4_network:
+    driver: bridge

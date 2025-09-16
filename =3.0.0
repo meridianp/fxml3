@@ -1,0 +1,26 @@
+Collecting pinecone
+  Downloading pinecone-7.3.0-py3-none-any.whl.metadata (9.5 kB)
+Requirement already satisfied: certifi>=2019.11.17 in ./venv/lib/python3.12/site-packages (from pinecone) (2025.8.3)
+Collecting pinecone-plugin-assistant<2.0.0,>=1.6.0 (from pinecone)
+  Downloading pinecone_plugin_assistant-1.8.0-py3-none-any.whl.metadata (30 kB)
+Requirement already satisfied: pinecone-plugin-interface<0.0.8,>=0.0.7 in ./venv/lib/python3.12/site-packages (from pinecone) (0.0.7)
+Requirement already satisfied: python-dateutil>=2.5.3 in ./venv/lib/python3.12/site-packages (from pinecone) (2.9.0.post0)
+Requirement already satisfied: typing-extensions>=3.7.4 in ./venv/lib/python3.12/site-packages (from pinecone) (4.12.2)
+Requirement already satisfied: urllib3>=1.26.5 in ./venv/lib/python3.12/site-packages (from pinecone) (2.5.0)
+Collecting packaging<25.0,>=24.2 (from pinecone-plugin-assistant<2.0.0,>=1.6.0->pinecone)
+  Using cached packaging-24.2-py3-none-any.whl.metadata (3.2 kB)
+Requirement already satisfied: requests<3.0.0,>=2.32.3 in ./venv/lib/python3.12/site-packages (from pinecone-plugin-assistant<2.0.0,>=1.6.0->pinecone) (2.32.3)
+Requirement already satisfied: charset-normalizer<4,>=2 in ./venv/lib/python3.12/site-packages (from requests<3.0.0,>=2.32.3->pinecone-plugin-assistant<2.0.0,>=1.6.0->pinecone) (3.4.3)
+Requirement already satisfied: idna<4,>=2.5 in ./venv/lib/python3.12/site-packages (from requests<3.0.0,>=2.32.3->pinecone-plugin-assistant<2.0.0,>=1.6.0->pinecone) (3.10)
+Requirement already satisfied: six>=1.5 in ./venv/lib/python3.12/site-packages (from python-dateutil>=2.5.3->pinecone) (1.17.0)
+Downloading pinecone-7.3.0-py3-none-any.whl (587 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 587.6/587.6 kB 6.5 MB/s  0:00:00
+Downloading pinecone_plugin_assistant-1.8.0-py3-none-any.whl (259 kB)
+Downloading packaging-24.2-py3-none-any.whl (65 kB)
+Installing collected packages: packaging, pinecone-plugin-assistant, pinecone
+  Attempting uninstall: packaging
+    Found existing installation: packaging 25.0
+    Uninstalling packaging-25.0:
+      Successfully uninstalled packaging-25.0
+
+Successfully installed packaging-24.2 pinecone-7.3.0 pinecone-plugin-assistant-1.8.0

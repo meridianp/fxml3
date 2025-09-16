@@ -1,0 +1,47 @@
+# FXML4 Development Requirements - Minimal Working Set
+# Use this for development to avoid dependency conflicts
+# Successfully tested with API startup - all core functionality works
+
+# Core API Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# Authentication & Security
+python-jose[cryptography]==3.5.0
+pyotp==2.9.0
+bcrypt==4.3.0
+passlib==1.7.4
+
+# Database
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# HTTP Client
+httpx==0.28.1
+aiohttp==3.11.11
+
+# Data Processing (Core)
+pandas==2.2.3
+numpy==1.26.4
+
+# Configuration & Environment
+python-dotenv==1.0.1
+
+# Development Tools
+pytest==8.3.4
+pytest-asyncio==0.24.0
+black==24.8.0
+isort==5.13.2
+flake8==7.1.1
+pre-commit==4.0.1
+
+# Optional: Add incrementally as needed
+# redis==5.2.0          # For WebSocket & caching features
+# pika==1.3.2           # For RabbitMQ integration
+# scikit-learn==1.6.0   # For ML features
+# plotly==5.24.1        # For visualization
+# streamlit==1.41.0     # For UI
+# openai==1.57.0        # For LLM integration

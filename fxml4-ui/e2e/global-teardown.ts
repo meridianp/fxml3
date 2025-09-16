@@ -1,0 +1,229 @@
+/**
+ * Global Teardown for E2E Tests
+ *
+ * Cleanup operations and test result processing
+ */
+
+import fs from 'fs/promises';
+import path from 'path';
+
+async function globalTeardown() {
+  console.log('🧹 Starting global E2E test teardown...');
+
+  try {
+    // Cleanup operations
+    await cleanupTestData();
+    await generateTestReport();
+    await archiveTestResults();
+
+    console.log('✅ Global teardown completed successfully');
+  } catch (error) {
+    console.error('❌ Global teardown failed:', error);
+    // Don't throw error to avoid masking test failures
+  }
+}
+
+/**
+ * Cleanup test data and temporary files
+ */
+async function cleanupTestData() {
+  console.log('🗑️ Cleaning up test data...');
+
+  try {
+    // Remove temporary storage state files
+    const storageFiles = [
+      'e2e/.auth/user.json',
+      'e2e/.auth/admin.json',
+    ];
+
+    for (const file of storageFiles) {
+      const filePath = path.join(process.cwd(), file);
+      try {
+        await fs.unlink(filePath);
+        console.log(`✅ Removed ${file}`);
+      } catch {
+        // File doesn't exist, ignore
+      }
+    }
+
+    // Cleanup any test-specific temporary files
+    const tempDir = path.join(process.cwd(), 'temp-e2e');
+    try {
+      await fs.rmdir(tempDir, { recursive: true });
+      console.log('✅ Removed temporary E2E directory');
+    } catch {
+      // Directory doesn't exist, ignore
+    }
+
+  } catch (error) {
+    console.warn('⚠️ Cleanup encountered issues:', error);
+  }
+}
+
+/**
+ * Generate comprehensive test report
+ */
+async function generateTestReport() {
+  console.log('📊 Generating test report...');
+
+  try {
+    const resultsPath = path.join(process.cwd(), 'e2e-results', 'results.json');
+
+    try {
+      const results = await fs.readFile(resultsPath, 'utf-8');
+      const testData = JSON.parse(results);
+
+      const report = {
+        summary: {
+          total: testData.stats?.total || 0,
+          passed: testData.stats?.passed || 0,
+          failed: testData.stats?.failed || 0,
+          flaky: testData.stats?.flaky || 0,
+          skipped: testData.stats?.skipped || 0,
+          duration: testData.stats?.duration || 0,
+        },
+        timestamp: new Date().toISOString(),
+        environment: {
+          node: process.version,
+          platform: process.platform,
+          ci: !!process.env.CI,
+        },
+        coverage: await getCoverageInfo(),
+        performance: await getPerformanceMetrics(),
+      };
+
+      // Write enhanced report
+      const reportPath = path.join(process.cwd(), 'e2e-results', 'test-report.json');
+      await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+
+      // Generate markdown summary
+      const markdownReport = generateMarkdownReport(report);
+      const markdownPath = path.join(process.cwd(), 'e2e-results', 'TEST-SUMMARY.md');
+      await fs.writeFile(markdownPath, markdownReport);
+
+      console.log('✅ Test report generated');
+      console.log(`📈 Tests: ${report.summary.total} total, ${report.summary.passed} passed, ${report.summary.failed} failed`);
+
+    } catch (error) {
+      console.warn('⚠️ Could not process test results:', error);
+    }
+
+  } catch (error) {
+    console.warn('⚠️ Report generation encountered issues:', error);
+  }
+}
+
+/**
+ * Get test coverage information
+ */
+async function getCoverageInfo() {
+  try {
+    const coveragePath = path.join(process.cwd(), 'coverage', 'coverage-summary.json');
+    const coverage = await fs.readFile(coveragePath, 'utf-8');
+    return JSON.parse(coverage);
+  } catch {
+    return { message: 'Coverage data not available' };
+  }
+}
+
+/**
+ * Get performance metrics from test runs
+ */
+async function getPerformanceMetrics() {
+  try {
+    const metricsPath = path.join(process.cwd(), 'e2e-results', 'performance-metrics.json');
+    const metrics = await fs.readFile(metricsPath, 'utf-8');
+    return JSON.parse(metrics);
+  } catch {
+    return { message: 'Performance metrics not available' };
+  }
+}
+
+/**
+ * Generate markdown test summary
+ */
+function generateMarkdownReport(report: any) {
+  const passRate = report.summary.total > 0
+    ? ((report.summary.passed / report.summary.total) * 100).toFixed(1)
+    : '0';
+
+  const status = report.summary.failed === 0 ? '✅ PASSED' : '❌ FAILED';
+
+  return `# E2E Test Summary
+
+${status}
+
+## Test Results
+- **Total Tests:** ${report.summary.total}
+- **Passed:** ${report.summary.passed}
+- **Failed:** ${report.summary.failed}
+- **Flaky:** ${report.summary.flaky}
+- **Skipped:** ${report.summary.skipped}
+- **Pass Rate:** ${passRate}%
+- **Duration:** ${Math.round(report.summary.duration / 1000)}s
+
+## Environment
+- **Node.js:** ${report.environment.node}
+- **Platform:** ${report.environment.platform}
+- **CI:** ${report.environment.ci ? 'Yes' : 'No'}
+- **Timestamp:** ${report.timestamp}
+
+## Coverage
+\`\`\`json
+${JSON.stringify(report.coverage, null, 2)}
+\`\`\`
+
+## Performance
+\`\`\`json
+${JSON.stringify(report.performance, null, 2)}
+\`\`\`
+
+---
+*Generated by FXML4 E2E Test Suite*
+`;
+}
+
+/**
+ * Archive test results for CI/CD
+ */
+async function archiveTestResults() {
+  if (!process.env.CI) {
+    return; // Only archive in CI environment
+  }
+
+  console.log('📦 Archiving test results...');
+
+  try {
+    // In a real CI environment, you might upload to cloud storage
+    // For now, just ensure results are properly organized
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const archiveDir = path.join(process.cwd(), 'e2e-results', `archive-${timestamp}`);
+
+    await fs.mkdir(archiveDir, { recursive: true });
+
+    // Copy key files to archive
+    const filesToArchive = [
+      'results.json',
+      'results.xml',
+      'test-report.json',
+      'TEST-SUMMARY.md',
+    ];
+
+    for (const file of filesToArchive) {
+      const src = path.join(process.cwd(), 'e2e-results', file);
+      const dest = path.join(archiveDir, file);
+
+      try {
+        await fs.copyFile(src, dest);
+      } catch {
+        // File might not exist, continue
+      }
+    }
+
+    console.log(`✅ Results archived to ${archiveDir}`);
+  } catch (error) {
+    console.warn('⚠️ Archiving encountered issues:', error);
+  }
+}
+
+export default globalTeardown;

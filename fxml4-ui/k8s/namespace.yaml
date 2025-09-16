@@ -1,0 +1,12 @@
+# FXML4 UI Kubernetes Namespace Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fxml4-ui
+  labels:
+    app.kubernetes.io/name: fxml4-ui
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: fxml4
+    environment: production
+  annotations:
+    description: "FXML4 Trading Platform Frontend"

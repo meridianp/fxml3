@@ -1,0 +1,41 @@
+# FXML4 Data Processor Container
+# Provides comprehensive polygon.io data processing with all dependencies
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies for data processing
+COPY requirements-data.txt .
+RUN pip install --no-cache-dir -r requirements-data.txt
+
+# Copy application code
+COPY fxml4/ ./fxml4/
+COPY scripts/polygon_data_service.py ./scripts/
+
+# Create config directory and copy if exists
+RUN mkdir -p /app/config
+COPY config/ ./config/ || true
+
+# Create necessary directories
+RUN mkdir -p /app/logs
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV DATA_PATH=/data/polygon
+
+# Expose port for data API
+EXPOSE 8082
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8082/health || exit 1
+
+# Run data processor service
+CMD ["python", "scripts/polygon_data_service.py", "--report"]

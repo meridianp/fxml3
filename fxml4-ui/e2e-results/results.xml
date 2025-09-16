@@ -1,0 +1,69 @@
+<testsuites id="" name="" tests="5" failures="0" skipped="0" errors="0" time="18.290269">
+<testsuite name="07-functional-reality-check.spec.ts" timestamp="2025-08-29T13:50:45.055Z" hostname="chromium" tests="5" failures="0" skipped="0" time="16.938" errors="0">
+<testcase name="7. FUNCTIONAL REALITY CHECK › Dashboard shows REAL data vs mock placeholders" classname="07-functional-reality-check.spec.ts" time="7.415">
+<system-out>
+<![CDATA[=== DASHBOARD REALITY CHECK ===
+⚠ Found placeholder: "John Doe"
+Found 4 metric cards
+⚠ Suspicious static data in metric 1: "Active Models12+2..."
+⚠ Suspicious static data in metric 2: "Running Backtests30..."
+⚠ Suspicious static data in metric 3: "Open Positions5-1..."
+⚠ Suspicious static data in metric 4: "Total P&L+$2,847+$127..."
+Testing for real-time updates...
+Real-time updates detected: false
+Placeholder patterns found: 1
+Specific placeholders: John Doe
+]]>
+</system-out>
+</testcase>
+<testcase name="7. FUNCTIONAL REALITY CHECK › Market data shows LIVE prices vs static mockups" classname="07-functional-reality-check.spec.ts" time="1.803">
+<system-out>
+<![CDATA[=== MARKET DATA REALITY CHECK ===
+Found 1 data tables
+Bid/Ask elements found: 17
+Total prices found: 0
+Unique prices: 0
+Uniqueness ratio: NaN (should be close to 1.0 for real data)
+Realistic forex prices found: 0
+]]>
+</system-out>
+</testcase>
+<testcase name="7. FUNCTIONAL REALITY CHECK › Trading console shows REAL account data vs placeholder values" classname="07-functional-reality-check.spec.ts" time="1.794">
+<system-out>
+<![CDATA[=== TRADING CONSOLE REALITY CHECK ===
+Balance elements found: 12
+⚠ Found suspicious account value: 10000
+Trading form exists: true
+✓ Trading form has symbol selection
+Quantity input - placeholder: "null", value: "10000"
+Position tables found: 0
+Order tables found: 0
+Suspicious account values: 1
+]]>
+</system-out>
+</testcase>
+<testcase name="7. FUNCTIONAL REALITY CHECK › API connectivity and backend integration" classname="07-functional-reality-check.spec.ts" time="1.365">
+<system-out>
+<![CDATA[=== BACKEND CONNECTIVITY CHECK ===
+Total requests: 40
+API calls: 0
+Successful responses: 40
+Error responses: 0
+LocalStorage contents: []
+Has authentication data: false
+⚠ NO API CALLS DETECTED - Platform may be purely static
+]]>
+</system-out>
+</testcase>
+<testcase name="7. FUNCTIONAL REALITY CHECK › ML and advanced features functionality check" classname="07-functional-reality-check.spec.ts" time="4.561">
+<system-out>
+<![CDATA[=== ML FEATURES REALITY CHECK ===
+ML/Training elements found: 40
+Backtesting elements found: 37
+Charts/visualizations found: 30
+Signal-related elements found: 28
+]]>
+</system-out>
+</testcase>
+</testsuite>
+</testsuites>

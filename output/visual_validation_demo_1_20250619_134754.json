@@ -1,0 +1,27 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "BUY",
+    "confidence": 0.75,
+    "entry_price": 1.354374869088692,
+    "stop_loss": 1.350374869088692,
+    "take_profit": 1.362374869088692,
+    "timeframe": "4H",
+    "timestamp": "2025-06-09 16:00:00",
+    "reason": "Price bounce from support"
+  },
+  "validation": {
+    "valid": false,
+    "llm_confidence": 0.5,
+    "visual_patterns": [],
+    "key_observations": [
+      "Fallback validation used"
+    ],
+    "concerns": [
+      "RSI overbought for long entry"
+    ],
+    "suggested_adjustments": {},
+    "pattern_clarity": 0.3,
+    "overall_assessment": "Technical rule-based validation only"
+  }
+}

@@ -1,0 +1,841 @@
+openapi: 3.0.3
+info:
+  title: FXML4 Trading Platform API
+  description: |
+    The FXML4 API provides comprehensive access to forex trading analytics, including:
+    - Market data retrieval from multiple sources
+    - Trading signal generation using ML and Elliott Wave analysis
+    - Advanced backtesting with realistic execution modeling
+    - Performance analysis and reporting
+
+    ## Authentication
+    The API uses OAuth2 with scopes for secure access. Obtain a token via the `/token` endpoint.
+
+    ## Rate Limiting
+    API endpoints are rate-limited to ensure fair usage. See specific endpoint documentation for limits.
+
+    ## Supported Features
+    - Multi-timeframe analysis (1m to 1M)
+    - Multiple currency pairs (EUR/USD, GBP/USD, USD/CHF, USD/JPY)
+    - ML-based signal generation with Random Forest, XGBoost, and neural networks
+    - Elliott Wave pattern recognition and signal generation
+    - Event-driven backtesting with slippage and commission modeling
+    - Risk management and position sizing algorithms
+
+  version: 1.0.0
+  contact:
+    name: FXML4 Development Team
+    email: support@fxml4.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.fxml4.com
+    description: Production server
+
+security:
+  - OAuth2: []
+
+paths:
+  /:
+    get:
+      summary: API Root
+      description: Returns basic API information and status
+      tags:
+        - System
+      responses:
+        "200":
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "FXML4 API running"
+
+  /health:
+    get:
+      summary: Health Check
+      description: Check API health and dependencies
+      tags:
+        - System
+      responses:
+        "200":
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  /token:
+    post:
+      summary: Login for Access Token
+      description: Authenticate user and obtain JWT access token
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: User's username
+                password:
+                  type: string
+                  description: User's password
+                  format: password
+              required:
+                - username
+                - password
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Token"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/me:
+    get:
+      summary: Get Current User
+      description: Retrieve information about the current authenticated user
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /data:
+    post:
+      summary: Get Market Data
+      description: |
+        Retrieve market data for specified symbol and timeframe.
+
+        **Data Sources:**
+        - Alpha Vantage (Forex, Stocks, Crypto)
+        - Interactive Brokers (Stocks, Forex)
+        - Yahoo Finance (fallback)
+
+        **Rate Limits:** 100 requests/minute
+      tags:
+        - Market Data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataRequest"
+      responses:
+        "200":
+          description: Market data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataResponse"
+        "400":
+          description: Invalid request parameters
+        "429":
+          description: Rate limit exceeded
+        "500":
+          description: Data source error
+
+  /signals:
+    post:
+      summary: Generate Trading Signals
+      description: |
+        Generate trading signals using specified strategy.
+
+        **Available Strategies:**
+        - `integrated_strategy`: Combines technical indicators
+        - `ml_strategy`: Machine learning based signals
+        - `wave_strategy`: Elliott Wave pattern signals
+        - `sentiment_strategy`: Sentiment-based signals
+
+        **Rate Limits:** 50 requests/minute
+      tags:
+        - Signal Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignalRequest"
+      responses:
+        "200":
+          description: Signals generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalResponse"
+        "400":
+          description: Invalid request parameters
+        "429":
+          description: Rate limit exceeded
+
+  /backtest:
+    post:
+      summary: Run Backtest
+      description: |
+        Execute a comprehensive backtest with realistic execution modeling.
+
+        **Features:**
+        - Event-driven execution
+        - Commission and slippage modeling
+        - Position sizing algorithms
+        - Risk management rules
+        - Performance metrics calculation
+
+        **Processing Time:** 30 seconds to 5 minutes depending on data size
+
+        **Rate Limits:** 10 requests/hour
+      tags:
+        - Backtesting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BacktestRequest"
+      responses:
+        "200":
+          description: Backtest completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BacktestResponse"
+        "400":
+          description: Invalid backtest parameters
+        "429":
+          description: Rate limit exceeded
+        "500":
+          description: Backtest execution error
+
+  /performance/metrics/{backtest_id}:
+    get:
+      summary: Get Performance Metrics
+      description: |
+        Retrieve detailed performance metrics for a completed backtest.
+
+        **Metrics Include:**
+        - Return metrics (total, annualized, monthly)
+        - Risk metrics (drawdown, volatility, Sharpe ratio)
+        - Trade statistics (win rate, profit factor, trade count)
+        - Monte Carlo simulation results
+      tags:
+        - Performance Analysis
+      parameters:
+        - name: backtest_id
+          in: path
+          required: true
+          description: Unique backtest identifier
+          schema:
+            type: string
+            pattern: "^BT-[0-9]{8}-[0-9]{6}$"
+            example: "BT-20231201-143022"
+        - name: include_trades
+          in: query
+          description: Include individual trade details
+          schema:
+            type: boolean
+            default: false
+        - name: include_equity_curve
+          in: query
+          description: Include equity curve data points
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Performance metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PerformanceMetrics"
+        "404":
+          description: Backtest not found
+
+  /performance/report/{backtest_id}:
+    get:
+      summary: Get Performance Report
+      description: |
+        Generate and download a comprehensive performance report.
+
+        **Report Formats:**
+        - HTML: Interactive charts and tables
+        - PDF: Printable professional report
+
+        **Report Contents:**
+        - Executive summary
+        - Performance charts
+        - Trade analysis
+        - Risk assessment
+        - Strategy parameters
+      tags:
+        - Performance Analysis
+      parameters:
+        - name: backtest_id
+          in: path
+          required: true
+          description: Unique backtest identifier
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: Report format
+          schema:
+            type: string
+            enum: [html, pdf]
+            default: html
+      responses:
+        "200":
+          description: Report generated successfully
+          content:
+            text/html:
+              schema:
+                type: string
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Backtest not found
+
+  /performance/compare:
+    post:
+      summary: Compare Multiple Backtests
+      description: |
+        Perform comparative analysis across multiple backtests.
+
+        **Analysis Features:**
+        - Side-by-side metric comparison
+        - Statistical correlation analysis
+        - Performance ranking
+        - Risk-adjusted returns
+
+        **Use Cases:**
+        - Strategy optimization
+        - Parameter sensitivity analysis
+        - Multi-asset performance comparison
+      tags:
+        - Performance Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComparativeAnalysisRequest"
+      responses:
+        "200":
+          description: Comparison analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComparativeAnalysisResponse"
+
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: /token
+          scopes:
+            user: Standard user access
+            admin: Administrative access
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+      required:
+        - detail
+
+    Token:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+      required:
+        - access_token
+        - token_type
+
+    User:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        disabled:
+          type: boolean
+        scopes:
+          type: array
+          items:
+            type: string
+
+    DataRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+          description: Trading symbol
+          example: "EURUSD"
+          pattern: "^[A-Z]{6}$"
+        timeframe:
+          type: string
+          enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1M]
+          description: Data timeframe
+        start_date:
+          type: string
+          format: date
+          description: Start date (ISO format)
+          example: "2023-01-01"
+        end_date:
+          type: string
+          format: date
+          description: End date (ISO format)
+          example: "2023-12-31"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          description: Maximum number of data points
+      required:
+        - symbol
+        - timeframe
+
+    DataResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        source:
+          type: string
+          description: Data source used
+        count:
+          type: integer
+          description: Number of data points returned
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              open:
+                type: number
+                format: float
+              high:
+                type: number
+                format: float
+              low:
+                type: number
+                format: float
+              close:
+                type: number
+                format: float
+              volume:
+                type: number
+                format: float
+
+    SignalRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "EURUSD"
+        timeframe:
+          type: string
+          enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1M]
+        strategy:
+          type: string
+          enum:
+            [
+              integrated_strategy,
+              ml_strategy,
+              wave_strategy,
+              sentiment_strategy,
+            ]
+        parameters:
+          type: object
+          description: Strategy-specific parameters
+          additionalProperties: true
+      required:
+        - symbol
+        - timeframe
+        - strategy
+
+    Signal:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        signal_type:
+          type: string
+          enum: [entry_long, entry_short, exit_long, exit_short]
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          description: Signal confidence score
+        price:
+          type: number
+          format: float
+          description: Price at signal generation
+        description:
+          type: string
+          description: Human-readable signal description
+        metadata:
+          type: object
+          description: Additional signal metadata
+          additionalProperties: true
+
+    SignalResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        strategy:
+          type: string
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+
+    BacktestRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "EURUSD"
+        timeframe:
+          type: string
+          enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1M]
+        strategy:
+          type: string
+          enum:
+            [
+              integrated_strategy,
+              ml_strategy,
+              wave_strategy,
+              sentiment_strategy,
+            ]
+        start_date:
+          type: string
+          format: date
+          example: "2023-01-01"
+        end_date:
+          type: string
+          format: date
+          example: "2023-12-31"
+        initial_capital:
+          type: number
+          format: float
+          minimum: 1000.0
+          default: 10000.0
+          description: Starting capital for backtest
+        parameters:
+          type: object
+          description: Strategy parameters
+          additionalProperties: true
+        auto_report:
+          type: boolean
+          default: true
+          description: Generate report automatically
+      required:
+        - symbol
+        - timeframe
+        - strategy
+        - start_date
+        - end_date
+
+    BacktestResponse:
+      type: object
+      properties:
+        backtest_id:
+          type: string
+          description: Unique backtest identifier
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        strategy:
+          type: string
+        start_date:
+          type: string
+        end_date:
+          type: string
+        initial_capital:
+          type: number
+        final_capital:
+          type: number
+        total_return:
+          type: number
+          description: Total return in base currency
+        total_return_pct:
+          type: number
+          description: Total return percentage
+        max_drawdown:
+          type: number
+          description: Maximum drawdown in base currency
+        max_drawdown_pct:
+          type: number
+          description: Maximum drawdown percentage
+        sharpe_ratio:
+          type: number
+          description: Risk-adjusted return metric
+        sortino_ratio:
+          type: number
+          description: Downside risk-adjusted return
+        win_rate:
+          type: number
+          description: Percentage of winning trades
+        profit_factor:
+          type: number
+          description: Ratio of gross profit to gross loss
+        trade_count:
+          type: integer
+          description: Total number of trades
+        report_url:
+          type: string
+          description: URL to access detailed report
+
+    PerformanceMetrics:
+      type: object
+      properties:
+        backtest_id:
+          type: string
+        metrics:
+          type: object
+          properties:
+            total_return_pct:
+              type: number
+            annualized_return:
+              type: number
+            sharpe_ratio:
+              type: number
+            sortino_ratio:
+              type: number
+            max_drawdown_pct:
+              type: number
+            win_rate:
+              type: number
+            profit_factor:
+              type: number
+            recovery_factor:
+              type: number
+            expectancy:
+              type: number
+            avg_win:
+              type: number
+            avg_loss:
+              type: number
+            risk_of_ruin:
+              type: number
+            trades_per_month:
+              type: number
+            max_consecutive_wins:
+              type: integer
+            max_consecutive_losses:
+              type: integer
+        monthly_returns:
+          type: object
+          additionalProperties:
+            type: number
+        drawdowns:
+          type: array
+          items:
+            type: object
+            properties:
+              start_date:
+                type: string
+                format: date
+              end_date:
+                type: string
+                format: date
+              duration_days:
+                type: integer
+              drawdown_pct:
+                type: number
+        monte_carlo:
+          type: object
+          properties:
+            mean_return:
+              type: number
+            median_return:
+              type: number
+            worst_case:
+              type: number
+            best_case:
+              type: number
+            probability_of_profit:
+              type: number
+            probability_of_10pct_drawdown:
+              type: number
+            percentiles:
+              type: object
+              additionalProperties:
+                type: number
+        trades:
+          type: array
+          items:
+            $ref: "#/components/schemas/TradeInfo"
+        equity_curve:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              equity:
+                type: number
+
+    TradeInfo:
+      type: object
+      properties:
+        position_id:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        entry_price:
+          type: number
+        entry_time:
+          type: string
+          format: date-time
+        quantity:
+          type: number
+        exit_price:
+          type: number
+        exit_time:
+          type: string
+          format: date-time
+        pnl:
+          type: number
+          description: Profit/Loss in base currency
+        pnl_pct:
+          type: number
+          description: Profit/Loss percentage
+        status:
+          type: string
+          enum: [open, closed]
+        reason:
+          type: string
+          description: Entry/exit reason
+
+    ComparativeAnalysisRequest:
+      type: object
+      properties:
+        backtest_ids:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          maxItems: 10
+        metrics:
+          type: array
+          items:
+            type: string
+          default: ["total_return_pct", "max_drawdown_pct", "sharpe_ratio"]
+      required:
+        - backtest_ids
+
+    ComparativeAnalysisResponse:
+      type: object
+      properties:
+        backtest_ids:
+          type: array
+          items:
+            type: string
+        metrics:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: number
+        ranking:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        correlation_matrix:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: number
+
+tags:
+  - name: System
+    description: System health and information endpoints
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Market Data
+    description: Historical and real-time market data retrieval
+  - name: Signal Generation
+    description: Trading signal generation using various strategies
+  - name: Backtesting
+    description: Strategy backtesting and performance evaluation
+  - name: Performance Analysis
+    description: Detailed performance metrics and reporting

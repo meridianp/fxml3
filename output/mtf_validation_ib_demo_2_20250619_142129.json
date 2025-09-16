@@ -1,0 +1,27 @@
+{
+  "signal": {
+    "symbol": "GBPUSD",
+    "direction": "SELL",
+    "confidence": 0.75,
+    "entry_price": 1.34187,
+    "stop_loss": 1.3468699999999998,
+    "take_profit": 1.3318699999999999,
+    "timeframe": "4H",
+    "timestamp": "2025-06-18 16:00:00",
+    "data_source": "Interactive Brokers",
+    "reason": "Live market divergence signals"
+  },
+  "validation": {
+    "valid": false,
+    "error": "Data for column \"volume\" must be ALL float or int.",
+    "confidence": 0.0
+  },
+  "timeframes_analyzed": [
+    "D",
+    "4H",
+    "1H",
+    "15m"
+  ],
+  "data_source": "Interactive Brokers TWS API",
+  "timestamp": "2025-06-19T14:21:29.075563"
+}

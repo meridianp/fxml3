@@ -1,0 +1,197 @@
+version: "3.8"
+
+services:
+  # Integration Test Database
+  integration-test-db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: fxml4-integration-test-db
+    environment:
+      - POSTGRES_USER=fxml4_test
+      - POSTGRES_PASSWORD=test_password  # pragma: allowlist secret
+      - POSTGRES_DB=fxml4_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - integration-test-db-data:/var/lib/postgresql/data
+    networks:
+      - fxml4_integration_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fxml4_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Integration Test Redis
+  integration-test-redis:
+    image: redis:7-alpine
+    container_name: fxml4-integration-test-redis
+    ports:
+      - "6380:6379"
+    networks:
+      - fxml4_integration_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Integration Test RabbitMQ
+  integration-test-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fxml4-integration-test-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=fxml4_test
+      - RABBITMQ_DEFAULT_PASS=test_password  # pragma: allowlist secret
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    networks:
+      - fxml4_integration_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Integration Test Backend API
+  integration-test-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: api
+    container_name: fxml4-integration-test-api
+    ports:
+      - "8002:8000"
+    environment:
+      - FXML4_ENV=integration_test
+      - FXML4_API_HOST=0.0.0.0
+      - FXML4_API_PORT=8000
+      - FXML4_API_DEBUG=true
+      - FXML4_DATABASE_HOST=integration-test-db
+      - FXML4_DATABASE_PORT=5432
+      - FXML4_DATABASE_USER=fxml4_test
+      - FXML4_DATABASE_PASSWORD=test_password  # pragma: allowlist secret
+      - FXML4_DATABASE_NAME=fxml4_test
+      - FXML4_REDIS_HOST=integration-test-redis
+      - FXML4_REDIS_PORT=6379
+      - RABBITMQ_HOST=integration-test-rabbitmq
+      - RABBITMQ_USER=fxml4_test
+      - RABBITMQ_PASSWORD=test_password  # pragma: allowlist secret
+      - FXML4_JWT_SECRET_KEY=integration-test-secret-key  # pragma: allowlist secret
+      - FXML4_JWT_ALGORITHM=HS256
+      - FXML4_JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - FXML4_JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+      - PYTHONPATH=/app
+    volumes:
+      - ./fxml4:/app/fxml4:ro
+      - ./config:/app/config:ro
+      - ./tests:/app/tests:ro
+    command: ["python", "-m", "fxml4.api.main"]
+    depends_on:
+      integration-test-db:
+        condition: service_healthy
+      integration-test-redis:
+        condition: service_healthy
+      integration-test-rabbitmq:
+        condition: service_healthy
+    networks:
+      - fxml4_integration_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Integration Test Frontend
+  integration-test-frontend:
+    build:
+      context: ./fxml4-ui
+      dockerfile: Dockerfile
+      target: development
+    container_name: fxml4-integration-test-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=test
+      - NEXT_PUBLIC_API_BASE_URL=http://integration-test-api:8000/api
+      - NEXT_PUBLIC_WS_URL=ws://integration-test-api:8000/ws
+      - NEXT_PUBLIC_BASE_URL=http://localhost:3000
+      - NEXT_PUBLIC_ENV=integration_test
+    volumes:
+      - ./fxml4-ui/src:/app/src:ro
+      - ./fxml4-ui/public:/app/public:ro
+      - ./fxml4-ui/styles:/app/styles:ro
+    depends_on:
+      integration-test-api:
+        condition: service_healthy
+    networks:
+      - fxml4_integration_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # Integration Test Runner
+  integration-test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: test
+    container_name: fxml4-integration-test-runner
+    environment:
+      - FXML4_ENV=integration_test
+      - API_BASE_URL=http://integration-test-api:8000
+      - FRONTEND_BASE_URL=http://integration-test-frontend:3000
+      - DATABASE_HOST=integration-test-db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=fxml4_test
+      - DATABASE_PASSWORD=test_password  # pragma: allowlist secret
+      - DATABASE_NAME=fxml4_test
+      - REDIS_HOST=integration-test-redis
+      - REDIS_PORT=6379
+      - RABBITMQ_HOST=integration-test-rabbitmq
+      - RABBITMQ_USER=fxml4_test
+      - RABBITMQ_PASSWORD=test_password  # pragma: allowlist secret
+      - PYTHONPATH=/app
+      - PYTEST_TIMEOUT=600
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      # Playwright configuration
+      - HEADLESS=true
+      - SLOW_MO=100
+    volumes:
+      - ./fxml4:/app/fxml4:ro
+      - ./tests:/app/tests
+      - ./integration-test-results:/app/integration-test-results
+      - playwright-browsers:/ms-playwright
+    command: >
+      sh -c "
+        echo 'Installing Playwright browsers...' &&
+        playwright install chromium &&
+        echo 'Waiting for services to be ready...' &&
+        sleep 30 &&
+        echo 'Running Frontend-Backend Integration Tests...' &&
+        python -m pytest tests/e2e/test_frontend_backend_integration_e2e.py -v --tb=short --junit-xml=/app/integration-test-results/integration-junit.xml
+      "
+    depends_on:
+      integration-test-frontend:
+        condition: service_healthy
+      integration-test-api:
+        condition: service_healthy
+    networks:
+      - fxml4_integration_network
+
+networks:
+  fxml4_integration_network:
+    driver: bridge
+    name: fxml4_integration_network
+
+volumes:
+  integration-test-db-data:
+    name: fxml4-integration-test-db-data
+  playwright-browsers:
+    name: fxml4-playwright-browsers

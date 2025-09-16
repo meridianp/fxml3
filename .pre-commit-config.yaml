@@ -1,0 +1,102 @@
+# Professional Pre-commit Configuration for FXML4
+# Advanced Forex Trading Platform - Production-Grade Hooks
+
+repos:
+  # ==================== PYTHON CODE QUALITY ====================
+
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        language_version: python3
+        args: [--config=pyproject.toml, --line-length=88]
+        exclude: ^(archive/|fxml4_redesign/|ibapi/|fxml3/|scripts/archive/|models/)
+
+  # Import sorting
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black, --line-length=88, --multi-line=3]
+        exclude: ^(archive/|fxml4_redesign/|ibapi/|fxml3/|scripts/archive/|models/)
+
+  # ==================== GENERAL FILE HYGIENE ====================
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # File content checks
+      - id: check-yaml
+        args: [--multi]
+        exclude: ^(archive/|k8s/.*\.yaml)
+      - id: check-json
+        exclude: ^(archive/|fxml4-ui/node_modules/)
+      - id: check-toml
+      - id: check-xml
+      - id: check-ast
+        exclude: ^(archive/|fxml4_redesign/)
+
+      # File formatting
+      - id: end-of-file-fixer
+        exclude: ^(archive/|\.git/|\.pytest_cache/|__pycache__/|.*\.svg$)
+      - id: trailing-whitespace
+        exclude: ^(archive/|\.git/|\.pytest_cache/|__pycache__/|.*\.md$)
+        args: [--markdown-linebreak-ext=md]
+
+      # Security and merge conflict checks
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=2048]  # 2MB limit for financial data files
+      - id: detect-private-key
+        exclude: ^(tests/.*test.*\.py|\.secrets\.baseline)
+
+      # Python-specific checks
+      - id: check-builtin-literals
+        exclude: ^(archive/|ibapi/|fxml3/)
+      - id: check-docstring-first
+        exclude: ^(archive/|tests/|examples/|scripts/)
+      - id: debug-statements
+        exclude: ^(archive/|tests/debug/)
+
+  # ==================== SECURITY & SECRETS ====================
+
+  # Advanced secret detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: ^(archive/|tests/fixtures/|\.git/)
+
+# ==================== CONFIGURATION ====================
+
+default_language_version:
+  python: python3.12
+
+default_stages: [pre-commit]
+
+# Global exclusions for better performance
+exclude: |
+  (?x)^(
+    archive/.*|
+    fxml4_redesign/.*|
+    ibapi/.*|
+    fxml3/.*|
+    scripts/archive/.*|
+    models/.*|
+    \.git/.*|
+    \.pytest_cache/.*|
+    __pycache__/.*|
+    .*\.pyc|
+    fxml4-ui/node_modules/.*|
+    dump\.rdb|
+    .*\.log|
+    .*\.egg-info/.*
+  )$
+
+# Fail fast - stop on first failure
+fail_fast: true
+
+# Minimum pre-commit version
+minimum_pre_commit_version: "3.0.0"

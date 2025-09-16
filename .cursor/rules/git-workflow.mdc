@@ -1,0 +1,16 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Git Workflow Standards
+
+---
+description: Git Workflow Standards
+alwaysApply: true
+---
+
+- Use feature branches from develop.
+- Commit messages must be descriptive and reference issues.
+- Every Pull Request should detail changes, how to test, and any doc updates.
+- Enforce pre-commit/pre-push hooks to run tests, formatters, and linters automatically.
