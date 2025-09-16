@@ -60,6 +60,24 @@ class RiskManagementError(TradingError):
     pass
 
 
+class RiskError(TradingError):
+    """Raised when risk validation fails."""
+
+    pass
+
+
+class ExecutionError(TradingError):
+    """Raised when trade execution fails."""
+
+    pass
+
+
+class EmergencyShutdownError(TradingError):
+    """Raised during emergency shutdown procedures."""
+
+    pass
+
+
 class DataError(FXML4Exception):
     """Raised when data operations fail."""
 

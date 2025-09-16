@@ -1,0 +1,64 @@
+# FXML4 Trading Platform Frontend - Production Dockerfile
+# Multi-stage build for optimized React application deployment
+
+# Stage 1: Build Dependencies and Application
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Add curl for health checks
+RUN apk add --no-cache curl
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY jest.config.js ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY src/ ./src/
+COPY public/ ./public/
+COPY tests/ ./tests/
+
+# Run tests in production build
+RUN npm run test -- --watchAll=false --coverage=false
+
+# Build application
+RUN npm run build
+
+# Stage 2: Production Runtime
+FROM nginx:alpine AS production
+
+# Create app user for security
+RUN addgroup -g 1001 -S fxml4 && \
+    adduser -S fxml4 -u 1001 -G fxml4
+
+# Copy custom nginx configuration
+COPY --chown=fxml4:fxml4 nginx.conf /etc/nginx/nginx.conf
+
+# Copy built application from builder stage
+COPY --from=builder --chown=fxml4:fxml4 /app/build /usr/share/nginx/html
+
+# Copy SSL certificates (to be mounted in production)
+RUN mkdir -p /etc/nginx/ssl && \
+    chown -R fxml4:fxml4 /etc/nginx/ssl
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV NGINX_PORT=443
+
+# Expose ports for HTTP and HTTPS
+EXPOSE 80 443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost/health || exit 1
+
+# Switch to non-root user
+USER fxml4
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

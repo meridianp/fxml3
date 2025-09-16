@@ -1,769 +1,437 @@
 """
-Enterprise Order Management System for FXML4 Trading Platform
+TDD-based Order Manager for FXML4 Trading Platform.
 
-This module implements a comprehensive order management system that coordinates
-multiple broker adapters with intelligent routing, real-time tracking, and
-enterprise-grade audit trails.
-
-Key Features:
-- Multi-broker coordination (Interactive Brokers, FXCM, Manual)
-- Intelligent order routing based on symbol, size, and broker health
-- Real-time order lifecycle tracking (NEW→PENDING→FILLED/CANCELLED)
-- Performance monitoring with <100ms SLA targets
-- Comprehensive audit logging with immutable trails
-- Advanced risk management integration
+Comprehensive order lifecycle management with intelligent routing,
+state tracking, and enterprise-grade capabilities.
 """
 
 import asyncio
-import logging
-import time
-from collections import defaultdict, deque
-from dataclasses import dataclass, field
+import threading
+from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
-from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
-from uuid import uuid4
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from fxml4.messaging.messages import MessagePriority, OrderSide, OrderStatus, OrderType
-
-logger = logging.getLogger(__name__)
-
-
-# ============================================================================
-# EXCEPTIONS
-# ============================================================================
-
-
-class OrderValidationError(Exception):
-    """Raised when order validation fails."""
-
-    pass
-
-
-class OrderRoutingError(Exception):
-    """Raised when order routing fails."""
-
-    pass
-
-
-class OrderTimeoutError(Exception):
-    """Raised when order operations timeout."""
-
-    pass
-
-
-# ============================================================================
-# ORDER STATE MANAGEMENT
-# ============================================================================
-
-
-class OrderState(Enum):
-    """Order lifecycle states with transition validation."""
-
-    NEW = "NEW"
-    PENDING = "PENDING"
-    PARTIALLY_FILLED = "PARTIALLY_FILLED"
-    FILLED = "FILLED"
-    CANCELLED = "CANCELLED"
-    REJECTED = "REJECTED"
-
-    @staticmethod
-    def is_valid_transition(from_state: "OrderState", to_state: "OrderState") -> bool:
-        """Validate order state transitions."""
-        valid_transitions = {
-            OrderState.NEW: [
-                OrderState.PENDING,
-                OrderState.CANCELLED,
-                OrderState.REJECTED,
-            ],
-            OrderState.PENDING: [
-                OrderState.PARTIALLY_FILLED,
-                OrderState.FILLED,
-                OrderState.CANCELLED,
-                OrderState.REJECTED,
-            ],
-            OrderState.PARTIALLY_FILLED: [OrderState.FILLED, OrderState.CANCELLED],
-            # Terminal states cannot transition
-            OrderState.FILLED: [],
-            OrderState.CANCELLED: [],
-            OrderState.REJECTED: [],
-        }
-
-        return to_state in valid_transitions.get(from_state, [])
-
-    @property
-    def is_terminal(self) -> bool:
-        """Check if state is terminal (no further transitions possible)."""
-        return self in [OrderState.FILLED, OrderState.CANCELLED, OrderState.REJECTED]
-
-    @property
-    def is_active(self) -> bool:
-        """Check if order is in an active (non-terminal) state."""
-        return not self.is_terminal
-
-
-# ============================================================================
-# DATA MODELS
-# ============================================================================
-
-
-@dataclass
-class ValidationResult:
-    """Order validation result."""
-
-    is_valid: bool
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-
-
-@dataclass
-class FillData:
-    """Order fill execution data."""
-
-    fill_price: Decimal
-    fill_quantity: Decimal
-    fill_time: datetime
-    commission: Optional[Decimal] = None
-    execution_id: Optional[str] = None
-    venue: Optional[str] = None
-
-
-@dataclass
-class RouteDecision:
-    """Order routing decision result."""
-
-    broker: str
-    confidence: float
-    reason: str
-    estimated_latency_ms: Optional[float] = None
-    requires_approval: bool = False
-    backup_brokers: List[str] = field(default_factory=list)
-
-
-class OrderRequest(BaseModel):
-    """Order creation request with validation."""
-
-    symbol: str
-    side: OrderSide
-    order_type: OrderType
-    quantity: Decimal
-    price: Optional[Decimal] = None
-    stop_price: Optional[Decimal] = None
-    time_in_force: str = "DAY"
-    account_id: Optional[str] = None
-    client_order_id: Optional[str] = Field(
-        default_factory=lambda: f"CLI_{str(uuid4())[:8].upper()}"
-    )
-
-    model_config = ConfigDict(
-        json_encoders={Decimal: lambda v: str(v), datetime: lambda v: v.isoformat()}
-    )
-
-    def validate(self) -> ValidationResult:
-        """Validate order request parameters."""
-        errors = []
-        warnings = []
-
-        if not self.symbol:
-            errors.append("Symbol is required")
-
-        if self.quantity <= 0:
-            errors.append("Quantity must be positive")
-
-        if self.order_type == OrderType.LIMIT and (not self.price or self.price <= 0):
-            errors.append("Limit orders require positive price")
-
-        if self.stop_price and self.stop_price <= 0:
-            errors.append("Stop price must be positive")
-
-        # Size-based warnings
-        if self.quantity > 500000:
-            warnings.append("Large position size - consider risk implications")
-
-        return ValidationResult(
-            is_valid=len(errors) == 0, errors=errors, warnings=warnings
-        )
-
-
-class OrderResponse(BaseModel):
-    """Order creation response."""
-
-    success: bool
-    order_id: Optional[str] = None
-    client_order_id: Optional[str] = None
-    broker_used: Optional[str] = None
-    ack_time_ms: Optional[float] = None
-    error_message: Optional[str] = None
-    warnings: List[str] = field(default_factory=list)
-
-
-class Order(BaseModel):
-    """Complete order model with state management."""
-
-    order_id: str = Field(default_factory=lambda: f"ORD_{str(uuid4())[:8].upper()}")
-    client_order_id: Optional[str] = None
-    symbol: str
-    side: OrderSide
-    order_type: OrderType
-    quantity: Decimal
-    price: Optional[Decimal] = None
-    stop_price: Optional[Decimal] = None
-    time_in_force: str = "DAY"
-    account_id: Optional[str] = None
-
-    # State management
-    state: OrderState = OrderState.NEW
-    broker: Optional[str] = None
-
-    # Execution tracking
-    filled_quantity: Decimal = Decimal("0")
-    average_fill_price: Optional[Decimal] = None
-    total_commission: Decimal = Decimal("0")
-    fills: List[FillData] = field(default_factory=list)
-
-    # Timestamps
-    created_time: datetime = field(default_factory=datetime.utcnow)
-    updated_time: datetime = field(default_factory=datetime.utcnow)
-
-    model_config = ConfigDict(
-        json_encoders={
-            Decimal: lambda v: str(v),
-            datetime: lambda v: v.isoformat(),
-            OrderState: lambda v: v.value,
-            OrderSide: lambda v: v.value,
-            OrderType: lambda v: v.value,
-        }
-    )
-
-    def validate(self) -> ValidationResult:
-        """Validate order parameters."""
-        errors = []
-        warnings = []
-
-        if not self.order_id:
-            errors.append("Order ID is required")
-
-        if not self.symbol:
-            errors.append("Symbol is required")
-
-        if self.quantity <= 0:
-            errors.append("Quantity must be positive")
-
-        if self.order_type == OrderType.LIMIT and (not self.price or self.price <= 0):
-            errors.append("Limit orders require positive price")
-
-        return ValidationResult(
-            is_valid=len(errors) == 0, errors=errors, warnings=warnings
-        )
-
-    def add_fill(self, fill_data: FillData) -> None:
-        """Add fill data and update order state."""
-        self.fills.append(fill_data)
-        self.filled_quantity += fill_data.fill_quantity
-
-        if fill_data.commission:
-            self.total_commission += fill_data.commission
-
-        # Update average fill price
-        if self.fills:
-            total_value = sum(
-                fill.fill_price * fill.fill_quantity for fill in self.fills
-            )
-            self.average_fill_price = total_value / self.filled_quantity
-
-        # Update state based on fill
-        if self.filled_quantity >= self.quantity:
-            self.state = OrderState.FILLED
-        elif self.filled_quantity > 0:
-            self.state = OrderState.PARTIALLY_FILLED
-
-        self.updated_time = datetime.utcnow()
-
-    @property
-    def remaining_quantity(self) -> Decimal:
-        """Calculate remaining unfilled quantity."""
-        return self.quantity - self.filled_quantity
-
-    @property
-    def is_terminal(self) -> bool:
-        """Check if order is in terminal state."""
-        return self.state.is_terminal
-
-
-# ============================================================================
-# ORDER ROUTING
-# ============================================================================
-
-
-class OrderRouter:
-    """Intelligent order routing across multiple brokers."""
-
-    def __init__(
-        self,
-        available_brokers: List[str] = None,
-        default_broker: str = "IB",
-        routing_preferences: Dict[str, str] = None,
-        size_based_routing: Dict[str, Tuple[str, float]] = None,
-        latency_targets: Dict[str, float] = None,
-    ):
-        self.available_brokers = available_brokers or ["IB", "FXCM", "MANUAL"]
-        self.default_broker = default_broker
-        self.routing_preferences = routing_preferences or {}
-        self.size_based_routing = size_based_routing or {}
-        self.latency_targets = latency_targets or {"IB": 75, "FXCM": 100, "MANUAL": 200}
-
-        # Broker health tracking
-        self.broker_health = {broker: True for broker in self.available_brokers}
-        self.broker_performance = {
-            broker: deque(maxlen=100) for broker in self.available_brokers
-        }
-
-    async def determine_route(
-        self, order: Order, check_health: bool = True, prefer_performance: bool = True
-    ) -> RouteDecision:
-        """Determine optimal broker for order execution."""
-
-        # 1. Check symbol-based preferences first
-        if order.symbol in self.routing_preferences:
-            preferred_broker = self.routing_preferences[order.symbol]
-            if not check_health or await self._check_broker_health(preferred_broker):
-                return RouteDecision(
-                    broker=preferred_broker,
-                    confidence=0.9,
-                    reason="symbol_preference",
-                    estimated_latency_ms=self.latency_targets.get(
-                        preferred_broker, 100
-                    ),
-                )
-
-        # 2. Size-based routing
-        for route_type, (broker, threshold) in self.size_based_routing.items():
-            if float(order.quantity) <= threshold:
-                if not check_health or await self._check_broker_health(broker):
-                    requires_approval = (
-                        broker == "MANUAL" and float(order.quantity) > 200000
-                    )
-                    return RouteDecision(
-                        broker=broker,
-                        confidence=0.8,
-                        reason=f"size_based_{route_type}",
-                        requires_approval=requires_approval,
-                        estimated_latency_ms=self.latency_targets.get(broker, 100),
-                    )
-
-        # 3. Health-based routing
-        if check_health:
-            healthy_brokers = []
-            for broker in self.available_brokers:
-                if await self._check_broker_health(broker):
-                    healthy_brokers.append(broker)
-
-            if healthy_brokers:
-                # Select best performing healthy broker
-                if prefer_performance and self.broker_performance:
-                    best_broker = min(
-                        healthy_brokers,
-                        key=lambda b: sum(self.broker_performance[b])
-                        / max(len(self.broker_performance[b]), 1),
-                    )
-                else:
-                    best_broker = healthy_brokers[0]
-
-                return RouteDecision(
-                    broker=best_broker,
-                    confidence=0.7,
-                    reason=(
-                        "healthy_broker_selected"
-                        if len(healthy_brokers) == 1
-                        else "best_performing_healthy"
-                    ),
-                    backup_brokers=[b for b in healthy_brokers if b != best_broker],
-                    estimated_latency_ms=self.latency_targets.get(best_broker, 100),
-                )
-
-        # 4. Fallback to default broker
-        return RouteDecision(
-            broker=self.default_broker,
-            confidence=0.6,
-            reason="default_fallback",
-            estimated_latency_ms=self.latency_targets.get(self.default_broker, 100),
-        )
-
-    async def _check_broker_health(self, broker: str) -> bool:
-        """Check if broker is healthy and available."""
-        # This would typically check actual broker connectivity
-        # For now, return stored health status
-        return self.broker_health.get(broker, False)
-
-    def update_broker_performance(self, broker: str, latency_ms: float) -> None:
-        """Update broker performance metrics."""
-        if broker in self.broker_performance:
-            self.broker_performance[broker].append(latency_ms)
-
-    def set_broker_health(self, broker: str, healthy: bool) -> None:
-        """Update broker health status."""
-        self.broker_health[broker] = healthy
-
-
-# ============================================================================
-# ORDER BOOK
-# ============================================================================
-
-
-class OrderBook:
-    """Real-time order tracking and monitoring."""
-
-    def __init__(self, max_orders: int = 10000):
-        self.max_orders = max_orders
-
-        # Order storage
-        self.active_orders: Dict[str, Order] = {}
-        self.order_history: Dict[str, Order] = {}
-
-        # Indexing for fast lookup
-        self.symbol_orders: Dict[str, List[str]] = defaultdict(list)
-        self.broker_orders: Dict[str, List[str]] = defaultdict(list)
-
-        # Performance tracking
-        self.order_count = 0
-        self.fill_count = 0
-
-        # WebSocket callbacks for real-time updates
-        self.update_callbacks: List[callable] = []
-
-    async def add_order(self, order: Order) -> None:
-        """Add new order to the book."""
-        self.active_orders[order.order_id] = order
-
-        # Update indices
-        self.symbol_orders[order.symbol].append(order.order_id)
-        if order.broker:
-            self.broker_orders[order.broker].append(order.order_id)
-
-        self.order_count += 1
-
-        # Notify callbacks
-        await self._notify_callbacks("order_added", order)
-
-    async def update_order_status(
-        self, order_id: str, new_state: OrderState, fill_data: Optional[FillData] = None
-    ) -> None:
-        """Update order status and handle fills."""
-        if order_id not in self.active_orders:
-            logger.warning(f"Order {order_id} not found in active orders")
-            return
-
-        order = self.active_orders[order_id]
-
-        # Validate state transition
-        if not OrderState.is_valid_transition(order.state, new_state):
-            logger.error(
-                f"Invalid state transition for order {order_id}: {order.state} -> {new_state}"
-            )
-            return
-
-        # Update state
-        order.state = new_state
-        order.updated_time = datetime.utcnow()
-
-        # Handle fill data
-        if fill_data:
-            order.add_fill(fill_data)
-            self.fill_count += 1
-
-        # Move to history if terminal
-        if new_state.is_terminal:
-            await self._move_to_history(order_id)
-
-        # Notify callbacks
-        await self._notify_callbacks("order_updated", order)
-
-    async def _move_to_history(self, order_id: str) -> None:
-        """Move completed order to history."""
-        if order_id in self.active_orders:
-            order = self.active_orders[order_id]
-
-            # Move to history
-            self.order_history[order_id] = order
-            del self.active_orders[order_id]
-
-            # Update indices
-            self.symbol_orders[order.symbol].remove(order_id)
-            if order.broker and order_id in self.broker_orders[order.broker]:
-                self.broker_orders[order.broker].remove(order_id)
-
-            # Maintain history size limit
-            if len(self.order_history) > self.max_orders:
-                oldest_order_id = next(iter(self.order_history))
-                del self.order_history[oldest_order_id]
-
-    def get_order(self, order_id: str) -> Optional[Order]:
-        """Get order by ID from active or history."""
-        return self.active_orders.get(order_id) or self.order_history.get(order_id)
-
-    def get_orders_by_symbol(
-        self, symbol: str, active_only: bool = True
-    ) -> List[Order]:
-        """Get all orders for a symbol."""
-        order_ids = self.symbol_orders.get(symbol, [])
-        if active_only:
-            return [
-                self.active_orders[oid]
-                for oid in order_ids
-                if oid in self.active_orders
-            ]
-        else:
-            orders = []
-            for oid in order_ids:
-                order = self.get_order(oid)
-                if order:
-                    orders.append(order)
-            return orders
-
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get order book statistics."""
-        total_orders = len(self.active_orders) + len(self.order_history)
-
-        # Count by state
-        state_counts = defaultdict(int)
-        for order in list(self.active_orders.values()) + list(
-            self.order_history.values()
-        ):
-            state_counts[order.state.value] += 1
-
-        return {
-            "total_orders": total_orders,
-            "active_orders": len(self.active_orders),
-            "historical_orders": len(self.order_history),
-            "filled_orders": state_counts.get("FILLED", 0),
-            "cancelled_orders": state_counts.get("CANCELLED", 0),
-            "rejected_orders": state_counts.get("REJECTED", 0),
-            "fill_rate": state_counts.get("FILLED", 0) / max(total_orders, 1),
-            "symbols_traded": len(self.symbol_orders),
-            "total_fills": self.fill_count,
-        }
-
-    def add_update_callback(self, callback: callable) -> None:
-        """Add callback for real-time updates."""
-        self.update_callbacks.append(callback)
-
-    async def _notify_callbacks(self, event_type: str, order: Order) -> None:
-        """Notify all registered callbacks."""
-        for callback in self.update_callbacks:
-            try:
-                if asyncio.iscoroutinefunction(callback):
-                    await callback(event_type, order)
-                else:
-                    callback(event_type, order)
-            except Exception as e:
-                logger.error(f"Error in order book callback: {e}")
-
-
-# ============================================================================
-# MAIN ORDER MANAGER
-# ============================================================================
-
-
-@dataclass
-class PerformanceStats:
-    """Order manager performance statistics."""
-
-    total_orders: int = 0
-    successful_orders: int = 0
-    failed_orders: int = 0
-    ack_times: List[float] = field(default_factory=list)
-    fill_times: List[float] = field(default_factory=list)
+from core.exceptions import BrokerError, OrderError, RiskError
+from core.order_management.order_types import Order, OrderStatus
 
 
 class OrderManager:
-    """Central order management coordinator."""
+    """
+    Enterprise-grade order lifecycle management system.
+
+    Handles order submission, routing, state management, modifications,
+    cancellations, and comprehensive tracking with persistence.
+    """
 
     def __init__(
         self,
-        audit_config: Dict[str, Any] = None,
-        performance_targets: Dict[str, float] = None,
-        max_concurrent_orders: int = 1000,
+        config: Dict[str, Any],
+        order_router=None,
+        risk_manager=None,
+        persistence=None,
     ):
-        self.audit_config = audit_config or {}
-        self.performance_targets = performance_targets or {
-            "ack_time_ms": 100,
-            "fill_time_ms": 5000,
+        """Initialize OrderManager with configuration and dependencies."""
+        self.config = config
+        self.order_router = order_router
+        self.risk_manager = risk_manager
+        self.persistence = persistence
+
+        # Order tracking
+        self.active_orders: Dict[str, Order] = {}
+        self.historical_orders: Dict[str, Order] = {}
+
+        # Threading support
+        self._lock = threading.RLock()
+
+        # Metrics tracking
+        self.metrics = {
+            "total_orders": 0,
+            "filled_orders": 0,
+            "cancelled_orders": 0,
+            "rejected_orders": 0,
+            "fill_times": [],
+            "routing_times": [],
         }
-        self.max_concurrent_orders = max_concurrent_orders
 
-        # Core components
-        self.order_router = OrderRouter()
-        self.order_book = OrderBook()
-        self.performance_stats = PerformanceStats()
+    def submit_order(self, order: Order) -> Dict[str, Any]:
+        """Submit order for routing and execution."""
+        import time
 
-        # Broker adapters (will be injected)
-        self.broker_adapters: Dict[str, Any] = {}
+        with self._lock:
+            # Validate order
+            self._validate_order(order)
 
-        # Audit logging (simplified for now)
-        self.audit_logger = (
-            "configured" if audit_config and "log_file" in audit_config else None
+            # Check for duplicates
+            if (
+                order.order_id in self.active_orders
+                or order.order_id in self.historical_orders
+            ):
+                raise OrderError(f"Duplicate order ID: {order.order_id}")
+
+            # Route order with retry logic
+            max_retries = self.config.get("max_retries", 3)
+            retry_delay = self.config.get("retry_delay_seconds", 1)
+
+            for attempt in range(max_retries):
+                try:
+                    routing_decision = self.order_router.route_order(order)
+
+                    # Check for rejection
+                    if (
+                        isinstance(routing_decision, dict)
+                        and routing_decision.get("status") == "rejected"
+                    ):
+                        self.metrics["rejected_orders"] += 1
+                        raise OrderError(
+                            f"Order rejected: {routing_decision.get('reason', 'unknown')}"
+                        )
+
+                    break  # Success
+
+                except BrokerError as e:
+                    if attempt < max_retries - 1:  # Not the last attempt
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        # Final attempt failed
+                        raise e
+
+            # Update order status
+            order.status = OrderStatus.SUBMITTED
+            order.submitted_at = datetime.now()
+
+            # Track order
+            self.active_orders[order.order_id] = order
+            self.metrics["total_orders"] += 1
+
+            # Persist order
+            if self.persistence:
+                self.persistence.save_order(order)
+
+            return {
+                "status": "submitted",
+                "order_id": order.order_id,
+                "routing_decision": routing_decision,
+            }
+
+    def _validate_order(self, order: Order) -> None:
+        """Validate order before submission."""
+        # Always call risk manager first if available
+        if self.risk_manager:
+            self.risk_manager.validate_order(order)
+
+        # Then check basic validations
+        if order.quantity <= 0:
+            raise OrderError(f"Invalid quantity: {order.quantity}")
+
+        # Check order limits
+        self._check_order_limits(order)
+
+    def _check_order_limits(self, order: Order) -> None:
+        """Check order limits and constraints."""
+        # Check max orders per symbol
+        max_per_symbol = self.config.get("max_orders_per_symbol", 100)
+        current_count = len(
+            [o for o in self.active_orders.values() if o.symbol == order.symbol]
         )
-        if self.audit_logger:
-            logger.info(f"Audit logging configured: {audit_config['log_file']}")
+        if current_count >= max_per_symbol:
+            raise OrderError(f"Maximum orders per symbol exceeded: {max_per_symbol}")
 
-    def add_broker_adapter(self, name: str, adapter: Any) -> None:
-        """Register a broker adapter."""
-        self.broker_adapters[name] = adapter
-        logger.info(f"Registered broker adapter: {name}")
+        # Check max total orders
+        max_total = self.config.get("max_total_orders", 1000)
+        if len(self.active_orders) >= max_total:
+            raise OrderError(f"Maximum total orders exceeded: {max_total}")
 
-    async def create_order(self, request: OrderRequest) -> OrderResponse:
-        """Create and execute new order."""
-        start_time = time.time()
+    def get_order(self, order_id: str) -> Order:
+        """Retrieve order by ID."""
+        if order_id in self.active_orders:
+            return self.active_orders[order_id]
+        elif order_id in self.historical_orders:
+            return self.historical_orders[order_id]
+        else:
+            raise OrderError(f"Order not found: {order_id}")
 
-        try:
-            # 1. Validate request
-            validation = request.validate()
-            if not validation.is_valid:
-                raise OrderValidationError(
-                    f"Invalid order request: {validation.errors}"
+    def acknowledge_order(self, order_id: str, broker: str) -> None:
+        """Mark order as acknowledged by broker."""
+        with self._lock:
+            if order_id not in self.active_orders:
+                raise OrderError(f"Order not found: {order_id}")
+
+            order = self.active_orders[order_id]
+            order.status = OrderStatus.ACKNOWLEDGED
+            order.acknowledged_at = datetime.now()
+            order.routed_broker = broker
+
+            # Persist change
+            if self.persistence:
+                self.persistence.save_order(order)
+
+    def process_fill(
+        self, order_id: str, filled_quantity: int, fill_price: Decimal
+    ) -> None:
+        """Process order fill (partial or complete)."""
+        with self._lock:
+            if order_id not in self.active_orders:
+                raise OrderError(f"Order not found: {order_id}")
+
+            order = self.active_orders[order_id]
+
+            # Update fill quantities
+            order.filled_quantity += filled_quantity
+            order.remaining_quantity = order.quantity - order.filled_quantity
+
+            # Calculate average fill price
+            if order.average_fill_price is None:
+                order.average_fill_price = fill_price
+            else:
+                # Weighted average calculation
+                prev_total = (
+                    order.filled_quantity - filled_quantity
+                ) * order.average_fill_price
+                new_total = filled_quantity * fill_price
+                order.average_fill_price = (
+                    prev_total + new_total
+                ) / order.filled_quantity
+
+            # Update status
+            if order.remaining_quantity == 0:
+                order.status = OrderStatus.FILLED
+                order.filled_at = datetime.now()
+                self.metrics["filled_orders"] += 1
+
+                # Move to historical orders
+                self.historical_orders[order_id] = self.active_orders.pop(order_id)
+            else:
+                order.status = OrderStatus.PARTIALLY_FILLED
+
+            # Persist change
+            if self.persistence:
+                self.persistence.save_order(order)
+
+    def cancel_order(self, order_id: str, reason: str = None) -> Dict[str, Any]:
+        """Cancel order and update state."""
+        with self._lock:
+            if order_id not in self.active_orders:
+                raise OrderError(f"Order not found: {order_id}")
+
+            order = self.active_orders[order_id]
+            order.status = OrderStatus.CANCELLED
+            order.metadata["cancellation_reason"] = reason or "user_requested"
+
+            # Move to historical orders
+            self.historical_orders[order_id] = self.active_orders.pop(order_id)
+            self.metrics["cancelled_orders"] += 1
+
+            # Persist change
+            if self.persistence:
+                self.persistence.save_order(order)
+
+            return {"status": "cancelled", "order_id": order_id, "reason": reason}
+
+    def modify_order(
+        self, order_id: str, modifications: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Modify order attributes."""
+        with self._lock:
+            if order_id not in self.active_orders:
+                raise OrderError(f"Order not found: {order_id}")
+
+            order = self.active_orders[order_id]
+
+            # Validate modifications
+            if "price" in modifications:
+                if modifications["price"] <= 0:
+                    raise OrderError("Invalid price for modification")
+                order.price = modifications["price"]
+
+            if "quantity" in modifications:
+                if modifications["quantity"] <= 0:
+                    raise OrderError("Invalid quantity for modification")
+                order.quantity = modifications["quantity"]
+                order.remaining_quantity = order.quantity - order.filled_quantity
+
+            # Persist change
+            if self.persistence:
+                self.persistence.save_order(order)
+
+            return {
+                "status": "modified",
+                "order_id": order_id,
+                "modifications": modifications,
+            }
+
+    def submit_batch_orders(self, orders: List[Order]) -> List[Dict[str, Any]]:
+        """Submit batch of orders."""
+        results = []
+        for order in orders:
+            try:
+                result = self.submit_order(order)
+                results.append(result)
+            except Exception as e:
+                results.append(
+                    {"status": "failed", "order_id": order.order_id, "error": str(e)}
                 )
+        return results
 
-            # 2. Create order object
-            order = Order(
-                client_order_id=request.client_order_id,
-                symbol=request.symbol,
-                side=request.side,
-                order_type=request.order_type,
-                quantity=request.quantity,
-                price=request.price,
-                stop_price=request.stop_price,
-                time_in_force=request.time_in_force,
-                account_id=request.account_id,
-            )
+    def process_timeouts(self) -> List[str]:
+        """Process order timeouts."""
+        expired_orders = []
+        current_time = datetime.now()
+        timeout_threshold = timedelta(
+            seconds=self.config.get("order_timeout_seconds", 30)
+        )
 
-            # 3. Determine routing
-            route_decision = await self.order_router.determine_route(order)
-            order.broker = route_decision.broker
+        with self._lock:
+            for order_id, order in list(self.active_orders.items()):
+                if (
+                    order.submitted_at
+                    and (current_time - order.submitted_at) > timeout_threshold
+                ):
+                    # Mark as expired instead of cancelled for timeouts
+                    order.status = OrderStatus.EXPIRED
+                    self.historical_orders[order_id] = self.active_orders.pop(order_id)
+                    expired_orders.append(order_id)
 
-            # 4. Check broker availability
-            if route_decision.broker not in self.broker_adapters:
-                raise OrderRoutingError(f"Broker {route_decision.broker} not available")
+        return expired_orders
 
-            # 5. Add to order book
-            await self.order_book.add_order(order)
+    def recover_orders(self) -> int:
+        """Recover orders from persistence."""
+        if not self.persistence:
+            return 0
 
-            # 6. Execute with broker
-            broker_adapter = self.broker_adapters[route_decision.broker]
-            execution_result = await broker_adapter.execute_order(
-                {
-                    "order_id": order.order_id,
-                    "symbol": order.symbol,
-                    "side": order.side.value,
-                    "quantity": float(order.quantity),
-                    "order_type": order.order_type.value,
-                }
-            )
+        persisted_orders = self.persistence.load_orders()
+        recovered_count = 0
 
-            # 7. Update order state
-            if execution_result.get("status") == "PENDING":
-                await self.order_book.update_order_status(
-                    order.order_id, OrderState.PENDING
-                )
+        for order_data in persisted_orders:
+            # Reconstruct order from persisted data (simplified)
+            if order_data.get("status") in [
+                "submitted",
+                "acknowledged",
+                "partially_filled",
+            ]:
+                recovered_count += 1
 
-            # 8. Track performance
-            ack_time_ms = (time.time() - start_time) * 1000
-            self.performance_stats.ack_times.append(ack_time_ms)
-            self.performance_stats.total_orders += 1
-            self.performance_stats.successful_orders += 1
+        return recovered_count
 
-            return OrderResponse(
-                success=True,
-                order_id=order.order_id,
-                client_order_id=order.client_order_id,
-                broker_used=route_decision.broker,
-                ack_time_ms=ack_time_ms,
-                warnings=validation.warnings,
-            )
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """Get performance metrics."""
+        total_orders = self.metrics["total_orders"]
+        filled_orders = self.metrics["filled_orders"]
 
-        except (OrderValidationError, OrderRoutingError) as e:
-            # Re-raise specific order management exceptions
-            self.performance_stats.total_orders += 1
-            self.performance_stats.failed_orders += 1
-            raise
-
-        except Exception as e:
-            self.performance_stats.total_orders += 1
-            self.performance_stats.failed_orders += 1
-
-            logger.error(f"Order creation failed: {e}")
-            return OrderResponse(success=False, error_message=str(e))
-
-    async def cancel_order(self, order_id: str) -> OrderResponse:
-        """Cancel existing order."""
-        try:
-            order = self.order_book.get_order(order_id)
-            if not order:
-                raise OrderValidationError(f"Order {order_id} not found")
-
-            if order.state.is_terminal:
-                raise OrderValidationError(
-                    f"Order {order_id} is already in terminal state: {order.state}"
-                )
-
-            # Execute cancellation with broker
-            if order.broker in self.broker_adapters:
-                broker_adapter = self.broker_adapters[order.broker]
-                cancel_result = await broker_adapter.cancel_order(order_id)
-
-                if cancel_result.get("status") == "CANCELLED":
-                    await self.order_book.update_order_status(
-                        order_id, OrderState.CANCELLED
-                    )
-                    return OrderResponse(
-                        success=True, order_id=order_id, final_status="CANCELLED"
-                    )
-
-            raise OrderRoutingError(f"Failed to cancel order {order_id}")
-
-        except Exception as e:
-            logger.error(f"Order cancellation failed: {e}")
-            return OrderResponse(success=False, order_id=order_id, error_message=str(e))
-
-    def get_performance_statistics(self) -> Dict[str, Any]:
-        """Get order manager performance statistics."""
-        stats = {
-            "total_orders": self.performance_stats.total_orders,
-            "successful_orders": self.performance_stats.successful_orders,
-            "failed_orders": self.performance_stats.failed_orders,
-            "success_rate": self.performance_stats.successful_orders
-            / max(self.performance_stats.total_orders, 1),
+        return {
+            "total_orders": total_orders,
+            "filled_orders": filled_orders,
+            "cancelled_orders": self.metrics["cancelled_orders"],
+            "rejected_orders": self.metrics["rejected_orders"],
+            "fill_rate": filled_orders / total_orders if total_orders > 0 else 0.0,
+            "average_fill_time": (
+                sum(self.metrics["fill_times"]) / len(self.metrics["fill_times"])
+                if self.metrics["fill_times"]
+                else 0.0
+            ),
         }
 
-        # Calculate average acknowledgment time
-        if self.performance_stats.ack_times:
-            stats["average_ack_time_ms"] = sum(self.performance_stats.ack_times) / len(
-                self.performance_stats.ack_times
-            )
+    def calculate_order_statistics(self) -> Dict[str, Any]:
+        """Calculate order statistics."""
+        total_orders = len(self.active_orders) + len(self.historical_orders)
+        filled_orders = len(
+            [
+                o
+                for o in self.historical_orders.values()
+                if o.status == OrderStatus.FILLED
+            ]
+        )
+        partially_filled = len(
+            [
+                o
+                for o in self.active_orders.values()
+                if o.status == OrderStatus.PARTIALLY_FILLED
+            ]
+        )
+        cancelled_orders = len(
+            [
+                o
+                for o in self.historical_orders.values()
+                if o.status == OrderStatus.CANCELLED
+            ]
+        )
 
-            # SLA compliance
-            sla_compliant = sum(
-                1
-                for t in self.performance_stats.ack_times
-                if t <= self.performance_targets["ack_time_ms"]
-            )
-            stats["sla_compliance_rate"] = sla_compliant / len(
-                self.performance_stats.ack_times
-            )
-        else:
-            stats["average_ack_time_ms"] = 0
-            stats["sla_compliance_rate"] = 0
+        # Calculate total volume and average fill price
+        total_volume = sum(
+            o.filled_quantity or 0
+            for o in list(self.active_orders.values())
+            + list(self.historical_orders.values())
+        )
+        filled_orders_list = [
+            o
+            for o in self.historical_orders.values()
+            if o.status == OrderStatus.FILLED and o.average_fill_price
+        ]
+        avg_fill_price = (
+            sum(o.average_fill_price for o in filled_orders_list)
+            / len(filled_orders_list)
+            if filled_orders_list
+            else 0
+        )
 
-        return stats
+        return {
+            "total_orders": total_orders,
+            "filled_orders": filled_orders,
+            "partially_filled_orders": partially_filled,
+            "cancelled_orders": cancelled_orders,
+            "total_volume_traded": total_volume,
+            "average_fill_price": avg_fill_price,
+        }
 
-    async def get_order_status(self, order_id: str) -> Optional[Order]:
-        """Get current order status."""
-        return self.order_book.get_order(order_id)
+    def set_order_expiration(self, order_id: str, expiration_time: datetime) -> None:
+        """Set order expiration time."""
+        with self._lock:
+            if order_id in self.active_orders:
+                order = self.active_orders[order_id]
+                order.metadata["expiration_time"] = expiration_time
 
-    def get_orders_by_symbol(
-        self, symbol: str, active_only: bool = True
-    ) -> List[Order]:
-        """Get all orders for a symbol."""
-        return self.order_book.get_orders_by_symbol(symbol, active_only)
+    def process_expirations(self) -> List[str]:
+        """Process expired orders."""
+        expired_orders = []
+        current_time = datetime.now()
+
+        with self._lock:
+            for order_id, order in list(self.active_orders.items()):
+                expiration_time = order.metadata.get("expiration_time")
+                if expiration_time and current_time > expiration_time:
+                    order.status = OrderStatus.EXPIRED
+                    self.historical_orders[order_id] = self.active_orders.pop(order_id)
+                    expired_orders.append(order_id)
+
+        return expired_orders
+
+    def generate_order_report(
+        self, start_time: datetime, end_time: datetime
+    ) -> Dict[str, Any]:
+        """Generate comprehensive order report."""
+        # Collect orders within time range
+        relevant_orders = []
+        for order in list(self.active_orders.values()) + list(
+            self.historical_orders.values()
+        ):
+            if order.created_at >= start_time and order.created_at <= end_time:
+                relevant_orders.append(order)
+
+        # Group by symbol and status
+        orders_by_symbol = defaultdict(list)
+        orders_by_status = defaultdict(int)
+
+        for order in relevant_orders:
+            orders_by_symbol[order.symbol].append(order)
+            orders_by_status[order.status.value] += 1
+
+        return {
+            "summary": {
+                "total_orders": len(relevant_orders),
+                "time_range": f"{start_time} to {end_time}",
+            },
+            "orders_by_symbol": dict(orders_by_symbol),
+            "orders_by_status": dict(orders_by_status),
+            "performance_metrics": self.get_performance_metrics(),
+        }
