@@ -3,13 +3,14 @@ TDD Example: IB Adapter Tests following Red-Green-Refactor
 This demonstrates the TDD approach for the IB broker adapter
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 from decimal import Decimal
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Import the IB adapter we're testing
-from core.brokers.adapters.ib_adapter import IBAdapter
+from core.brokers.adapters.ib_adapter_tdd import IBAdapter
 
 
 class TestIBAdapterTDD:
@@ -166,7 +167,7 @@ class TestIBAdapterTDD:
 
         # Mock current time to Saturday (market closed)
         saturday = datetime(2025, 9, 21, 12, 0, 0)  # Saturday noon
-        with patch("core.brokers.adapters.ib_adapter.datetime") as mock_dt:
+        with patch("core.brokers.adapters.ib_adapter_tdd.datetime") as mock_dt:
             mock_dt.now.return_value = saturday
 
             order = {
