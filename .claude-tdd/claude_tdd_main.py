@@ -52,6 +52,15 @@ except ImportError:
     print("⚠️  Performance testing not available - install requirements_phase3.txt")
     PERFORMANCE_TESTING_AVAILABLE = False
 
+# Phase 4 imports - CI/CD integration
+try:
+    from cicd.pipeline_integration import CICDPipelineIntegration
+
+    CICD_INTEGRATION_AVAILABLE = True
+except ImportError:
+    print("⚠️  CI/CD integration not available")
+    CICD_INTEGRATION_AVAILABLE = False
+
 
 class ClaudeTDDFramework:
     """Main Claude TDD automation framework for FXML4"""
@@ -81,20 +90,28 @@ class ClaudeTDDFramework:
         else:
             self.performance_framework = None
 
-        print("🤖 FXML4 Claude TDD Automation Framework v3.0 Initialized")
-        phase3_features = []
-        if ADVANCED_MUTATION_AVAILABLE:
-            phase3_features.append("Advanced Mutation Testing")
-        if PROPERTY_TESTING_AVAILABLE:
-            phase3_features.append("Property-Based Testing")
-        if PERFORMANCE_TESTING_AVAILABLE:
-            phase3_features.append("Performance Testing")
+        # Phase 4: CI/CD Integration
+        if CICD_INTEGRATION_AVAILABLE:
+            self.cicd_pipeline = CICDPipelineIntegration()
+        else:
+            self.cicd_pipeline = None
 
-        if phase3_features:
-            print(f"✅ Enhanced with {', '.join(phase3_features)}")
+        print("🤖 FXML4 Claude TDD Automation Framework v4.0 Initialized")
+        enhanced_features = []
+        if ADVANCED_MUTATION_AVAILABLE:
+            enhanced_features.append("Advanced Mutation Testing")
+        if PROPERTY_TESTING_AVAILABLE:
+            enhanced_features.append("Property-Based Testing")
+        if PERFORMANCE_TESTING_AVAILABLE:
+            enhanced_features.append("Performance Testing")
+        if CICD_INTEGRATION_AVAILABLE:
+            enhanced_features.append("CI/CD Pipeline Integration")
+
+        if enhanced_features:
+            print(f"✅ Enhanced with {', '.join(enhanced_features)}")
         else:
             print(
-                "ℹ️  Running with core features only - install requirements_phase3.txt for enhanced features"
+                "ℹ️  Running with core features only - install requirements for enhanced features"
             )
         print("=" * 80)
 
@@ -521,6 +538,81 @@ Based on the enhanced TDD cycle results:
 
         print(f"\\n📊 Enhanced cycle report generated: {report_file}")
 
+    async def run_cicd_pipeline(
+        self,
+        component: str,
+        branch: str = "main",
+        deployment_strategy: str = "blue-green",
+        environment: str = "staging",
+        force_deployment: bool = False,
+    ) -> Dict[str, Any]:
+        """Run CI/CD pipeline for component deployment"""
+        if not CICD_INTEGRATION_AVAILABLE:
+            print("❌ CI/CD integration not available")
+            return {"error": "CI/CD integration not available"}
+
+        print(f"\\n🚀 Running CI/CD Pipeline for {component}")
+        print(f"Strategy: {deployment_strategy}, Environment: {environment}")
+        print("-" * 50)
+
+        try:
+            execution = self.cicd_pipeline.trigger_pipeline(
+                component, branch, deployment_strategy, environment, force_deployment
+            )
+
+            return {
+                "pipeline_id": execution.pipeline_id,
+                "component": execution.component,
+                "branch": execution.branch,
+                "environment": execution.environment,
+                "build_status": execution.build_status,
+                "test_status": execution.test_status,
+                "quality_gates_status": execution.quality_gates_status,
+                "security_status": execution.security_status,
+                "performance_status": execution.performance_status,
+                "deployment_status": execution.deployment_status,
+                "deployment_url": execution.deployment_url,
+                "execution_time": execution.execution_time,
+            }
+
+        except Exception as e:
+            print(f"❌ CI/CD pipeline failed: {e}")
+            return {"error": str(e)}
+
+    def get_pipeline_status(self, pipeline_id: str) -> Dict[str, Any]:
+        """Get CI/CD pipeline execution status"""
+        if not CICD_INTEGRATION_AVAILABLE:
+            return {"error": "CI/CD integration not available"}
+
+        execution = self.cicd_pipeline.get_pipeline_status(pipeline_id)
+        if execution:
+            return {
+                "pipeline_id": execution.pipeline_id,
+                "component": execution.component,
+                "status": execution.deployment_status,
+                "deployment_url": execution.deployment_url,
+            }
+        else:
+            return {"error": "Pipeline not found"}
+
+    def list_recent_deployments(self) -> List[Dict[str, Any]]:
+        """List recent CI/CD pipeline executions"""
+        if not CICD_INTEGRATION_AVAILABLE:
+            return []
+
+        executions = self.cicd_pipeline.list_recent_pipelines()
+        return [
+            {
+                "pipeline_id": exec.pipeline_id,
+                "component": exec.component,
+                "environment": exec.environment,
+                "status": exec.deployment_status,
+                "start_time": exec.start_time,
+                "deployment_url": exec.deployment_url,
+            }
+            for exec in executions
+        ]
+
     def setup_contract_testing(self) -> Dict[str, Any]:
         """Set up contract testing for all components"""
         print("\\n📋 Setting Up Contract Testing")
@@ -629,9 +721,9 @@ Based on the enhanced TDD cycle results:
 def create_demo_workflow():
     """Create a demonstration workflow"""
     return """
-# FXML4 Claude TDD Demo Workflow v3.0
+# FXML4 Claude TDD Demo Workflow v4.0
 
-This demonstrates the complete Claude TDD automation framework with Phase 3 enhancements:
+This demonstrates the complete Claude TDD automation framework with Phase 4 CI/CD integration:
 
 ## 1. Test Discovery
 ```bash
@@ -663,12 +755,32 @@ python .claude-tdd/claude_tdd_main.py performance core --performance-config ligh
 python .claude-tdd/claude_tdd_main.py enhanced-cycle core --include-performance
 ```
 
-## 7. Set Up Contract Testing
+## 7. Phase 4a: CI/CD Blue-Green Deployment
+```bash
+python .claude-tdd/claude_tdd_main.py deploy core --environment staging --deployment-strategy blue-green
+```
+
+## 8. Phase 4b: CI/CD Canary Deployment
+```bash
+python .claude-tdd/claude_tdd_main.py deploy core --environment production --deployment-strategy canary
+```
+
+## 9. Check Pipeline Status
+```bash
+python .claude-tdd/claude_tdd_main.py pipeline-status --pipeline-id core_main_1234567890
+```
+
+## 10. List Recent Deployments
+```bash
+python .claude-tdd/claude_tdd_main.py deployments
+```
+
+## 11. Set Up Contract Testing
 ```bash
 python .claude-tdd/claude_tdd_main.py contracts
 ```
 
-## 8. View Project Status
+## 12. View Project Status
 ```bash
 python .claude-tdd/claude_tdd_main.py status
 ```
@@ -692,6 +804,11 @@ The framework integrates with Claude Code through:
 - Mutation testing for financial calculation robustness
 - Property-based testing for mathematical invariants
 - Performance testing for trading system latency requirements
+- Market hours aware CI/CD deployments
+- Zero-downtime blue-green deployments
+- Risk-controlled canary deployments
+- Automated rollback capabilities
+- Financial compliance integration in CI/CD pipeline
 """
 
 
@@ -716,6 +833,9 @@ async def main():
             "status",
             "cleanup",
             "full-auto",
+            "deploy",
+            "pipeline-status",
+            "deployments",
         ],
         help="Command to execute",
     )
@@ -782,6 +902,33 @@ async def main():
         help="Include performance testing in enhanced cycle",
     )
 
+    # CI/CD specific arguments
+    parser.add_argument(
+        "--branch", "-b", default="main", help="Git branch for deployment"
+    )
+
+    parser.add_argument(
+        "--deployment-strategy",
+        choices=["blue-green", "canary"],
+        default="blue-green",
+        help="Deployment strategy",
+    )
+
+    parser.add_argument(
+        "--environment",
+        choices=["dev", "staging", "production"],
+        default="staging",
+        help="Target environment",
+    )
+
+    parser.add_argument(
+        "--force-deployment",
+        action="store_true",
+        help="Force deployment during market hours",
+    )
+
+    parser.add_argument("--pipeline-id", help="Pipeline ID for status queries")
+
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
 
     args = parser.parse_args()
@@ -824,6 +971,27 @@ async def main():
 
         elif args.command == "contracts":
             result = framework.setup_contract_testing()
+
+        elif args.command == "deploy":
+            if not args.component:
+                print("Error: Component required for deploy command")
+                return 1
+            result = await framework.run_cicd_pipeline(
+                args.component,
+                args.branch,
+                args.deployment_strategy,
+                args.environment,
+                args.force_deployment,
+            )
+
+        elif args.command == "pipeline-status":
+            if not args.pipeline_id:
+                print("Error: --pipeline-id required for pipeline-status command")
+                return 1
+            result = framework.get_pipeline_status(args.pipeline_id)
+
+        elif args.command == "deployments":
+            result = {"recent_deployments": framework.list_recent_deployments()}
 
         elif args.command == "status":
             result = framework.show_project_status()

@@ -1,0 +1,212 @@
+# Prometheus configuration for FXML4 Trading System
+# Optimized for financial trading metrics and compliance
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'fxml4-production'
+    environment: 'production'
+
+# Rules for alerting
+rule_files:
+  - "alert_rules/*.yml"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Scrape configurations
+scrape_configs:
+  # FXML4 Core API
+  - job_name: 'fxml4-api'
+    scrape_interval: 5s  # High frequency for trading system
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['fxml4-api:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'fxml4_.*'
+        target_label: __tmp_fxml4_metric
+        replacement: 'true'
+
+  # Elliott Wave Dashboard
+  - job_name: 'fxml4-dashboard'
+    scrape_interval: 10s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['fxml4-dashboard:8501']
+
+  # Frontend Application
+  - job_name: 'fxml4-frontend'
+    scrape_interval: 10s
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ['fxml4-frontend:3000']
+
+  # Worker Services
+  - job_name: 'fxml4-worker'
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['fxml4-worker:8000']
+
+  # Infrastructure Components
+  - job_name: 'postgres'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'redis'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'rabbitmq'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  # Kubernetes Monitoring
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+
+  # Trading-specific metrics
+  - job_name: 'trading-metrics'
+    scrape_interval: 1s  # Very high frequency for trading
+    metrics_path: /trading/metrics
+    static_configs:
+      - targets: ['fxml4-api:8000']
+    metric_relabel_configs:
+      # Keep only trading-related metrics
+      - source_labels: [__name__]
+        regex: '(trading_|position_|order_|pnl_|risk_).*'
+        action: keep
+
+  # Market Data Feed Monitoring
+  - job_name: 'market-data'
+    scrape_interval: 5s
+    metrics_path: /market/metrics
+    static_configs:
+      - targets: ['fxml4-api:8000']
+
+  # External Service Monitoring
+  - job_name: 'ib-gateway'
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['ib-gateway:7496']
+    scrape_timeout: 10s
+
+  - job_name: 'fxcm-connector'
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['fxcm-connector:8080']
+
+# Recording rules for performance optimization
+recording_rules:
+  # Trading System Performance
+  - name: trading_performance
+    interval: 5s
+    rules:
+      - record: fxml4:trading_latency_p95
+        expr: histogram_quantile(0.95, rate(fxml4_trading_request_duration_seconds_bucket[5m]))
+
+      - record: fxml4:trading_error_rate
+        expr: rate(fxml4_trading_errors_total[5m]) / rate(fxml4_trading_requests_total[5m])
+
+      - record: fxml4:order_execution_success_rate
+        expr: rate(fxml4_orders_executed_total[5m]) / rate(fxml4_orders_submitted_total[5m])
+
+  # System Health
+  - name: system_health
+    interval: 15s
+    rules:
+      - record: fxml4:cpu_usage_percent
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+      - record: fxml4:memory_usage_percent
+        expr: 100 * (1 - ((node_memory_MemAvailable_bytes or node_memory_MemFree_bytes) / node_memory_MemTotal_bytes))
+
+      - record: fxml4:disk_usage_percent
+        expr: 100 - ((node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes)
+
+  # Financial Metrics
+  - name: financial_metrics
+    interval: 10s
+    rules:
+      - record: fxml4:portfolio_pnl_usd
+        expr: sum(fxml4_position_pnl_usd)
+
+      - record: fxml4:daily_trading_volume_usd
+        expr: sum(increase(fxml4_trading_volume_usd[1d]))
+
+      - record: fxml4:risk_exposure_percent
+        expr: (fxml4_portfolio_exposure_usd / fxml4_portfolio_equity_usd) * 100
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 90d
+    retention.size: 100GB
+    wal-compression: true

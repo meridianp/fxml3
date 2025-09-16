@@ -1,0 +1,410 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "FXML4 Trading System Dashboard",
+    "tags": ["fxml4", "trading", "financial"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "5s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Trading System Overview",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "up{job=\"fxml4-api\"}",
+            "legendFormat": "API Status",
+            "refId": "A"
+          },
+          {
+            "expr": "fxml4:trading_latency_p95 * 1000",
+            "legendFormat": "P95 Latency (ms)",
+            "refId": "B"
+          },
+          {
+            "expr": "fxml4:trading_error_rate * 100",
+            "legendFormat": "Error Rate (%)",
+            "refId": "C"
+          },
+          {
+            "expr": "fxml4:order_execution_success_rate * 100",
+            "legendFormat": "Order Success Rate (%)",
+            "refId": "D"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.8
+                },
+                {
+                  "color": "green",
+                  "value": 0.95
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Trading Latency Distribution",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(fxml4_trading_request_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(fxml4_trading_request_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(fxml4_trading_request_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Latency (ms)",
+            "max": 10,
+            "min": 0
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [5],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["B", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "last"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "30s",
+          "frequency": "10s",
+          "handler": 1,
+          "name": "Trading Latency SLA Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 3,
+        "title": "Order Execution Metrics",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(fxml4_orders_submitted_total[5m])",
+            "legendFormat": "Orders Submitted/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(fxml4_orders_executed_total[5m])",
+            "legendFormat": "Orders Executed/sec",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(fxml4_orders_rejected_total[5m])",
+            "legendFormat": "Orders Rejected/sec",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Portfolio Performance",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "fxml4:portfolio_pnl_usd",
+            "legendFormat": "P&L (USD)",
+            "refId": "A"
+          },
+          {
+            "expr": "fxml4_portfolio_equity_usd",
+            "legendFormat": "Portfolio Equity (USD)",
+            "refId": "B"
+          },
+          {
+            "expr": "fxml4_portfolio_exposure_usd",
+            "legendFormat": "Risk Exposure (USD)",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Risk Management",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "fxml4:risk_exposure_percent",
+            "legendFormat": "Risk Exposure (%)",
+            "refId": "A"
+          },
+          {
+            "expr": "fxml4_portfolio_drawdown_percent",
+            "legendFormat": "Drawdown (%)",
+            "refId": "B"
+          },
+          {
+            "expr": "fxml4_var_daily_usd",
+            "legendFormat": "Daily VaR (USD)",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Elliott Wave Analysis",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 24
+        },
+        "targets": [
+          {
+            "expr": "fxml4_elliott_wave_confidence",
+            "legendFormat": "Confidence - {{symbol}}",
+            "refId": "A"
+          },
+          {
+            "expr": "fxml4_elliott_wave_prediction_accuracy",
+            "legendFormat": "Accuracy - {{symbol}}",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "System Resources",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 24
+        },
+        "targets": [
+          {
+            "expr": "fxml4:cpu_usage_percent",
+            "legendFormat": "CPU Usage % - {{instance}}",
+            "refId": "A"
+          },
+          {
+            "expr": "fxml4:memory_usage_percent",
+            "legendFormat": "Memory Usage % - {{instance}}",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Market Data Feed Status",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 32
+        },
+        "targets": [
+          {
+            "expr": "time() - fxml4_market_data_last_update_timestamp",
+            "legendFormat": "Data Age (seconds)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10
+                },
+                {
+                  "color": "red",
+                  "value": 30
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Broker Connections",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 32
+        },
+        "targets": [
+          {
+            "expr": "fxml4_ib_gateway_connected",
+            "legendFormat": "IB Gateway",
+            "refId": "A"
+          },
+          {
+            "expr": "fxml4_fxcm_connected",
+            "legendFormat": "FXCM",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Quality Metrics",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 32
+        },
+        "targets": [
+          {
+            "expr": "fxml4_mutation_score",
+            "legendFormat": "Mutation Score",
+            "refId": "A"
+          },
+          {
+            "expr": "fxml4_test_coverage_percent",
+            "legendFormat": "Test Coverage",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Trading Volume",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 32
+        },
+        "targets": [
+          {
+            "expr": "fxml4:daily_trading_volume_usd",
+            "legendFormat": "Daily Volume (USD)",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "instance",
+          "type": "query",
+          "query": "label_values(up, instance)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*"
+        },
+        {
+          "name": "symbol",
+          "type": "query",
+          "query": "label_values(fxml4_position_size_usd, symbol)",
+          "refresh": 1,
+          "includeAll": true,
+          "allValue": ".*"
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "expr": "changes(fxml4_deployment_timestamp[1h])",
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "lineColor": "rgba(0, 211, 255, 1)",
+          "textFormat": "Deployment: {{version}}"
+        },
+        {
+          "name": "Market Hours",
+          "datasource": "Prometheus",
+          "expr": "fxml4_market_hours_active",
+          "iconColor": "rgba(255, 96, 96, 1)",
+          "lineColor": "rgba(255, 96, 96, 1)",
+          "textFormat": "Market: {{status}}"
+        }
+      ]
+    }
+  }
+}

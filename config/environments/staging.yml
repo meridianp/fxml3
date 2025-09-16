@@ -1,0 +1,140 @@
+# FXML4 Staging Environment Configuration
+# Production-like environment for testing
+
+environment: staging
+debug: false
+log_level: INFO
+
+# Database configuration (production-like)
+database:
+  host: ${FXML4_DATABASE_HOST}
+  port: ${FXML4_DATABASE_PORT:5432}
+  name: ${FXML4_DATABASE_NAME}
+  user: ${FXML4_DATABASE_USER}
+  password: ${FXML4_DATABASE_PASSWORD}
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+  ssl_require: true
+
+# Redis configuration
+redis:
+  host: ${FXML4_REDIS_HOST}
+  port: ${FXML4_REDIS_PORT:6379}
+  db: ${FXML4_REDIS_DB:0}
+  password: ${FXML4_REDIS_PASSWORD}
+  max_connections: 20
+  ssl: true
+
+# RabbitMQ configuration
+rabbitmq:
+  host: ${FXML4_RABBITMQ_HOST}
+  port: ${FXML4_RABBITMQ_PORT:5672}
+  user: ${FXML4_RABBITMQ_USER}
+  password: ${FXML4_RABBITMQ_PASSWORD}
+  virtual_host: ${FXML4_RABBITMQ_VHOST:/fxml4_staging}
+  ssl: true
+
+# Trading system configuration (conservative staging settings)
+trading:
+  mode: staging
+  paper_trading: true
+  max_position_size: 5000
+  stop_loss_percentage: 1.5
+  take_profit_percentage: 3.0
+
+  # Risk management (production-like)
+  risk_management:
+    max_daily_drawdown: 2.0
+    max_position_percentage: 5.0
+    max_correlation_threshold: 0.7
+
+  # Market data
+  market_data:
+    provider: staging
+    update_interval: 5  # seconds
+    cache_duration: 600  # 10 minutes
+
+# Elliott Wave configuration
+elliott_wave:
+  confidence_threshold: 0.75
+  lookback_periods: 200
+  analysis_timeframes: [1h, 4h, 1d, 1w]
+
+# API configuration
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 4
+  reload: false
+  cors_origins:
+    - ${FXML4_FRONTEND_URL}
+    - ${FXML4_DASHBOARD_URL}
+
+# Security configuration
+security:
+  secret_key: ${FXML4_SECRET_KEY}
+  algorithm: HS256
+  access_token_expire_minutes: 15
+  allowed_origins:
+    - ${FXML4_FRONTEND_URL}
+    - ${FXML4_DASHBOARD_URL}
+
+# Monitoring and observability
+monitoring:
+  enable_metrics: true
+  metrics_port: 8080
+  enable_tracing: true
+  log_requests: true
+  prometheus_enabled: true
+
+# Performance settings (production SLA)
+performance:
+  latency_sla_ms: 5
+  cache_enabled: true
+  async_processing: true
+  connection_pooling: true
+
+# External services (staging/demo)
+external_services:
+  brokers:
+    ib:
+      enabled: true
+      host: ${IB_GATEWAY_HOST}
+      port: ${IB_GATEWAY_PORT:7497}
+      client_id: ${IB_CLIENT_ID:2}
+    fxcm:
+      enabled: true
+      environment: demo
+      api_key: ${FXCM_API_KEY}
+
+  news_providers:
+    enabled: true
+    alpha_vantage:
+      api_key: ${ALPHA_VANTAGE_API_KEY}
+
+# Market hours configuration
+market_hours:
+  check_enabled: true
+  deployment_restrictions: true
+  trading_sessions:
+    - name: NYSE
+      timezone: America/New_York
+      open: "09:30"
+      close: "16:00"
+      days: [1, 2, 3, 4, 5]  # Monday-Friday
+
+# Quality gates (staging validation)
+quality_gates:
+  mutation_score_threshold: 80
+  coverage_threshold: 85
+  performance_regression_threshold: 10  # percent
+
+# Feature flags
+features:
+  mutation_testing: true
+  property_based_testing: true
+  performance_monitoring: true
+  real_time_alerts: true
+  advanced_analytics: true
+  blue_green_deployment: true

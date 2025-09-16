@@ -1,0 +1,277 @@
+# FXML4 Trading System Alert Rules
+# Critical alerts for financial trading operations
+
+groups:
+  - name: trading_critical
+    interval: 5s
+    rules:
+      # Trading System Latency SLA Violation
+      - alert: TradingLatencySLAViolation
+        expr: fxml4:trading_latency_p95 > 0.005  # 5ms SLA
+        for: 30s
+        labels:
+          severity: critical
+          component: trading
+          sla: latency
+        annotations:
+          summary: "Trading latency SLA violation"
+          description: "Trading system P95 latency is {{ $value }}ms, exceeding 5ms SLA for {{ $labels.instance }}"
+          runbook_url: "https://docs.fxml4.com/runbooks/trading-latency"
+          impact: "High - Trading performance degraded"
+
+      # Order Execution Failure
+      - alert: OrderExecutionFailure
+        expr: fxml4:order_execution_success_rate < 0.95  # 95% success rate
+        for: 1m
+        labels:
+          severity: critical
+          component: trading
+          type: execution
+        annotations:
+          summary: "Order execution failure rate high"
+          description: "Order execution success rate is {{ $value | humanizePercentage }}, below 95% threshold"
+          runbook_url: "https://docs.fxml4.com/runbooks/order-execution"
+          impact: "Critical - Trading operations impaired"
+
+      # Trading System Error Rate
+      - alert: TradingSystemErrorRate
+        expr: fxml4:trading_error_rate > 0.01  # 1% error rate
+        for: 2m
+        labels:
+          severity: critical
+          component: trading
+          type: errors
+        annotations:
+          summary: "High trading system error rate"
+          description: "Trading system error rate is {{ $value | humanizePercentage }}, exceeding 1% threshold"
+          runbook_url: "https://docs.fxml4.com/runbooks/trading-errors"
+
+      # Market Data Feed Lag
+      - alert: MarketDataLag
+        expr: time() - fxml4_market_data_last_update_timestamp > 30
+        for: 15s
+        labels:
+          severity: critical
+          component: market_data
+        annotations:
+          summary: "Market data feed lagging"
+          description: "Market data feed has not updated for {{ $value }}s on {{ $labels.instance }}"
+          runbook_url: "https://docs.fxml4.com/runbooks/market-data"
+          impact: "Critical - Trading decisions may be based on stale data"
+
+      # Portfolio Risk Limit Breach
+      - alert: PortfolioRiskLimitBreach
+        expr: fxml4:risk_exposure_percent > 80
+        for: 0s  # Immediate alert
+        labels:
+          severity: critical
+          component: risk_management
+        annotations:
+          summary: "Portfolio risk limit breached"
+          description: "Portfolio risk exposure is {{ $value }}%, exceeding 80% limit"
+          runbook_url: "https://docs.fxml4.com/runbooks/risk-management"
+          impact: "Critical - Risk management intervention required"
+
+  - name: trading_warning
+    interval: 15s
+    rules:
+      # Position Size Alert
+      - alert: LargePositionSize
+        expr: fxml4_position_size_usd > 100000
+        for: 5m
+        labels:
+          severity: warning
+          component: trading
+          type: position
+        annotations:
+          summary: "Large position detected"
+          description: "Position size of ${{ $value }} detected for {{ $labels.symbol }}"
+          runbook_url: "https://docs.fxml4.com/runbooks/position-monitoring"
+
+      # Trading Volume Anomaly
+      - alert: TradingVolumeAnomaly
+        expr: fxml4:daily_trading_volume_usd > 10000000 or fxml4:daily_trading_volume_usd < 100000
+        for: 10m
+        labels:
+          severity: warning
+          component: trading
+          type: volume
+        annotations:
+          summary: "Unusual trading volume detected"
+          description: "Daily trading volume is ${{ $value }}, outside normal range"
+
+      # Elliott Wave Analysis Confidence Low
+      - alert: ElliottWaveConfidenceLow
+        expr: fxml4_elliott_wave_confidence < 0.7
+        for: 15m
+        labels:
+          severity: warning
+          component: analysis
+        annotations:
+          summary: "Elliott Wave analysis confidence low"
+          description: "Elliott Wave confidence is {{ $value }}, below 70% threshold for {{ $labels.symbol }}"
+
+  - name: system_critical
+    interval: 15s
+    rules:
+      # API Service Down
+      - alert: APIServiceDown
+        expr: up{job="fxml4-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "FXML4 API service is down"
+          description: "API service {{ $labels.instance }} has been down for more than 30 seconds"
+          runbook_url: "https://docs.fxml4.com/runbooks/api-service"
+          impact: "Critical - Trading operations halted"
+
+      # Database Connection Lost
+      - alert: DatabaseConnectionLost
+        expr: fxml4_database_connections_active == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection lost"
+          description: "No active database connections detected"
+          runbook_url: "https://docs.fxml4.com/runbooks/database"
+          impact: "Critical - Data persistence at risk"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: fxml4:memory_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+          runbook_url: "https://docs.fxml4.com/runbooks/memory"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: fxml4:cpu_usage_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+  - name: financial_compliance
+    interval: 30s
+    rules:
+      # Daily P&L Limit
+      - alert: DailyPnLLimit
+        expr: abs(fxml4:portfolio_pnl_usd) > 50000
+        for: 1m
+        labels:
+          severity: warning
+          component: compliance
+          type: pnl
+        annotations:
+          summary: "Daily P&L limit approached"
+          description: "Daily P&L is ${{ $value }}, approaching $50,000 limit"
+          runbook_url: "https://docs.fxml4.com/runbooks/pnl-limits"
+
+      # Maximum Drawdown Alert
+      - alert: MaximumDrawdown
+        expr: fxml4_portfolio_drawdown_percent > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: compliance
+          type: drawdown
+        annotations:
+          summary: "Maximum drawdown exceeded"
+          description: "Portfolio drawdown is {{ $value }}%, exceeding 5% limit"
+          runbook_url: "https://docs.fxml4.com/runbooks/drawdown"
+          impact: "Critical - Risk management intervention required"
+
+      # Regulatory Reporting Failure
+      - alert: RegulatoryReportingFailure
+        expr: increase(fxml4_regulatory_reports_failed_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: compliance
+          type: reporting
+        annotations:
+          summary: "Regulatory reporting failure"
+          description: "{{ $value }} regulatory reports have failed in the last hour"
+          runbook_url: "https://docs.fxml4.com/runbooks/regulatory-reporting"
+          impact: "Critical - Compliance violation risk"
+
+  - name: external_services
+    interval: 30s
+    rules:
+      # IB Gateway Connection
+      - alert: IBGatewayDisconnected
+        expr: fxml4_ib_gateway_connected == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: broker
+          broker: ib
+        annotations:
+          summary: "IB Gateway disconnected"
+          description: "Interactive Brokers Gateway connection lost"
+          runbook_url: "https://docs.fxml4.com/runbooks/ib-gateway"
+          impact: "Critical - Live trading unavailable"
+
+      # FXCM Connection
+      - alert: FXCMDisconnected
+        expr: fxml4_fxcm_connected == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: broker
+          broker: fxcm
+        annotations:
+          summary: "FXCM connection lost"
+          description: "FXCM broker connection lost"
+          runbook_url: "https://docs.fxml4.com/runbooks/fxcm"
+
+      # Market Data Provider Issues
+      - alert: MarketDataProviderDown
+        expr: up{job="market-data"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: market_data
+        annotations:
+          summary: "Market data provider down"
+          description: "Market data provider {{ $labels.instance }} is unreachable"
+
+  - name: mutation_testing_quality
+    interval: 60s
+    rules:
+      # Mutation Testing Score Drop
+      - alert: MutationScoreDrop
+        expr: fxml4_mutation_score < 80
+        for: 5m
+        labels:
+          severity: warning
+          component: quality
+          type: mutation
+        annotations:
+          summary: "Mutation testing score below threshold"
+          description: "Mutation testing score is {{ $value }}%, below 80% threshold"
+          runbook_url: "https://docs.fxml4.com/runbooks/mutation-testing"
+
+      # Test Coverage Drop
+      - alert: TestCoverageDrop
+        expr: fxml4_test_coverage_percent < 85
+        for: 5m
+        labels:
+          severity: warning
+          component: quality
+          type: coverage
+        annotations:
+          summary: "Test coverage below threshold"
+          description: "Test coverage is {{ $value }}%, below 85% threshold"

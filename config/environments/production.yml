@@ -1,0 +1,205 @@
+# FXML4 Production Environment Configuration
+# High-performance, secure, and compliant trading system
+
+environment: production
+debug: false
+log_level: WARNING
+
+# Database configuration (production)
+database:
+  host: ${FXML4_DATABASE_HOST}
+  port: ${FXML4_DATABASE_PORT:5432}
+  name: ${FXML4_DATABASE_NAME}
+  user: ${FXML4_DATABASE_USER}
+  password: ${FXML4_DATABASE_PASSWORD}
+  pool_size: 20
+  max_overflow: 50
+  echo: false
+  ssl_require: true
+  connection_timeout: 30
+  query_timeout: 30
+
+# Redis configuration (production cluster)
+redis:
+  host: ${FXML4_REDIS_HOST}
+  port: ${FXML4_REDIS_PORT:6379}
+  db: ${FXML4_REDIS_DB:0}
+  password: ${FXML4_REDIS_PASSWORD}
+  max_connections: 50
+  ssl: true
+  cluster_enabled: true
+  sentinel_enabled: true
+
+# RabbitMQ configuration (production cluster)
+rabbitmq:
+  host: ${FXML4_RABBITMQ_HOST}
+  port: ${FXML4_RABBITMQ_PORT:5672}
+  user: ${FXML4_RABBITMQ_USER}
+  password: ${FXML4_RABBITMQ_PASSWORD}
+  virtual_host: ${FXML4_RABBITMQ_VHOST:/fxml4_prod}
+  ssl: true
+  heartbeat: 30
+  connection_timeout: 30
+
+# Trading system configuration (production settings)
+trading:
+  mode: live
+  paper_trading: false
+  max_position_size: ${FXML4_MAX_POSITION_SIZE:50000}
+  stop_loss_percentage: 1.0
+  take_profit_percentage: 2.0
+
+  # Risk management (strict production)
+  risk_management:
+    max_daily_drawdown: 1.0
+    max_position_percentage: 2.0
+    max_correlation_threshold: 0.6
+    position_sizing_model: kelly_criterion
+    var_limit: 100000  # Value at Risk limit
+
+  # Market data (real-time)
+  market_data:
+    provider: live
+    update_interval: 1  # seconds
+    cache_duration: 60  # 1 minute
+    redundancy_providers: 2
+
+# Elliott Wave configuration (production optimized)
+elliott_wave:
+  confidence_threshold: 0.85
+  lookback_periods: 500
+  analysis_timeframes: [5m, 15m, 1h, 4h, 1d, 1w]
+  real_time_analysis: true
+
+# API configuration (production)
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: ${FXML4_API_WORKERS:8}
+  reload: false
+  access_log: false
+  cors_origins:
+    - ${FXML4_FRONTEND_URL}
+    - ${FXML4_DASHBOARD_URL}
+
+# Security configuration (production)
+security:
+  secret_key: ${FXML4_SECRET_KEY}
+  algorithm: HS256
+  access_token_expire_minutes: 5
+  refresh_token_expire_days: 1
+  allowed_origins:
+    - ${FXML4_FRONTEND_URL}
+    - ${FXML4_DASHBOARD_URL}
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+  ip_whitelist:
+    - ${FXML4_ALLOWED_IPS}
+
+# Monitoring and observability (production)
+monitoring:
+  enable_metrics: true
+  metrics_port: 8080
+  enable_tracing: true
+  log_requests: false  # Performance optimization
+  prometheus_enabled: true
+  grafana_enabled: true
+  alertmanager_enabled: true
+
+# Performance settings (strict production SLA)
+performance:
+  latency_sla_ms: 5
+  cache_enabled: true
+  async_processing: true
+  connection_pooling: true
+  query_optimization: true
+  jit_compilation: true
+
+# External services (production)
+external_services:
+  brokers:
+    ib:
+      enabled: true
+      host: ${IB_GATEWAY_HOST}
+      port: ${IB_GATEWAY_PORT:7496}  # Live trading port
+      client_id: ${IB_CLIENT_ID}
+      timeout: 30
+      redundancy: true
+    fxcm:
+      enabled: true
+      environment: live
+      api_key: ${FXCM_API_KEY}
+      timeout: 30
+
+  news_providers:
+    enabled: true
+    alpha_vantage:
+      api_key: ${ALPHA_VANTAGE_API_KEY}
+    reuters:
+      api_key: ${REUTERS_API_KEY}
+
+# Market hours configuration (production)
+market_hours:
+  check_enabled: true
+  deployment_restrictions: true
+  emergency_override: ${FXML4_EMERGENCY_OVERRIDE:false}
+  trading_sessions:
+    - name: NYSE
+      timezone: America/New_York
+      open: "09:30"
+      close: "16:00"
+      days: [1, 2, 3, 4, 5]
+    - name: FOREX
+      timezone: UTC
+      open: "21:00"  # Sunday
+      close: "22:00"  # Friday
+      days: [0, 1, 2, 3, 4, 5, 6]  # 24/5
+
+# Compliance and regulatory
+compliance:
+  audit_logging: true
+  trade_reporting: true
+  regulatory_framework: US_SEC
+  kyc_enabled: true
+  aml_monitoring: true
+
+# Backup and disaster recovery
+backup:
+  enabled: true
+  frequency: hourly
+  retention_days: 90
+  offsite_backup: true
+
+# Quality gates (production validation)
+quality_gates:
+  mutation_score_threshold: 85
+  coverage_threshold: 90
+  performance_regression_threshold: 5  # percent
+  security_scan_threshold: high
+
+# Feature flags (production)
+features:
+  mutation_testing: false  # Not in production
+  property_based_testing: false  # Not in production
+  performance_monitoring: true
+  real_time_alerts: true
+  advanced_analytics: true
+  blue_green_deployment: true
+  circuit_breaker: true
+  auto_scaling: true
+
+# Circuit breaker configuration
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout: 30
+  half_open_requests: 3
+
+# Auto-scaling configuration
+auto_scaling:
+  enabled: true
+  min_replicas: 2
+  max_replicas: 10
+  cpu_threshold: 70
+  memory_threshold: 80
+  latency_threshold: 10  # ms
