@@ -1,0 +1,31 @@
+# Phase 3: Test Quality Enhancement Dependencies
+
+# Property-based testing
+hypothesis[numpy]==6.100.2
+hypothesis-pytest==0.19.0
+
+# Mutation testing
+mutmut==2.4.3
+
+# Performance testing
+psutil==5.9.8
+numpy==1.26.4
+
+# Additional testing utilities
+pytest-json-report==1.5.0
+pytest-html==4.1.1
+pytest-cov==4.1.0
+
+# Network and graph analysis (for dependency coordination)
+networkx==3.2.1
+
+# Data handling
+pandas==2.2.1
+
+# For frontend testing integration (TypeScript/JavaScript)
+# These would be installed via npm in the frontend directory:
+# @stryker-mutator/core
+# @stryker-mutator/jest-runner
+# @stryker-mutator/typescript-checker
+# lighthouse
+# playwright

@@ -21,6 +21,37 @@ from progress.progress_manager import ProgressManager, ProgressState
 
 from scripts.discover_tests import TestDiscovery
 
+# Phase 3 imports - optional for graceful degradation
+try:
+    from mutation.advanced_mutation_config import AdvancedMutationConfig
+
+    ADVANCED_MUTATION_AVAILABLE = True
+except ImportError:
+    print("⚠️  Advanced mutation config not available - install requirements_phase3.txt")
+    ADVANCED_MUTATION_AVAILABLE = False
+
+try:
+    from property_testing.hypothesis_financial import (
+        FinancialInvariantTests,
+        FinancialPropertyTests,
+    )
+    from property_testing.property_test_runner import PropertyTestRunner
+
+    PROPERTY_TESTING_AVAILABLE = True
+except ImportError:
+    print(
+        "⚠️  Property testing not available - install hypothesis: pip install hypothesis"
+    )
+    PROPERTY_TESTING_AVAILABLE = False
+
+try:
+    from performance.performance_test_framework import PerformanceTestFramework
+
+    PERFORMANCE_TESTING_AVAILABLE = True
+except ImportError:
+    print("⚠️  Performance testing not available - install requirements_phase3.txt")
+    PERFORMANCE_TESTING_AVAILABLE = False
+
 
 class ClaudeTDDFramework:
     """Main Claude TDD automation framework for FXML4"""
@@ -28,12 +59,44 @@ class ClaudeTDDFramework:
     def __init__(self):
         self.test_discovery = TestDiscovery()
         self.tdd_orchestrator = TDDOrchestrator()
+
+        # Core components
         self.mutation_runner = MutationTestingRunner()
         self.pact_manager = PactConfigManager()
         self.progress_manager = ProgressManager()
 
-        print("🤖 FXML4 Claude TDD Automation Framework Initialized")
-        print("=" * 60)
+        # Phase 3: Enhanced testing capabilities (optional)
+        if ADVANCED_MUTATION_AVAILABLE:
+            self.advanced_mutation = AdvancedMutationConfig()
+        else:
+            self.advanced_mutation = None
+
+        if PROPERTY_TESTING_AVAILABLE:
+            self.property_test_runner = PropertyTestRunner()
+        else:
+            self.property_test_runner = None
+
+        if PERFORMANCE_TESTING_AVAILABLE:
+            self.performance_framework = PerformanceTestFramework()
+        else:
+            self.performance_framework = None
+
+        print("🤖 FXML4 Claude TDD Automation Framework v3.0 Initialized")
+        phase3_features = []
+        if ADVANCED_MUTATION_AVAILABLE:
+            phase3_features.append("Advanced Mutation Testing")
+        if PROPERTY_TESTING_AVAILABLE:
+            phase3_features.append("Property-Based Testing")
+        if PERFORMANCE_TESTING_AVAILABLE:
+            phase3_features.append("Performance Testing")
+
+        if phase3_features:
+            print(f"✅ Enhanced with {', '.join(phase3_features)}")
+        else:
+            print(
+                "ℹ️  Running with core features only - install requirements_phase3.txt for enhanced features"
+            )
+        print("=" * 80)
 
     async def run_full_tdd_cycle(
         self, component: str, test_category: str = "unit"
@@ -235,6 +298,229 @@ class ClaudeTDDFramework:
             ],
         }
 
+    async def run_property_testing(self, component: str = None) -> Dict[str, Any]:
+        """Run property-based testing for component(s)"""
+        if not PROPERTY_TESTING_AVAILABLE:
+            print(
+                "❌ Property testing not available. Install hypothesis: pip install hypothesis"
+            )
+            return {"error": "Property testing not available"}
+
+        print(
+            f"\\n🔬 Running Property-Based Testing{' for ' + component if component else ''}"
+        )
+        print("-" * 40)
+
+        property_results = self.property_test_runner.run_property_tests(
+            component=component, dry_run=False
+        )
+
+        print(f"\\nProperty Testing Results:")
+        print(f"  Total Tests: {property_results.total_tests}")
+        print(f"  Passed: {property_results.passed_tests}")
+        print(f"  Failed: {property_results.failed_tests}")
+        print(f"  Errors: {property_results.error_tests}")
+        print(f"  Total Examples: {property_results.total_examples}")
+
+        return {
+            "total_tests": property_results.total_tests,
+            "passed_tests": property_results.passed_tests,
+            "failed_tests": property_results.failed_tests,
+            "error_tests": property_results.error_tests,
+            "total_examples": property_results.total_examples,
+            "coverage_analysis": property_results.coverage_analysis,
+            "recommendations": property_results.recommendations,
+        }
+
+    async def run_performance_testing(
+        self, component: str = None, config: str = "light_load"
+    ) -> Dict[str, Any]:
+        """Run performance testing for component(s)"""
+        if not PERFORMANCE_TESTING_AVAILABLE:
+            print(
+                "❌ Performance testing not available. Install requirements_phase3.txt"
+            )
+            return {"error": "Performance testing not available"}
+
+        print(
+            f"\\n⚡ Running Performance Testing{' for ' + component if component else ''}"
+        )
+        print(f"Configuration: {config}")
+        print("-" * 40)
+
+        performance_results = self.performance_framework.run_performance_tests(
+            component=component, test_config=config, dry_run=False
+        )
+
+        # Calculate summary metrics
+        sla_passed = sum(1 for r in performance_results if r.sla_passed)
+        sla_failed = len(performance_results) - sla_passed
+
+        print(f"\\nPerformance Testing Results:")
+        print(f"  Total Tests: {len(performance_results)}")
+        print(f"  SLA Passed: {sla_passed}")
+        print(f"  SLA Failed: {sla_failed}")
+
+        return {
+            "total_tests": len(performance_results),
+            "sla_passed": sla_passed,
+            "sla_failed": sla_failed,
+            "test_results": [
+                {
+                    "test_name": result.test_name,
+                    "component": result.component,
+                    "sla_passed": result.sla_passed,
+                    "avg_latency": result.avg_latency,
+                    "throughput": result.throughput_ops_per_sec,
+                    "cpu_usage": result.cpu_usage_percent,
+                    "memory_usage": result.memory_usage_mb,
+                }
+                for result in performance_results
+            ],
+        }
+
+    async def run_enhanced_tdd_cycle(
+        self,
+        component: str,
+        test_category: str = "unit",
+        include_mutation: bool = True,
+        include_property: bool = True,
+        include_performance: bool = False,
+    ) -> Dict[str, Any]:
+        """Run enhanced TDD cycle with Phase 3 capabilities"""
+        print(f"\\n🚀 Starting Enhanced TDD Cycle for {component}")
+        print("✨ Phase 3: Test Quality Enhancement")
+        print("-" * 50)
+
+        results = {}
+
+        # Start progress tracking
+        cycle_progress = self.progress_manager.start_tdd_cycle(component)
+
+        try:
+            # Traditional TDD cycle first
+            print("\\n📋 Running Traditional TDD Cycle...")
+            tdd_results = await self.run_full_tdd_cycle(component, test_category)
+            results["tdd_cycle"] = tdd_results
+
+            # Enhanced testing phases
+            if include_mutation:
+                print("\\n🧬 Phase 3a: Mutation Testing...")
+                mutation_results = await self.run_mutation_testing(component)
+                results["mutation_testing"] = mutation_results
+
+            if include_property:
+                print("\\n🔬 Phase 3b: Property-Based Testing...")
+                property_results = await self.run_property_testing(component)
+                results["property_testing"] = property_results
+
+            if include_performance:
+                print("\\n⚡ Phase 3c: Performance Testing...")
+                performance_results = await self.run_performance_testing(component)
+                results["performance_testing"] = performance_results
+
+            # Mark cycle as completed
+            self.progress_manager.complete_tdd_cycle(cycle_progress.cycle_id)
+
+            # Generate comprehensive report
+            self._generate_enhanced_cycle_report(component, results)
+
+            print("\\n✅ Enhanced TDD Cycle Completed Successfully!")
+            return results
+
+        except Exception as e:
+            print(f"\\n❌ Enhanced TDD Cycle Failed: {e}")
+            self.progress_manager.fail_tdd_cycle(cycle_progress.cycle_id, str(e))
+            raise
+
+    def _generate_enhanced_cycle_report(self, component: str, results: Dict[str, Any]):
+        """Generate comprehensive report for enhanced TDD cycle"""
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_file = Path(
+            f".claude-tdd/reports/enhanced_cycle_{component}_{timestamp}.md"
+        )
+        report_file.parent.mkdir(exist_ok=True)
+
+        report_content = f"""# Enhanced TDD Cycle Report
+
+**Component:** {component}
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Framework Version:** 3.0 (Phase 3)
+
+## Summary
+
+This report summarizes the enhanced TDD cycle results including traditional TDD, mutation testing, property-based testing, and performance testing.
+
+"""
+
+        # TDD Cycle Results
+        if "tdd_cycle" in results:
+            tdd = results["tdd_cycle"]
+            report_content += f"""## Traditional TDD Cycle
+
+- **Test Discovery:** {tdd.get('discovery', {}).get('total_files', 'N/A')} files, {tdd.get('discovery', {}).get('total_tests', 'N/A')} tests
+- **TDD Phase:** {tdd.get('tdd_execution', {}).get('status', 'N/A')}
+- **Contract Testing:** {tdd.get('contract_validation', {}).get('status', 'N/A')}
+
+"""
+
+        # Mutation Testing Results
+        if "mutation_testing" in results:
+            mutation = results["mutation_testing"]
+            report_content += f"""## Mutation Testing Results
+
+- **Overall Score:** {mutation.get('overall_score', 0):.1f}%
+- **Total Mutations:** {mutation.get('total_mutations', 0)}
+- **Killed:** {mutation.get('total_killed', 0)}
+- **Survived:** {mutation.get('total_survived', 0)}
+- **Quality Gates:** {'PASSED' if mutation.get('quality_gates_passed', False) else 'FAILED'}
+
+"""
+
+        # Property Testing Results
+        if "property_testing" in results:
+            property_tests = results["property_testing"]
+            report_content += f"""## Property-Based Testing Results
+
+- **Total Tests:** {property_tests.get('total_tests', 0)}
+- **Passed:** {property_tests.get('passed_tests', 0)}
+- **Failed:** {property_tests.get('failed_tests', 0)}
+- **Total Examples:** {property_tests.get('total_examples', 0)}
+
+"""
+
+        # Performance Testing Results
+        if "performance_testing" in results:
+            performance = results["performance_testing"]
+            report_content += f"""## Performance Testing Results
+
+- **Total Tests:** {performance.get('total_tests', 0)}
+- **SLA Passed:** {performance.get('sla_passed', 0)}
+- **SLA Failed:** {performance.get('sla_failed', 0)}
+
+"""
+
+        report_content += """
+## Recommendations
+
+Based on the enhanced TDD cycle results:
+
+1. **Test Quality:** Review any failing mutation or property tests
+2. **Performance:** Address any SLA violations if performance testing was included
+3. **Coverage:** Ensure comprehensive test coverage across all testing types
+4. **Continuous Improvement:** Use these results to enhance test strategies
+
+---
+*Generated by FXML4 Claude TDD Automation Framework v3.0*
+"""
+
+        with open(report_file, "w") as f:
+            f.write(report_content)
+
+        print(f"\\n📊 Enhanced cycle report generated: {report_file}")
+
     def setup_contract_testing(self) -> Dict[str, Any]:
         """Set up contract testing for all components"""
         print("\\n📋 Setting Up Contract Testing")
@@ -343,38 +629,48 @@ class ClaudeTDDFramework:
 def create_demo_workflow():
     """Create a demonstration workflow"""
     return """
-# FXML4 Claude TDD Demo Workflow
+# FXML4 Claude TDD Demo Workflow v3.0
 
-This demonstrates the complete Claude TDD automation framework:
+This demonstrates the complete Claude TDD automation framework with Phase 3 enhancements:
 
 ## 1. Test Discovery
 ```bash
 python .claude-tdd/claude_tdd_main.py discover
 ```
 
-## 2. Run Full TDD Cycle (Core Component)
+## 2. Run Traditional TDD Cycle
 ```bash
 python .claude-tdd/claude_tdd_main.py cycle core --category unit
 ```
 
-## 3. Run Mutation Testing
+## 3. Phase 3a: Mutation Testing
 ```bash
 python .claude-tdd/claude_tdd_main.py mutate core
 ```
 
-## 4. Set Up Contract Testing
+## 4. Phase 3b: Property-Based Testing
+```bash
+python .claude-tdd/claude_tdd_main.py property core
+```
+
+## 5. Phase 3c: Performance Testing
+```bash
+python .claude-tdd/claude_tdd_main.py performance core --performance-config light_load
+```
+
+## 6. Enhanced TDD Cycle (All Phase 3 Features)
+```bash
+python .claude-tdd/claude_tdd_main.py enhanced-cycle core --include-performance
+```
+
+## 7. Set Up Contract Testing
 ```bash
 python .claude-tdd/claude_tdd_main.py contracts
 ```
 
-## 5. View Project Status
+## 8. View Project Status
 ```bash
 python .claude-tdd/claude_tdd_main.py status
-```
-
-## 6. Full Automated Workflow
-```bash
-python .claude-tdd/claude_tdd_main.py full-auto core
 ```
 
 ## Integration with Claude Code
@@ -388,11 +684,14 @@ The framework integrates with Claude Code through:
 ## Financial Trading System Features
 
 - Risk management testing validation
-- Financial calculation precision testing
+- Financial calculation precision testing with property-based testing
 - Security and compliance test patterns
-- Real-time performance testing
+- Real-time performance testing with SLA validation
 - Elliott Wave analysis integration
 - Multi-broker compatibility testing
+- Mutation testing for financial calculation robustness
+- Property-based testing for mathematical invariants
+- Performance testing for trading system latency requirements
 """
 
 
@@ -410,6 +709,9 @@ async def main():
             "discover",
             "cycle",
             "mutate",
+            "property",
+            "performance",
+            "enhanced-cycle",
             "contracts",
             "status",
             "cleanup",
@@ -453,6 +755,33 @@ async def main():
         help="Output format for reports",
     )
 
+    parser.add_argument(
+        "--performance-config",
+        default="light_load",
+        choices=["light_load", "peak_load", "stress_test", "endurance_test"],
+        help="Performance test configuration",
+    )
+
+    parser.add_argument(
+        "--include-mutation",
+        action="store_true",
+        default=True,
+        help="Include mutation testing in enhanced cycle",
+    )
+
+    parser.add_argument(
+        "--include-property",
+        action="store_true",
+        default=True,
+        help="Include property testing in enhanced cycle",
+    )
+
+    parser.add_argument(
+        "--include-performance",
+        action="store_true",
+        help="Include performance testing in enhanced cycle",
+    )
+
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
 
     args = parser.parse_args()
@@ -472,6 +801,26 @@ async def main():
 
         elif args.command == "mutate":
             result = await framework.run_mutation_testing(args.component)
+
+        elif args.command == "property":
+            result = await framework.run_property_testing(args.component)
+
+        elif args.command == "performance":
+            result = await framework.run_performance_testing(
+                args.component, args.performance_config
+            )
+
+        elif args.command == "enhanced-cycle":
+            if not args.component:
+                print("Error: Component required for enhanced-cycle command")
+                return 1
+            result = await framework.run_enhanced_tdd_cycle(
+                args.component,
+                args.category,
+                args.include_mutation,
+                args.include_property,
+                args.include_performance,
+            )
 
         elif args.command == "contracts":
             result = framework.setup_contract_testing()

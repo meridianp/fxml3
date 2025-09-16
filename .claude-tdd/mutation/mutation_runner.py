@@ -230,18 +230,47 @@ class MutationTestingRunner:
             print("Installing mutmut...")
             subprocess.run(["pip", "install", "mutmut"], check=True)
 
+        # Clear any previous mutmut cache
+        mutmut_cache = self.project_root / ".mutmut-cache"
+        if mutmut_cache.exists():
+            import shutil
+
+            shutil.rmtree(mutmut_cache)
+            print("Cleared previous mutmut cache")
+
         start_time = time.time()
 
         try:
-            # Run mutmut
+            # Get mutation configuration for component
+            mutation_config = self.config["mutation"]
+            component_config = self.config["components"][component]
+
+            # Build mutmut command with advanced options
             cmd = [
                 "mutmut",
                 "run",
                 "--paths-to-mutate",
                 mutation_paths,
                 "--tests-dir",
-                f"{self.config['components'][component]['path']}/tests",
+                "tests",  # Use relative path from project root
+                "--runner",
+                "python -m pytest -x",  # Stop on first failure for speed
+                "--rerun-all",  # Ensure clean state
             ]
+
+            # Add CI-friendly options
+            if mutation_config.get("ci_mode", False):
+                cmd.extend(["--no-progress", "--simple-output"])
+
+            # Add test selection for component-specific tests
+            test_patterns = component_config.get("test_paths", ["tests/"])
+            if test_patterns:
+                # Use pytest marker or path filtering
+                pytest_args = " ".join(
+                    [f"tests/" for pattern in test_patterns if "tests" in pattern]
+                )
+                if pytest_args:
+                    cmd[-1] = f"python -m pytest -x {pytest_args.strip()}"
 
             result = subprocess.run(
                 cmd,
