@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fxml4.api.events import setup_events
 from fxml4.api.middleware.security import SecurityMiddleware
 from fxml4.api.routers import (
+    auth_tdd_router,
     backtest_router,
     core_router,
     data_router,
@@ -105,6 +106,10 @@ app.include_router(core_router)
 
 # Include legacy auth routes for backward compatibility
 app.include_router(legacy_auth_router)
+
+# Include TDD-validated authentication routes
+if auth_tdd_router:
+    app.include_router(auth_tdd_router)
 
 # Include functional routes (only if they loaded successfully)
 if data_router:

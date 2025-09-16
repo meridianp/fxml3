@@ -7,6 +7,12 @@ This package contains all the API route handlers organized by functionality.
 from .core import router as core_router
 from .legacy_auth import router as legacy_auth_router
 
+# Import TDD-validated authentication router
+try:
+    from .auth_tdd import router as auth_tdd_router
+except ImportError:
+    auth_tdd_router = None
+
 # Import other routers conditionally to avoid import errors during development
 try:
     from .data import router as data_router
@@ -35,4 +41,5 @@ __all__ = [
     "backtest_router",
     "performance_router",
     "legacy_auth_router",
+    "auth_tdd_router",
 ]
