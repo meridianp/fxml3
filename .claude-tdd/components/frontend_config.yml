@@ -1,0 +1,201 @@
+# FXML4 Frontend Component TDD Configuration
+# Specialized configuration for Next.js trading dashboard
+
+component:
+  name: "frontend"
+  path: "fxml4-ui/"
+  language: "typescript"
+  framework: "nextjs"
+
+# Frontend specific test configuration
+testing:
+  framework: "jest"
+  additional_frameworks: ["cypress", "playwright", "testing-library"]
+
+  # Frontend test paths
+  test_paths:
+    critical: ["src/__tests__/critical/", "cypress/e2e/critical/"]
+    primary: ["src/__tests__/", "src/components/__tests__/"]
+    secondary: ["cypress/e2e/", "src/pages/__tests__/"]
+    integration: ["cypress/integration/", "__tests__/integration/"]
+
+  # Frontend specific markers
+  markers:
+    # UI/UX testing
+    - "ui"           # User interface components
+    - "e2e"          # End-to-end user flows
+    - "critical"     # Critical user workflows
+    - "accessibility" # A11y compliance
+
+    # Component testing
+    - "component"    # React component tests
+    - "hooks"        # React hooks testing
+    - "utils"        # Utility functions
+    - "integration"  # Component integration
+
+    # Trading UI specific
+    - "dashboard"    # Trading dashboard
+    - "charts"       # Chart components
+    - "orders"       # Order management UI
+    - "portfolio"    # Portfolio display
+
+    # Performance and UX
+    - "performance"  # Frontend performance
+    - "responsive"   # Responsive design
+    - "visual_regression" # Visual regression tests
+
+  # Frontend test execution patterns
+  execution:
+    unit_tests: ["component", "hooks", "utils"]
+    integration_tests: ["integration", "dashboard", "e2e"]
+    critical_path_tests: ["critical", "orders", "dashboard"]
+
+# TDD cycles for frontend
+tdd_cycles:
+  red_phase:
+    focus: ["component", "critical", "ui"]
+    max_duration: 180  # 3 minutes (fast feedback)
+
+  green_phase:
+    focus: ["component", "integration", "dashboard"]
+    max_duration: 300  # 5 minutes
+
+  refactor_phase:
+    focus: ["performance", "accessibility", "responsive"]
+    max_duration: 600  # 10 minutes
+
+# Frontend specific validations
+frontend_controls:
+  # Trading UI specific validations
+  real_time_data_display: true
+  price_precision_display: true
+  order_status_accuracy: true
+  portfolio_calculation_display: true
+
+  # User experience validations
+  loading_state_handling: true
+  error_boundary_coverage: true
+  form_validation_comprehensive: true
+  responsive_design_compliance: true
+
+  # Security for frontend
+  xss_prevention: true
+  csrf_protection: true
+  secure_api_communication: true
+  sensitive_data_masking: true
+
+# Performance targets for frontend
+performance_targets:
+  # Core Web Vitals
+  largest_contentful_paint: 2500ms
+  first_input_delay: 100ms
+  cumulative_layout_shift: 0.1
+
+  # Trading specific performance
+  chart_render_time: 1000ms
+  real_time_update_latency: 200ms
+  order_submission_time: 500ms
+  dashboard_load_time: 3000ms
+
+  # Bundle size targets
+  main_bundle_size: 250kb
+  total_bundle_size: 1mb
+
+# Mutation testing for frontend
+mutation_testing:
+  target_score: 80  # Frontend typically has lower mutation scores
+  critical_areas:
+    - "src/components/trading/"
+    - "src/components/dashboard/"
+    - "src/hooks/"
+    - "src/utils/"
+
+  frontend_operators:
+    - "ArithmeticOperator"
+    - "BooleanLiteral"
+    - "ConditionalExpression"
+    - "EqualityOperator"
+    - "LogicalOperator"
+    - "ObjectLiteral"
+    - "StringLiteral"
+
+# Frontend quality gates
+frontend_quality_gates:
+  # Code coverage
+  test_coverage_minimum: 80
+  component_coverage_minimum: 90
+
+  # Accessibility
+  wcag_compliance_level: "AA"
+  color_contrast_minimum: 4.5
+
+  # Performance
+  lighthouse_performance_score: 90
+  lighthouse_accessibility_score: 95
+  lighthouse_best_practices_score: 90
+
+  # Bundle analysis
+  bundle_size_regression_check: true
+  unused_dependencies_check: true
+
+# Visual regression testing
+visual_testing:
+  enabled: true
+  tools: ["percy", "chromatic"]
+
+  critical_screens:
+    - "dashboard"
+    - "order_entry"
+    - "portfolio_overview"
+    - "chart_analysis"
+
+  responsive_breakpoints:
+    - "mobile"     # 375px
+    - "tablet"     # 768px
+    - "desktop"    # 1024px
+    - "wide"       # 1440px
+
+# E2E testing configuration
+e2e_testing:
+  framework: "cypress"
+
+  critical_user_flows:
+    - "user_login_flow"
+    - "place_order_flow"
+    - "view_portfolio_flow"
+    - "analyze_charts_flow"
+    - "risk_management_flow"
+
+  test_data:
+    mock_api_responses: true
+    test_user_accounts: true
+    sample_market_data: true
+
+# Component testing patterns
+component_testing:
+  testing_library_patterns: true
+
+  test_patterns:
+    - "render_without_crashing"
+    - "displays_correct_content"
+    - "handles_user_interactions"
+    - "manages_loading_states"
+    - "handles_error_states"
+    - "updates_on_prop_changes"
+
+# Trading UI specific testing
+trading_ui_testing:
+  # Real-time data testing
+  websocket_connection_mocking: true
+  real_time_price_updates: true
+  order_status_changes: true
+
+  # Financial data precision
+  decimal_precision_testing: true
+  currency_formatting_testing: true
+  percentage_calculation_testing: true
+
+  # Chart component testing
+  chart_data_rendering: true
+  chart_interaction_testing: true
+  technical_indicator_display: true

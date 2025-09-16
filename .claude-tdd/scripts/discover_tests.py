@@ -271,12 +271,16 @@ class TestDiscovery:
         """Determine test category from markers and file path"""
         category_mapping = self.config["tdd"]["test_categories"]
 
-        # Check markers first
+        # Check markers first - prioritize critical tests
+        if any(marker in ["critical", "mandatory"] for marker in markers):
+            return "critical"
+
+        # Check for specific test types
         for category, category_markers in category_mapping.items():
             if any(marker in markers for marker in category_markers):
                 return category
 
-        # Fallback to path-based detection
+        # Enhanced path-based detection for FXML4 structure
         if "/unit/" in file_path or "test_unit_" in file_path:
             return "unit"
         elif "/integration/" in file_path or "test_integration_" in file_path:
@@ -285,6 +289,18 @@ class TestDiscovery:
             return "performance"
         elif "/security/" in file_path or "test_security_" in file_path:
             return "security"
+        elif "/critical/" in file_path or "test_critical_" in file_path:
+            return "critical"
+        elif "/api/" in file_path or "test_api_" in file_path:
+            return "integration"
+        elif "/stress/" in file_path or "test_stress_" in file_path:
+            return "performance"
+        elif "/e2e/" in file_path or "test_e2e_" in file_path:
+            return "e2e"
+        elif "/ml/" in file_path or "test_ml_" in file_path:
+            return "ml"
+        elif "/wave/" in file_path or "wave_analysis" in file_path:
+            return "ml"
 
         return "unit"  # default
 
@@ -310,18 +326,33 @@ class TestDiscovery:
             "security": 5.0,
             "ml": 15.0,
             "trading": 8.0,
-            "financial": 3.0,
+            "critical": 1.0,
+            "e2e": 30.0,
+            "external_deps": 5.0,
+            "database": 2.0,
+            "real_time": 12.0,
+            "infrastructure": 8.0,
         }
 
         duration = base_duration.get(category, 1.0)
 
-        # Adjust based on markers
+        # Adjust based on FXML4-specific markers
         if "slow" in markers:
             duration *= 5
         if "stress" in markers:
             duration *= 10
         if "requires_ib" in markers or "requires_fxcm" in markers:
             duration *= 3
+        if "requires_db" in markers:
+            duration *= 2
+        if "requires_rabbitmq" in markers:
+            duration *= 2.5
+        if "critical" in markers or "mandatory" in markers:
+            duration *= 0.8  # Critical tests should be fast
+        if "concurrency" in markers:
+            duration *= 4
+        if "production" in markers:
+            duration *= 0.5  # Read-only production tests
 
         return duration
 

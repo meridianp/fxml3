@@ -10,30 +10,30 @@ project:
 # Monorepo component structure
 components:
   core:
-    path: "core/"
+    path: "./"
     language: "python"
     framework: "fastapi"
     test_framework: "pytest"
-    test_paths: ["tests/unit/", "tests/integration/", "tests/performance/"]
+    test_paths: ["tests/unit/", "tests/integration/", "tests/performance/", "tests/security/", "tests/api/", "tests/critical/", "tests/stress/", "tests/"]
     entry_points: ["fxml4/api/main.py"]
-    dependencies: ["requirements/base.txt", "requirements/production.txt"]
+    dependencies: ["requirements-dev.txt", "requirements.txt"]
 
   elliott_wave:
-    path: "elliott_wave/"
+    path: "./"
     language: "python"
-    framework: "custom"
+    framework: "scientific"
     test_framework: "pytest"
-    test_paths: ["tests/"]
-    entry_points: ["main.py"]
-    dependencies: ["requirements/elliott-wave.txt"]
+    test_paths: ["tests/unit/wave_analysis/", "tests/integration/", "tests/ml/", "tests/"]
+    entry_points: ["fxml4/wave_analysis/", "fxml4/ml/"]
+    dependencies: ["requirements-dev.txt", "requirements.txt"]
 
   frontend:
-    path: "frontend/"
+    path: "fxml4-ui/"
     language: "typescript"
     framework: "nextjs"
     test_framework: "jest"
-    test_paths: ["src/__tests__/", "tests/"]
-    entry_points: ["src/pages/", "src/components/"]
+    test_paths: ["src/__tests__/", "tests/", "cypress/", "__tests__/"]
+    entry_points: ["src/pages/", "src/components/", "src/app/"]
     dependencies: ["package.json"]
 
 # TDD Configuration
@@ -49,29 +49,52 @@ tdd:
     python: ["test_*.py", "*_test.py", "tests.py"]
     typescript: ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx"]
 
-  # Financial trading system specific test categories
+  # Financial trading system specific test categories (aligned with pytest.ini)
   test_categories:
+    # Core test types
     unit: ["unit", "fast"]
-    integration: ["integration", "api", "broker"]
-    performance: ["performance", "stress", "load"]
+    integration: ["integration", "api", "broker", "requires_db", "requires_api"]
+    e2e: ["e2e", "environment", "functional"]
+
+    # Critical prevention markers
+    critical: ["critical", "mandatory", "environment"]
+
+    # External dependencies
+    external_deps: ["requires_ib", "requires_fxcm", "requires_db", "requires_redis", "requires_rabbitmq", "requires_network"]
+
+    # Security and compliance
     security: ["security", "auth", "compliance"]
-    ml: ["ml", "ai", "prediction"]
-    trading: ["trading", "strategy", "signal"]
-    financial: ["financial", "risk", "portfolio"]
+
+    # System components
+    trading: ["trading", "backtesting", "fix_protocol", "broker", "risk_management"]
+    ml: ["ml", "wave"]
+    database: ["database"]
+
+    # Performance and reliability
+    performance: ["performance", "stress", "monitoring", "concurrency"]
+
+    # Environment-specific
+    environment: ["production", "staging", "local"]
+
+    # Data processing
+    real_time: ["real_time", "rabbitmq"]
+
+    # System architecture
+    infrastructure: ["infrastructure", "ui"]
 
 # Mutation Testing Configuration
 mutation:
   enabled: true
   python:
     engine: "mutmut"
-    targets: ["core/fxml4/", "elliott_wave/"]
-    exclude_patterns: ["**/tests/", "**/__pycache__/", "**/migrations/"]
+    targets: ["fxml4/", "scripts/"]
+    exclude_patterns: ["**/tests/", "**/__pycache__/", "**/migrations/", "**/archive/", "**/logs/"]
     operators: ["AOR", "AOD", "ASR", "BCR", "BOR", "COD", "COI", "CRP", "DDL", "EHD", "EXS", "IHD", "IOD", "IOP", "LCR", "LOD", "LOR", "ROR", "SCD", "SCI", "SIR"]
 
   typescript:
     engine: "stryker"
-    targets: ["frontend/src/"]
-    exclude_patterns: ["**/*.test.*", "**/*.spec.*", "**/node_modules/"]
+    targets: ["fxml4-ui/src/"]
+    exclude_patterns: ["**/*.test.*", "**/*.spec.*", "**/node_modules/", "**/.next/"]
 
   thresholds:
     minimum_score: 80

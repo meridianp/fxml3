@@ -1,0 +1,132 @@
+# FXML4 Elliott Wave Component TDD Configuration
+# Specialized configuration for wave analysis and ML integration
+
+component:
+  name: "elliott_wave"
+  path: "fxml4/"
+  language: "python"
+  framework: "scientific"
+
+# Elliott Wave specific test configuration
+testing:
+  framework: "pytest"
+
+  # Wave analysis test paths
+  test_paths:
+    critical: ["tests/unit/wave_analysis/", "tests/ml/"]
+    primary: ["tests/unit/wave_analysis/", "tests/integration/"]
+    secondary: ["tests/performance/", "tests/property_based/"]
+
+  # Elliott Wave specific markers
+  markers:
+    # Wave analysis core
+    - "wave"         # Elliott Wave functionality
+    - "ml"           # Machine learning models
+    - "critical"     # Critical wave detection
+    - "pattern"      # Pattern recognition
+
+    # ML and AI markers
+    - "training"     # Model training tests
+    - "inference"    # Model inference tests
+    - "prediction"   # Prediction accuracy tests
+    - "feature_engineering" # Feature processing
+
+    # Mathematical and statistical
+    - "statistical"  # Statistical analysis
+    - "mathematical" # Mathematical computations
+    - "numerical"    # Numerical stability
+
+    # Performance for ML workloads
+    - "performance"  # Performance benchmarks
+    - "memory"       # Memory usage tests
+    - "gpu"          # GPU acceleration tests
+
+  # Specialized test execution patterns
+  execution:
+    pattern_recognition_tests: ["wave", "pattern", "critical"]
+    ml_pipeline_tests: ["ml", "training", "inference"]
+    mathematical_validation: ["statistical", "mathematical", "numerical"]
+
+# TDD cycles for wave analysis
+tdd_cycles:
+  red_phase:
+    focus: ["wave", "critical", "pattern"]
+    max_duration: 450  # 7.5 minutes (more complex algorithms)
+
+  green_phase:
+    focus: ["wave", "ml", "pattern"]
+    max_duration: 900  # 15 minutes (ML training time)
+
+  refactor_phase:
+    focus: ["performance", "mathematical", "statistical"]
+    max_duration: 1200  # 20 minutes (optimization time)
+
+# Wave analysis specific validations
+wave_analysis_controls:
+  # Pattern validation
+  wave_count_validation: true
+  fibonacci_level_accuracy: true
+  trend_direction_consistency: true
+  time_cycle_validation: true
+
+  # ML model validation
+  overfitting_prevention: true
+  data_leakage_prevention: true
+  cross_validation_required: true
+  feature_importance_analysis: true
+
+  # Mathematical accuracy
+  floating_point_precision: true
+  numerical_stability_checks: true
+  edge_case_handling: true
+
+# Performance targets for ML/Wave analysis
+performance_targets:
+  pattern_detection_time: 2000ms  # 2 seconds
+  ml_inference_time: 500ms
+  feature_calculation_time: 1000ms
+  wave_count_analysis: 3000ms
+
+# Mutation testing for wave analysis
+mutation_testing:
+  target_score: 85  # Slightly lower due to complex algorithms
+  critical_areas:
+    - "fxml4/wave_analysis/"
+    - "fxml4/ml/"
+    - "fxml4/strategy/"
+
+  mathematical_operators:
+    # Critical for mathematical computations
+    - "AOR"  # Arithmetic operations
+    - "COD"  # Conditional logic
+    - "CRP"  # Constants (Fibonacci levels, etc.)
+    - "LCR"  # Logical operations
+    - "ROR"  # Relational operations
+
+# ML-specific quality gates
+ml_quality_gates:
+  model_accuracy_minimum: 0.75
+  cross_validation_score: 0.70
+  feature_stability_check: true
+  data_drift_detection: true
+  model_explainability_required: true
+
+# Property-based testing for wave analysis
+property_testing:
+  enabled: true
+  hypothesis_settings:
+    max_examples: 100
+    deadline: 10000  # 10 seconds per test
+
+  wave_properties:
+    # Elliott Wave rules that must always hold
+    - "wave_3_never_shortest"
+    - "wave_2_never_retraces_100_percent"
+    - "wave_4_never_overlaps_wave_1"
+    - "impulse_waves_have_5_subwaves"
+    - "corrective_waves_have_3_subwaves"
+
+  mathematical_properties:
+    - "fibonacci_ratios_consistency"
+    - "price_time_proportionality"
+    - "trend_momentum_conservation"

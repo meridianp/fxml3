@@ -1,0 +1,104 @@
+# FXML4 Core Component TDD Configuration
+# Specialized configuration for the main trading system
+
+component:
+  name: "core"
+  path: "fxml4/"
+  language: "python"
+  framework: "fastapi"
+
+# Core-specific test configuration
+testing:
+  framework: "pytest"
+
+  # Core component test paths with priorities
+  test_paths:
+    critical: ["tests/critical/", "tests/unit/api/", "tests/security/"]
+    primary: ["tests/unit/", "tests/integration/", "tests/api/"]
+    secondary: ["tests/performance/", "tests/stress/", "tests/ml/"]
+
+  # Core-specific test markers
+  markers:
+    # Critical business functionality
+    - "critical"      # Must-pass tests for deployment
+    - "mandatory"     # Core user workflows
+    - "trading"       # Trading functionality
+    - "api"          # API endpoints
+    - "auth"         # Authentication/authorization
+
+    # Core system components
+    - "broker"       # Broker integration
+    - "fix_protocol" # FIX protocol handling
+    - "risk_management" # Risk controls
+    - "backtesting"  # Backtesting engine
+    - "database"     # Database operations
+
+    # External dependencies
+    - "requires_ib"  # Interactive Brokers
+    - "requires_fxcm" # FXCM integration
+    - "requires_db"  # Database required
+    - "requires_rabbitmq" # Message queue
+
+  # Core-specific test execution patterns
+  execution:
+    fast_feedback_tests: ["unit", "critical", "mandatory"]
+    integration_tests: ["integration", "api", "broker"]
+    external_dependency_tests: ["requires_ib", "requires_fxcm", "requires_rabbitmq"]
+
+# TDD cycle configuration for core
+tdd_cycles:
+  red_phase:
+    focus: ["unit", "critical"]
+    max_duration: 300  # 5 minutes
+
+  green_phase:
+    focus: ["unit", "integration", "api"]
+    max_duration: 600  # 10 minutes
+
+  refactor_phase:
+    focus: ["performance", "security"]
+    max_duration: 900  # 15 minutes
+
+# Core component risk management in testing
+risk_controls:
+  # Financial system specific validations
+  precision_tests: true
+  currency_handling_tests: true
+  position_sizing_validation: true
+  drawdown_protection_tests: true
+
+  # Security validations
+  auth_bypass_prevention: true
+  sql_injection_prevention: true
+  rate_limiting_validation: true
+
+# Performance targets for core component
+performance_targets:
+  api_response_time: 500ms  # milliseconds
+  database_query_time: 100ms
+  order_processing_time: 200ms
+  risk_check_time: 50ms
+
+# Mutation testing for core
+mutation_testing:
+  target_score: 90
+  critical_areas:
+    - "fxml4/api/"
+    - "fxml4/brokers/"
+    - "fxml4/risk_management/"
+    - "fxml4/strategy/"
+
+  financial_operators:
+    # Operators particularly dangerous for financial systems
+    - "AOR"  # Arithmetic Operator Replacement
+    - "ASR"  # Assignment Statement Replacement
+    - "BCR"  # Break/Continue Replacement
+    - "COD"  # Conditional Operator Deletion
+    - "CRP"  # Constant Replacement
+
+# Code quality gates
+quality_gates:
+  test_coverage_minimum: 85
+  mutation_score_minimum: 80
+  security_scan_required: true
+  performance_regression_check: true

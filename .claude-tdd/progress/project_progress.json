@@ -1,0 +1,61 @@
+{
+  "project_name": "FXML4",
+  "version": "0.2.0",
+  "created_at": "2025-09-16 06:00:56.015801",
+  "last_updated": "2025-09-16 06:00:56.016260",
+  "component_progress": {
+    "core": [
+      {
+        "cycle_id": "core_cycle_1_1757988056",
+        "component": "core",
+        "cycle_number": 1,
+        "state": "ProgressState.FAILED",
+        "start_time": "2025-09-16 06:00:56.015830",
+        "last_update": "2025-09-16 06:00:59.782086",
+        "total_duration": 0.0,
+        "red_phase_completed": false,
+        "green_phase_completed": false,
+        "refactor_phase_completed": false,
+        "code_snapshots": [],
+        "test_snapshots": [],
+        "lines_of_code_added": 0,
+        "lines_of_code_modified": 0,
+        "tests_added": 0,
+        "tests_modified": 0,
+        "checkpoints": [
+          {
+            "name": "cycle_started",
+            "timestamp": "2025-09-16T06:00:56.015841",
+            "state": "initialized",
+            "cycle_id": "core_cycle_1_1757988056",
+            "metadata": {}
+          },
+          {
+            "name": "state_transition_initialized_to_failed",
+            "timestamp": "2025-09-16T06:00:59.782097",
+            "state": "failed",
+            "cycle_id": "core_cycle_1_1757988056",
+            "metadata": {
+              "tdd_result": "failed",
+              "final_phase": "red"
+            }
+          }
+        ],
+        "errors": [],
+        "metadata": {
+          "framework": "pytest",
+          "language": "python",
+          "tdd_result": "failed",
+          "final_phase": "red"
+        }
+      }
+    ]
+  },
+  "total_cycles": 1,
+  "successful_cycles": 0,
+  "failed_cycles": 1,
+  "total_test_coverage": 0.0,
+  "mutation_scores": {},
+  "contract_test_results": {},
+  "config_history": []
+}

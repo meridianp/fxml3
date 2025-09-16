@@ -1,0 +1,23 @@
+FXML4 API Contract Validation Report
+=============================================
+Generated: 2025-09-16T06:01:21.544360
+
+SUMMARY
+--------------------
+Total Contracts Tested: 4
+Successful Validations: 0
+Failed Validations: 4
+Success Rate: 0.0%
+
+Average Response Time: 0.002s
+
+DETAILED RESULTS
+--------------------
+✗ FAIL core:/health (GET) - 0.002s
+      Message: Request failed: HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x777d48e6e570>: Failed to establish a new connection: [Errno 111] Connection refused'))
+✗ FAIL core:/api/v1/elliott-wave/analyze (POST) - 0.003s
+      Message: Request failed: HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /api/v1/elliott-wave/analyze (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x777d48e6ecf0>: Failed to establish a new connection: [Errno 111] Connection refused'))
+✗ FAIL core:/api/v1/signals/generate (POST) - 0.003s
+      Message: Request failed: HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /api/v1/signals/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x777d48e95c40>: Failed to establish a new connection: [Errno 111] Connection refused'))
+✗ FAIL core:/api/v1/portfolio/status (GET) - 0.001s
+      Message: Request failed: HTTPConnectionPool(host='localhost', port=8001): Max retries exceeded with url: /api/v1/portfolio/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x777d48e96420>: Failed to establish a new connection: [Errno 111] Connection refused'))
