@@ -1,0 +1,196 @@
+# FXML4 Claude TDD Automation Configuration
+# Comprehensive configuration for automated Test-Driven Development
+
+project:
+  name: "FXML4"
+  version: "0.2.0"
+  type: "monorepo"
+  architecture: "financial-trading-system"
+
+# Monorepo component structure
+components:
+  core:
+    path: "core/"
+    language: "python"
+    framework: "fastapi"
+    test_framework: "pytest"
+    test_paths: ["tests/unit/", "tests/integration/", "tests/performance/"]
+    entry_points: ["fxml4/api/main.py"]
+    dependencies: ["requirements/base.txt", "requirements/production.txt"]
+
+  elliott_wave:
+    path: "elliott_wave/"
+    language: "python"
+    framework: "custom"
+    test_framework: "pytest"
+    test_paths: ["tests/"]
+    entry_points: ["main.py"]
+    dependencies: ["requirements/elliott-wave.txt"]
+
+  frontend:
+    path: "frontend/"
+    language: "typescript"
+    framework: "nextjs"
+    test_framework: "jest"
+    test_paths: ["src/__tests__/", "tests/"]
+    entry_points: ["src/pages/", "src/components/"]
+    dependencies: ["package.json"]
+
+# TDD Configuration
+tdd:
+  # Red-Green-Refactor cycle configuration
+  cycle:
+    red_timeout: 30  # seconds to wait for failing tests
+    green_timeout: 300  # seconds to implement passing code
+    refactor_timeout: 180  # seconds for refactoring phase
+
+  # Test discovery patterns
+  test_patterns:
+    python: ["test_*.py", "*_test.py", "tests.py"]
+    typescript: ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx"]
+
+  # Financial trading system specific test categories
+  test_categories:
+    unit: ["unit", "fast"]
+    integration: ["integration", "api", "broker"]
+    performance: ["performance", "stress", "load"]
+    security: ["security", "auth", "compliance"]
+    ml: ["ml", "ai", "prediction"]
+    trading: ["trading", "strategy", "signal"]
+    financial: ["financial", "risk", "portfolio"]
+
+# Mutation Testing Configuration
+mutation:
+  enabled: true
+  python:
+    engine: "mutmut"
+    targets: ["core/fxml4/", "elliott_wave/"]
+    exclude_patterns: ["**/tests/", "**/__pycache__/", "**/migrations/"]
+    operators: ["AOR", "AOD", "ASR", "BCR", "BOR", "COD", "COI", "CRP", "DDL", "EHD", "EXS", "IHD", "IOD", "IOP", "LCR", "LOD", "LOR", "ROR", "SCD", "SCI", "SIR"]
+
+  typescript:
+    engine: "stryker"
+    targets: ["frontend/src/"]
+    exclude_patterns: ["**/*.test.*", "**/*.spec.*", "**/node_modules/"]
+
+  thresholds:
+    minimum_score: 80
+    target_score: 90
+
+# Contract Testing Configuration
+contract:
+  enabled: true
+  provider_verification: true
+  consumer_verification: true
+
+  contracts:
+    api_core:
+      provider: "core"
+      consumers: ["frontend"]
+      contract_dir: ".claude-tdd/pact/contracts/"
+
+    elliott_integration:
+      provider: "elliott_wave"
+      consumers: ["core"]
+      contract_dir: ".claude-tdd/pact/contracts/"
+
+# Progress Preservation
+progress:
+  enabled: true
+  storage_type: "json"
+  storage_path: ".claude-tdd/progress/"
+  auto_backup: true
+  backup_interval: 300  # seconds
+
+  synthesis:
+    enabled: true
+    incremental: true
+    checkpoint_frequency: 10  # tests
+    rollback_on_failure: true
+
+# Claude Code Integration
+claude:
+  orchestration:
+    enabled: true
+    auto_commit: false  # require explicit approval
+    parallel_execution: true
+    max_parallel_components: 3
+
+  agents:
+    tdd_orchestrator: "tdd-sre-pipeline-fixer"
+    code_reviewer: "general-purpose"
+    test_generator: "general-purpose"
+    security_analyzer: "general-purpose"
+
+  workflows:
+    full_cycle: ["discover", "red", "green", "refactor", "verify"]
+    quick_cycle: ["red", "green", "verify"]
+    security_cycle: ["discover", "security", "red", "green", "verify"]
+
+# External Tool Integration
+tools:
+  pytest:
+    markers: ["unit", "integration", "performance", "security", "ml", "trading", "financial", "auth", "compliance", "stress", "slow", "requires_ib", "requires_fxcm"]
+    coverage_target: 85
+    parallel_workers: "auto"
+
+  jest:
+    test_environment: "jsdom"
+    coverage_target: 80
+
+  pre_commit:
+    enabled: true
+    auto_fix: true
+
+  docker:
+    enabled: true
+    test_isolation: true
+
+# Financial Trading System Specific Configuration
+financial:
+  # Risk management testing requirements
+  risk_testing:
+    mandatory_tests: ["position_sizing", "drawdown_limits", "stop_loss", "take_profit"]
+    stress_scenarios: ["market_crash", "gap_trading", "low_liquidity"]
+
+  # Compliance testing
+  compliance:
+    frameworks: ["MiFID_II", "EMIR", "Dodd_Frank"]
+    audit_logging: true
+
+  # Security requirements
+  security:
+    authentication_testing: true
+    authorization_testing: true
+    encryption_testing: true
+    audit_trail_testing: true
+
+# Environment Configuration
+environments:
+  development:
+    database_url: "postgresql://localhost:5432/fxml4_dev"
+    redis_url: "redis://localhost:6379/0"
+    broker_simulation: true
+
+  testing:
+    database_url: "sqlite:///:memory:"
+    redis_url: "redis://localhost:6379/1"
+    broker_simulation: true
+
+  staging:
+    database_url: "${FXML4_STAGING_DB_URL}"
+    redis_url: "${FXML4_STAGING_REDIS_URL}"
+    broker_simulation: true
+
+  production:
+    database_url: "${FXML4_PROD_DB_URL}"
+    redis_url: "${FXML4_PROD_REDIS_URL}"
+    broker_simulation: false
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: ".claude-tdd/logs/tdd-automation.log"
+  max_size: "10MB"
+  backup_count: 5
