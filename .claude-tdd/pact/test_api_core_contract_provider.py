@@ -4,13 +4,12 @@ Provider test for api_core_contract
 Generated automatically by FXML4 Claude TDD framework
 """
 
+import pytest
+from pact.verifier import Verifier
 import subprocess
 import time
-from pathlib import Path
-
-import pytest
 import requests
-from pact.verifier import Verifier
+from pathlib import Path
 
 
 class TestApiCoreContractProvider:

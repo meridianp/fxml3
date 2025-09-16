@@ -1,0 +1,73 @@
+⚠️  Property testing not available - install hypothesis: pip install hypothesis
+⚠️  ML-Enhanced Testing not available - install requirements_phase5.txt
+Error loading project progress: 'ProgressState.FAILED' is not a valid ProgressState
+Creating new project progress...
+🤖 FXML4 Claude TDD Automation Framework v5.0 Initialized
+✅ Enhanced with Advanced Mutation Testing, Performance Testing, CI/CD Pipeline Integration
+================================================================================
+\n🔍 Discovering Tests Across All Components
+----------------------------------------
+Discovering tests for component: core
+Discovering tests for component: elliott_wave
+Discovering tests for component: frontend
+
+============================================================
+FXML4 Test Discovery Summary
+============================================================
+Total Test Files: 632
+Total Test Cases: 16277
+Estimated Duration: 6341.2 seconds
+
+CORE Component:
+  Language: python
+  Framework: pytest
+  Files: 360
+  Tests: 9412
+  Duration: 3792.4s
+
+ELLIOTT_WAVE Component:
+  Language: python
+  Framework: pytest
+  Files: 272
+  Tests: 6865
+  Duration: 2548.8s
+
+FRONTEND Component:
+  Language: typescript
+  Framework: jest
+  Files: 0
+  Tests: 0
+  Duration: 0.0s
+
+Discovery results exported to: .claude-tdd/discovery_results.json
+\n============================================================
+RESULTS
+============================================================
+{
+  "test_suites": {
+    "core": {
+      "component": "core",
+      "language": "python",
+      "framework": "pytest",
+      "total_files": 360,
+      "total_tests": 9412,
+      "estimated_duration": 3792.4
+    },
+    "elliott_wave": {
+      "component": "elliott_wave",
+      "language": "python",
+      "framework": "pytest",
+      "total_files": 272,
+      "total_tests": 6865,
+      "estimated_duration": 2548.8
+    },
+    "frontend": {
+      "component": "frontend",
+      "language": "typescript",
+      "framework": "jest",
+      "total_files": 0,
+      "total_tests": 0,
+      "estimated_duration": 0
+    }
+  }
+}

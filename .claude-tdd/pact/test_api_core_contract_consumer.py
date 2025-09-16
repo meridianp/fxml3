@@ -4,11 +4,10 @@ Consumer test for api_core_contract
 Generated automatically by FXML4 Claude TDD framework
 """
 
-import json
-
 import pytest
 import requests
-from pact import Consumer, EachLike, Like, Provider, Term
+import json
+from pact import Consumer, Provider, Like, EachLike, Term
 from pact.verifier import Verifier
 
 # Pact setup
@@ -74,10 +73,7 @@ class TestApiCoreContractContract:
             method="POST",
             path="/auth/login",
             headers={"Content-Type": "application/json"},
-            body={
-                "username": "trader@fxml4.com",
-                "pass": "demo123",
-            },
+            body={"username": "trader@fxml4.com", "password": "secure_password"},
         ).will_respond_with(
             status=200,
             headers={"Content-Type": "application/json"},
@@ -91,7 +87,7 @@ class TestApiCoreContractContract:
                 path="/auth/login",
                 headers={"Content-Type": "application/json"},
                 params={},
-                json={"username": "trader@fxml4.com", "pass": "demo123"},
+                json={"username": "trader@fxml4.com", "password": "secure_password"},
             )
 
         # Then

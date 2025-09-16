@@ -1,0 +1,10 @@
+{
+  "name": "state_transition_initialized_to_failed",
+  "timestamp": "2025-09-16T11:27:19.335832",
+  "state": "failed",
+  "cycle_id": "core_cycle_1_1758007635",
+  "metadata": {
+    "tdd_result": "failed",
+    "final_phase": "red"
+  }
+}
