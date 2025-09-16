@@ -69,6 +69,51 @@ repos:
         args: [--baseline, .secrets.baseline]
         exclude: ^(archive/|tests/fixtures/|\.git/)
 
+  # ==================== TDD ENFORCEMENT ====================
+
+  # Custom TDD hooks to enforce test-first development
+  - repo: local
+    hooks:
+      # Run fast unit tests on commit
+      - id: run-python-unit-tests
+        name: TDD - Run Python unit tests
+        entry: python -m pytest tests/unit -x --tb=short --quiet -m "not slow"
+        language: system
+        pass_filenames: false
+        files: ^(core/.*\.py|tests/unit/.*\.py)$
+        stages: [commit]
+
+      # Check test coverage meets minimum threshold
+      - id: check-test-coverage
+        name: TDD - Verify test coverage >= 80%
+        entry: python -m pytest tests/unit --cov=core --cov-fail-under=80 --quiet --no-header
+        language: system
+        pass_filenames: false
+        files: ^(core/.*\.py|tests/.*\.py)$
+        stages: [push]
+
+      # Ensure no .only() in test files
+      - id: no-test-only
+        name: TDD - No .only() in tests
+        entry: "(?:describe|test|it)\\.only\\("
+        language: pygrep
+        files: \.(test|spec)\.(js|jsx|ts|tsx)$
+
+      # Check for skipped tests
+      - id: no-skip-tests
+        name: TDD - No @pytest.mark.skip without reason
+        entry: "@pytest\\.mark\\.skip(?!\\(reason=)"
+        language: pygrep
+        files: ^tests/.*\.py$
+
+      # Verify test files exist for source files
+      - id: tests-must-exist
+        name: TDD - Tests must exist for source files
+        entry: scripts/check_test_exists.py
+        language: python
+        files: ^core/(?!tests/).*\.py$
+        exclude: ^(core/__init__|.*conftest|.*fixtures)
+
 # ==================== CONFIGURATION ====================
 
 default_language_version:

@@ -152,6 +152,106 @@ make test-performance  # Performance regression tests
 pytest tests/ -m "stress" --durations=10
 ```
 
+### 🤖 AI-Enhanced TDD Framework
+
+FXML4 includes an advanced AI-powered testing framework that provides intelligent test analysis, predictive insights, and automated optimization recommendations:
+
+#### Quick Start with AI Testing
+
+```bash
+# Run tests with AI analysis enabled
+npm test                    # Jest automatically uses AI reporter
+npm run test:ai-analysis    # Generate comprehensive AI insights
+npm run test:dashboard      # View AI dashboard at http://localhost:3001
+
+# Generate AI test scenarios
+npm run generate:test-scenarios    # Create AI-powered test cases
+```
+
+#### AI Framework Components
+
+**1. Intelligent Test Analysis** (`src/ai-testing/AITestAnalyzer.ts`)
+- Automatically analyzes test execution patterns
+- Identifies performance degradation and reliability issues
+- Generates actionable optimization recommendations
+- Maintains comprehensive audit trails for financial compliance
+
+**2. AI Test Data Generator** (`src/ai-testing/AITestDataGenerator.ts`)
+- Creates sophisticated trading scenarios with realistic market conditions
+- Generates edge cases based on financial domain expertise
+- Produces smart test data with complex market relationships
+
+**3. Interactive Dashboard** (`src/components/AITestDashboard.tsx`)
+- Visual insights into test performance and AI recommendations
+- Human-in-the-loop approval workflow for AI suggestions
+- Real-time monitoring of test effectiveness metrics
+
+**4. Safety & Compliance Framework** (`src/ai-testing/AITestSafetyFramework.ts`)
+- Validates all AI-generated content against safety rules
+- Ensures financial regulatory compliance
+- Provides audit trails for all AI decisions and human approvals
+
+#### AI Testing Workflow
+
+```typescript
+// 1. AI automatically collects test data via Jest reporter
+// 2. Pattern analysis identifies optimization opportunities
+const insights = aiTestAnalyzer.getInsights({ minConfidence: 70 });
+
+// 3. Generate AI-powered test scenarios
+const scenario = aiTestDataGenerator.generateTradingScenario({
+  complexity: 7,
+  riskLevel: 'high',
+  duration: 45
+});
+
+// 4. Validate through safety framework
+const validation = aiTestSafetyFramework.validateContent(
+  'scenario_1',
+  scenario,
+  'scenario_generation'
+);
+
+// 5. Human approval for high-impact recommendations
+if (insights.some(i => i.severity === 'critical')) {
+  // Dashboard shows approval interface
+  aiTestSafetyFramework.requestApproval(userId, 'insight_approval', insight);
+}
+```
+
+#### Configuration
+
+AI features are configured through `jest.config.js`:
+
+```javascript
+reporters: [
+  'default',
+  ['<rootDir>/src/ai-testing/JestAIReporter.ts', {
+    outputPath: './ai-testing-reports',
+    enableRealTimeAnalysis: true,
+    minimumTestsForAnalysis: 5
+  }]
+]
+```
+
+#### AI Insights Dashboard
+
+Access the AI testing dashboard at `http://localhost:3001/ai-dashboard` to:
+
+- **View AI-Generated Insights**: Performance, reliability, and coverage recommendations
+- **Approve/Reject AI Suggestions**: Human-in-the-loop validation for critical changes
+- **Monitor Test Scenarios**: AI-generated trading test cases with complexity analysis
+- **Track Audit Trail**: Complete history of AI decisions and human approvals
+- **Performance Metrics**: Measure AI framework effectiveness over time
+
+#### Safety & Compliance Features
+
+- **Financial Compliance**: Ensures all AI-generated content meets regulatory standards
+- **Human Oversight**: Critical recommendations require human approval
+- **Audit Trails**: Complete logging of AI decisions for compliance reporting
+- **Risk Assessment**: Automatic evaluation of AI suggestion impact and risks
+- **Content Validation**: Multi-layered safety rules prevent inappropriate content generation
+
 ### Test Categories
 
 - **unit**: Fast, isolated tests

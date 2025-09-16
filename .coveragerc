@@ -1,5 +1,9 @@
 [run]
-source = fxml4
+# TDD Coverage Configuration - Enforcing 80% minimum
+source = core,fxml4
+branch = True
+parallel = True
+concurrency = multiprocessing,thread
 omit =
     */tests/*
     */test_*
@@ -13,11 +17,17 @@ omit =
     */scripts/*
     */examples/*
     */twsapi_macunix/*
+    */__pycache__/*
+    */migrations/*
 
 [report]
+# TDD Enforcement: Fail if below 80% coverage
+fail_under = 80
+
 exclude_lines =
     pragma: no cover
     def __repr__
+    def __str__
     if self.debug:
     if settings.DEBUG
     raise AssertionError
@@ -26,10 +36,22 @@ exclude_lines =
     if __name__ == .__main__.:
     class .*\bProtocol\):
     @(abc\.)?abstractmethod
+    if TYPE_CHECKING:
+    if typing.TYPE_CHECKING:
 
 show_missing = True
 precision = 2
 skip_covered = False
+skip_empty = True
 
 [html]
 directory = htmlcov
+title = FXML4 TDD Coverage Report
+show_contexts = True
+
+[xml]
+output = coverage.xml
+
+[json]
+output = coverage.json
+pretty_print = True

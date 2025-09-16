@@ -39,5 +39,13 @@ module.exports = {
       lines: 85,
       statements: 85
     }
-  }
+  },
+  reporters: [
+    'default',
+    ['<rootDir>/src/ai-testing/JestAIReporter.ts', {
+      outputPath: './ai-testing-reports',
+      enableRealTimeAnalysis: true,
+      minimumTestsForAnalysis: 5
+    }]
+  ]
 };

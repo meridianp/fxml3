@@ -26,7 +26,13 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "tdd:red": "jest --testNamePattern='RED:' --verbose || echo 'RED phase: Tests failed as expected'",
+    "tdd:green": "jest --testNamePattern='(RED:|GREEN:)' --verbose",
+    "tdd:refactor": "jest --testNamePattern='(RED:|GREEN:|REFACTOR:)' --coverage --verbose",
+    "tdd:cycle": "npm run tdd:red && echo 'Implement minimal code, then run: npm run tdd:green'",
+    "tdd:quick": "jest --testNamePattern='(RED:|GREEN:)' --passWithNoTests",
+    "tdd:watch": "jest --watch --testNamePattern='(RED:|GREEN:|REFACTOR:)'"
   },
   "repository": {
     "type": "git",

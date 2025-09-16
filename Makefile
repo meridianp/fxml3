@@ -17,6 +17,7 @@
 .PHONY: help test test-all test-unit test-integration test-e2e test-security test-performance \
         test-docker test-clean docker-test-build docker-test-up docker-test-down \
         coverage report lint format check install \
+        tdd-red tdd-green tdd-refactor tdd-cycle tdd-new tdd-validate tdd-watch tdd-quick tdd-report tdd-setup \
         core-install core-test core-lint core-start \
         elliott-install elliott-test elliott-lint elliott-start \
         frontend-install frontend-test frontend-lint frontend-start frontend-build \
@@ -39,6 +40,10 @@ PROJECT := fxml4
 TEST_RESULTS_DIR := test-results
 COVERAGE_THRESHOLD := 80
 
+# TDD Configuration
+TDD_RUNNER := $(PYTHON) scripts/test_runner.py
+TDD_HELPER := $(PYTHON) scripts/tdd_helper.py
+
 # Docker configurations
 DOCKER_COMPOSE := docker-compose
 DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE) -f docker-compose.test.yml
@@ -55,6 +60,12 @@ help: ## Show this help message
 	@echo "  make all-install   # Set up all components"
 	@echo "  make all-test      # Run all tests"
 	@echo "  make all-lint      # Lint all code"
+	@echo ""
+	@echo "$(YELLOW)TDD Workflow:$(NC)"
+	@echo "  make tdd-cycle     # Complete Red-Green-Refactor cycle"
+	@echo "  make tdd-red       # Run RED phase tests (should fail)"
+	@echo "  make tdd-green     # Run GREEN phase tests (minimal pass)"
+	@echo "  make tdd-quick     # Fast TDD feedback loop"
 	@echo ""
 	@echo "$(YELLOW)Component-specific:$(NC)"
 	@echo "  make core-start    # Start trading API"
@@ -486,6 +497,100 @@ all-clean: test-clean ## Clean all artifacts
 	@rm -rf elliott_wave/build elliott_wave/dist elliott_wave/*.egg-info
 	@cd frontend && rm -rf node_modules/.cache .next/cache || true
 	@echo "$(GREEN)✓ All artifacts cleaned$(NC)"
+
+# ============================================================================
+# TDD WORKFLOW AUTOMATION
+# ============================================================================
+
+tdd-red: ## Run RED phase tests (should fail initially)
+	@echo "$(RED)🔴 TDD RED Phase - Running Failing Tests$(NC)"
+	@echo "=========================================="
+	@echo "$(YELLOW)Running tests marked with @pytest.mark.red...$(NC)"
+	@$(TDD_RUNNER) tdd || echo "$(RED)✓ Tests failed as expected in RED phase$(NC)"
+	@$(PYTEST) -m "red" --tb=short -v || echo "$(RED)✓ RED phase tests failed as expected$(NC)"
+	@echo "$(BLUE)Next step: Implement minimal code to make tests pass (GREEN phase)$(NC)"
+
+tdd-green: ## Run GREEN phase tests (minimal implementation)
+	@echo "$(GREEN)🟢 TDD GREEN Phase - Minimal Implementation$(NC)"
+	@echo "============================================="
+	@echo "$(YELLOW)Running tests to verify minimal implementation...$(NC)"
+	@$(PYTEST) -m "red or green" --tb=short -v
+	@echo "$(GREEN)✓ GREEN phase - Tests now pass with minimal code$(NC)"
+	@echo "$(BLUE)Next step: Refactor and improve code quality (REFACTOR phase)$(NC)"
+
+tdd-refactor: ## Run REFACTOR phase tests (comprehensive)
+	@echo "$(BLUE)🔵 TDD REFACTOR Phase - Comprehensive Testing$(NC)"
+	@echo "==============================================="
+	@echo "$(YELLOW)Running all TDD tests to ensure refactoring is safe...$(NC)"
+	@$(PYTEST) -m "tdd" --tb=short -v --cov=$(PROJECT) --cov-report=term-missing
+	@echo "$(GREEN)✓ REFACTOR phase - All tests pass after code improvements$(NC)"
+
+tdd-cycle: ## Complete Red-Green-Refactor cycle
+	@echo "$(BLUE)🔄 Complete TDD Cycle - Red-Green-Refactor$(NC)"
+	@echo "=========================================="
+	@echo "$(YELLOW)Running complete TDD methodology cycle...$(NC)"
+	@$(MAKE) tdd-red
+	@echo ""
+	@echo "$(YELLOW)Pausing for implementation... Press Enter when GREEN phase code is ready$(NC)"
+	@read -p ""
+	@$(MAKE) tdd-green
+	@echo ""
+	@echo "$(YELLOW)Pausing for refactoring... Press Enter when REFACTOR phase is ready$(NC)"
+	@read -p ""
+	@$(MAKE) tdd-refactor
+	@echo "$(GREEN)✅ Complete TDD cycle finished successfully!$(NC)"
+
+tdd-new: ## Create new TDD workflow for feature
+	@echo "$(YELLOW)Creating new TDD workflow...$(NC)"
+	@read -p "Feature name: " feature_name; \
+	$(TDD_HELPER) create-workflow "$$feature_name"
+	@echo "$(GREEN)✓ New TDD workflow created$(NC)"
+
+tdd-setup: ## Set up TDD environment for module
+	@echo "$(YELLOW)Setting up TDD for module...$(NC)"
+	@read -p "Module path (e.g., core/trading/order.py): " module_path; \
+	$(TDD_HELPER) create-test "$$module_path"
+	@echo "$(GREEN)✓ TDD test file created$(NC)"
+
+tdd-validate: ## Validate TDD methodology compliance
+	@echo "$(YELLOW)Validating TDD methodology compliance...$(NC)"
+	@$(TDD_HELPER) report
+	@echo "$(GREEN)✓ TDD validation complete$(NC)"
+
+tdd-watch: ## Run TDD tests in watch mode
+	@echo "$(YELLOW)Starting TDD watch mode...$(NC)"
+	@echo "$(BLUE)Watching for file changes... (Ctrl+C to stop)$(NC)"
+	@while true; do \
+		$(MAKE) tdd-quick; \
+		echo "$(YELLOW)Watching for changes...$(NC)"; \
+		inotifywait -e modify -r core/ tests/ 2>/dev/null || sleep 5; \
+		clear; \
+	done
+
+tdd-quick: ## Fast TDD feedback loop for development
+	@echo "$(BLUE)⚡ TDD Quick Feedback Loop$(NC)"
+	@echo "=========================="
+	@$(TDD_RUNNER) fast --no-coverage
+	@echo "$(GREEN)✓ Quick TDD feedback complete$(NC)"
+
+tdd-report: ## Generate TDD compliance and coverage report
+	@echo "$(YELLOW)Generating TDD compliance report...$(NC)"
+	@$(TDD_HELPER) report
+	@echo ""
+	@echo "$(YELLOW)Generating coverage report...$(NC)"
+	@$(MAKE) coverage
+	@echo "$(GREEN)✓ TDD reports generated$(NC)"
+
+# TDD Integration with existing pipeline
+ci-tdd: ## CI pipeline with TDD validation
+	@echo "$(BLUE)CI Pipeline with TDD Validation$(NC)"
+	@echo "================================"
+	@$(MAKE) lint
+	@$(MAKE) tdd-validate
+	@$(MAKE) test-unit
+	@$(MAKE) test-integration
+	@$(MAKE) coverage-check
+	@echo "$(GREEN)✅ CI Pipeline with TDD validation passed!$(NC)"
 
 # Default target
 .DEFAULT_GOAL := help

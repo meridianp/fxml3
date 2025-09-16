@@ -9,16 +9,47 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run tests
+# TDD Workflow Automation (Recommended)
+make tdd-cycle                # Complete Red-Green-Refactor cycle
+make tdd-red                  # Run RED phase tests (should fail)
+make tdd-green                # Run GREEN phase tests (minimal pass)
+make tdd-refactor             # Run REFACTOR phase (comprehensive)
+make tdd-quick                # Fast TDD feedback loop
+make tdd-watch                # Watch mode for active development
+make tdd-new                  # Create new TDD workflow for feature
+make tdd-setup                # Create test file for existing module
+
+# TDD Test Runner (Unified Interface)
+python scripts/test_runner.py unit           # Run unit tests with coverage
+python scripts/test_runner.py integration    # Run integration tests
+python scripts/test_runner.py all            # Run all test categories
+python scripts/test_runner.py critical       # Run critical tests only
+python scripts/test_runner.py fast           # Run fast tests for development
+python scripts/test_runner.py tdd            # Run TDD workflow tests
+
+# Traditional pytest commands
 pytest                     # Run all tests
 pytest tests/test_file.py  # Run specific test file
 pytest -xvs tests/         # Verbose test output
+pytest -m "unit"          # Run unit tests only
+pytest -m "red"           # Run RED phase TDD tests
+pytest --cov=core --cov-fail-under=80  # Run with coverage
+
+# TDD Helper Scripts
+python scripts/tdd_helper.py create-test core/trading/order.py    # Create test file
+python scripts/tdd_helper.py create-workflow "Order Management"    # Create TDD workflow
+python scripts/tdd_helper.py validate-tdd tests/unit/test_order.py # Validate TDD markers
+python scripts/tdd_helper.py report                               # Generate coverage report
 
 # Lint & Format
 flake8 .                   # Lint code
 black .                    # Format code
 isort .                    # Sort imports
 mypy .                     # Type checking
+
+# Pre-commit hooks (TDD enforcement)
+pre-commit run --all-files # Run all pre-commit hooks
+pre-commit run run-python-unit-tests  # Run TDD unit tests hook
 ```
 
 ## Git Workflow

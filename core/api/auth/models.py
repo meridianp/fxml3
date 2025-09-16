@@ -202,3 +202,17 @@ class PasswordExpiredError(AuthenticationError):
     """Password has expired and must be changed."""
 
     pass
+
+
+@dataclass
+class UserSession:
+    """User session model."""
+
+    id: str
+    user_id: str
+    token: str
+    ip_address: str
+    user_agent: str
+    created_at: datetime
+    expires_at: datetime
+    is_active: bool = True
