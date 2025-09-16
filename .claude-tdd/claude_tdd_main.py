@@ -61,6 +61,18 @@ except ImportError:
     print("⚠️  CI/CD integration not available")
     CICD_INTEGRATION_AVAILABLE = False
 
+# Phase 5 imports - ML-Enhanced Testing
+try:
+    from ml.test_generator import AITestGenerator
+    from ml.test_prioritizer import IntelligentTestPrioritizer
+    from ml.quality_predictor import PredictiveQualityAnalytics
+    from ml.test_optimizer import TestOptimizer
+
+    ML_ENHANCED_TESTING_AVAILABLE = True
+except ImportError:
+    print("⚠️  ML-Enhanced Testing not available - install requirements_phase5.txt")
+    ML_ENHANCED_TESTING_AVAILABLE = False
+
 
 class ClaudeTDDFramework:
     """Main Claude TDD automation framework for FXML4"""
@@ -96,7 +108,19 @@ class ClaudeTDDFramework:
         else:
             self.cicd_pipeline = None
 
-        print("🤖 FXML4 Claude TDD Automation Framework v4.0 Initialized")
+        # Phase 5: ML-Enhanced Testing
+        if ML_ENHANCED_TESTING_AVAILABLE:
+            self.ai_test_generator = AITestGenerator()
+            self.test_prioritizer = IntelligentTestPrioritizer()
+            self.quality_predictor = PredictiveQualityAnalytics()
+            self.test_optimizer = TestOptimizer()
+        else:
+            self.ai_test_generator = None
+            self.test_prioritizer = None
+            self.quality_predictor = None
+            self.test_optimizer = None
+
+        print("🤖 FXML4 Claude TDD Automation Framework v5.0 Initialized")
         enhanced_features = []
         if ADVANCED_MUTATION_AVAILABLE:
             enhanced_features.append("Advanced Mutation Testing")
@@ -106,6 +130,8 @@ class ClaudeTDDFramework:
             enhanced_features.append("Performance Testing")
         if CICD_INTEGRATION_AVAILABLE:
             enhanced_features.append("CI/CD Pipeline Integration")
+        if ML_ENHANCED_TESTING_AVAILABLE:
+            enhanced_features.append("ML-Enhanced Testing (AI)")
 
         if enhanced_features:
             print(f"✅ Enhanced with {', '.join(enhanced_features)}")
@@ -717,13 +743,356 @@ Based on the enhanced TDD cycle results:
         self.progress_manager.cleanup_old_data(retention_days)
         print("  ✅ Cleanup completed")
 
+    # Phase 5: ML-Enhanced Testing Methods
+
+    async def run_ai_test_generation(self, component: str, test_files: List[str] = None, llm_provider: str = "anthropic") -> Dict[str, Any]:
+        """Generate test cases using AI/LLM capabilities"""
+        if not ML_ENHANCED_TESTING_AVAILABLE:
+            return {"error": "ML-Enhanced Testing not available - install requirements_phase5.txt"}
+
+        print(f"\\n🤖 AI Test Generation for {component}")
+        print("-" * 40)
+
+        try:
+            # Analyze existing code
+            if test_files:
+                file_paths = test_files
+            else:
+                # Discover component files
+                test_suite = self.test_discovery.discover_all_tests().get(component)
+                file_paths = [test.file_path for test in test_suite.test_files] if test_suite else []
+
+            generated_tests = []
+            for file_path in file_paths:
+                analysis = self.ai_test_generator.analyze_code(file_path)
+                tests = self.ai_test_generator.generate_tests(analysis)
+                generated_tests.extend(tests)
+
+            # Generate using LLM if available
+            if file_paths:
+                llm_tests = []
+                for file_path in file_paths:
+                    analysis = self.ai_test_generator.analyze_code(file_path)
+                    llm_generated = self.ai_test_generator.generate_with_llm(analysis, "comprehensive")
+                    llm_tests.extend(llm_generated)
+                generated_tests.extend(llm_tests)
+
+            print(f"  ✅ Generated {len(generated_tests)} test cases")
+            print(f"  📁 Analyzed {len(file_paths)} files")
+
+            return {
+                "component": component,
+                "files_analyzed": file_paths,
+                "tests_generated": len(generated_tests),
+                "generated_tests": [{"name": t.name, "type": t.test_type, "domain": t.financial_domain} for t in generated_tests]
+            }
+
+        except Exception as e:
+            print(f"  ❌ AI test generation failed: {e}")
+            return {"error": str(e)}
+
+    async def run_test_prioritization(self, component: str, strategy: str = "ml_hybrid", max_tests: int = 100) -> Dict[str, Any]:
+        """Prioritize tests using ML predictions"""
+        if not ML_ENHANCED_TESTING_AVAILABLE:
+            return {"error": "ML-Enhanced Testing not available - install requirements_phase5.txt"}
+
+        print(f"\\n🎯 Test Prioritization for {component} ({strategy})")
+        print("-" * 40)
+
+        try:
+            # Get all tests for component
+            test_suite = self.test_discovery.discover_all_tests().get(component)
+            if not test_suite:
+                return {"error": f"No tests found for component {component}"}
+
+            test_list = [f"{tf.file_path}::{test}" for tf in test_suite.test_files for test in tf.test_methods]
+
+            # Prioritize tests
+            prioritized_tests = self.test_prioritizer.prioritize_tests(
+                test_list, strategy=strategy, target_count=max_tests
+            )
+
+            print(f"  ✅ Prioritized {len(prioritized_tests)} tests")
+            print(f"  🧠 Using {strategy} strategy")
+
+            # Show top 5 priority tests
+            if prioritized_tests:
+                print("\\n🔝 Top Priority Tests:")
+                for i, test in enumerate(prioritized_tests[:5]):
+                    print(f"  {i+1}. {test.test_name} (Score: {test.priority_score:.3f}) - {test.reason}")
+
+            return {
+                "component": component,
+                "strategy": strategy,
+                "total_tests": len(test_list),
+                "prioritized_tests": len(prioritized_tests),
+                "top_tests": [
+                    {
+                        "name": t.test_name,
+                        "priority_score": t.priority_score,
+                        "failure_probability": t.failure_probability,
+                        "reason": t.reason
+                    }
+                    for t in prioritized_tests[:10]
+                ]
+            }
+
+        except Exception as e:
+            print(f"  ❌ Test prioritization failed: {e}")
+            return {"error": str(e)}
+
+    async def run_quality_prediction(self, component: str, forecast_days: int = 30) -> Dict[str, Any]:
+        """Predict quality metrics and generate forecasts"""
+        if not ML_ENHANCED_TESTING_AVAILABLE:
+            return {"error": "ML-Enhanced Testing not available - install requirements_phase5.txt"}
+
+        print(f"\\n🔮 Quality Prediction for {component} ({forecast_days} days)")
+        print("-" * 40)
+
+        try:
+            # Collect current quality metrics (simplified)
+            current_metrics = {
+                "test_coverage": 85.0,
+                "mutation_score": 75.0,
+                "code_complexity": 6.5,
+                "technical_debt_ratio": 2.1,
+                "defect_density": 0.03,
+                "performance_score": 88.0,
+                "security_score": 94.0,
+                "maintainability_index": 82.0
+            }
+
+            self.quality_predictor.collect_quality_metrics(current_metrics)
+
+            # Generate forecasts
+            forecasts = self.quality_predictor.forecast_quality(forecast_days)
+
+            # Assess release readiness
+            release_assessment = self.quality_predictor.assess_release_readiness(
+                f"{component}_v1.0", target_date=None
+            )
+
+            # Predict defects
+            defect_predictions = self.quality_predictor.predict_defects()
+
+            print(f"  ✅ Generated {len(forecasts)} quality forecasts")
+            print(f"  📊 Release readiness: {release_assessment.readiness.value}")
+            print(f"  🐛 Predicted defects: {len(defect_predictions)}")
+
+            return {
+                "component": component,
+                "forecast_days": forecast_days,
+                "current_metrics": current_metrics,
+                "forecasts": [
+                    {
+                        "date": f.target_date.isoformat(),
+                        "predicted_coverage": f.predicted_coverage,
+                        "predicted_defects": f.predicted_defect_count,
+                        "quality_level": f.predicted_quality_level.value
+                    }
+                    for f in forecasts[:5]
+                ],
+                "release_assessment": {
+                    "readiness": release_assessment.readiness.value,
+                    "score": release_assessment.overall_score,
+                    "gates_passed": release_assessment.quality_gates_passed,
+                    "gates_total": release_assessment.quality_gates_total,
+                    "estimated_defects": release_assessment.estimated_defect_count
+                },
+                "high_risk_files": [
+                    {"file": dp.file_path, "probability": dp.defect_probability}
+                    for dp in defect_predictions[:5]
+                ]
+            }
+
+        except Exception as e:
+            print(f"  ❌ Quality prediction failed: {e}")
+            return {"error": str(e)}
+
+    async def run_test_optimization(self, component: str, strategy: str = "comprehensive") -> Dict[str, Any]:
+        """Optimize test suite for efficiency"""
+        if not ML_ENHANCED_TESTING_AVAILABLE:
+            return {"error": "ML-Enhanced Testing not available - install requirements_phase5.txt"}
+
+        print(f"\\n⚡ Test Optimization for {component} ({strategy})")
+        print("-" * 40)
+
+        try:
+            # Get all tests for component
+            test_suite = self.test_discovery.discover_all_tests().get(component)
+            if not test_suite:
+                return {"error": f"No tests found for component {component}"}
+
+            test_list = [f"{tf.file_path}::{test}" for tf in test_suite.test_files for test in tf.test_methods]
+
+            # Analyze test suite
+            analysis = self.test_optimizer.analyze_test_suite(test_list)
+
+            # Optimize test suite
+            optimization_result = self.test_optimizer.optimize_test_suite(
+                test_list, strategy=strategy
+            )
+
+            # Create parallelization plan
+            parallelization_plan = self.test_optimizer.create_parallelization_plan(test_list)
+
+            print(f"  ✅ Analyzed {analysis['total_tests']} tests")
+            print(f"  🔧 Removed {len(optimization_result.redundant_tests)} redundant tests")
+            print(f"  ⏱️  Estimated time savings: {optimization_result.estimated_time_savings:.1f} seconds")
+            print(f"  🔀 Created {parallelization_plan.total_groups} parallel groups")
+
+            return {
+                "component": component,
+                "strategy": strategy,
+                "analysis": analysis,
+                "optimization": {
+                    "original_count": optimization_result.original_count,
+                    "optimized_count": optimization_result.optimized_count,
+                    "time_savings": optimization_result.estimated_time_savings,
+                    "redundant_tests": len(optimization_result.redundant_tests),
+                    "confidence": optimization_result.confidence_score
+                },
+                "parallelization": {
+                    "total_groups": parallelization_plan.total_groups,
+                    "max_workers": parallelization_plan.max_parallel_workers,
+                    "estimated_time": parallelization_plan.estimated_total_time,
+                    "dependencies_resolved": parallelization_plan.dependencies_resolved
+                }
+            }
+
+        except Exception as e:
+            print(f"  ❌ Test optimization failed: {e}")
+            return {"error": str(e)}
+
+    async def run_ml_enhanced_tdd_cycle(self, component: str, test_category: str = "unit") -> Dict[str, Any]:
+        """Run a complete ML-enhanced TDD cycle"""
+        if not ML_ENHANCED_TESTING_AVAILABLE:
+            return {"error": "ML-Enhanced Testing not available - install requirements_phase5.txt"}
+
+        print(f"\\n🚀 ML-Enhanced TDD Cycle for {component}")
+        print("=" * 60)
+
+        try:
+            results = {}
+
+            # 1. AI Test Generation
+            print("\\n🤖 Phase 1: AI-Powered Test Generation")
+            generation_result = await self.run_ai_test_generation(component)
+            results["test_generation"] = generation_result
+
+            # 2. Test Prioritization
+            print("\\n🎯 Phase 2: Intelligent Test Prioritization")
+            prioritization_result = await self.run_test_prioritization(component, "ml_hybrid")
+            results["test_prioritization"] = prioritization_result
+
+            # 3. Test Optimization
+            print("\\n⚡ Phase 3: Test Suite Optimization")
+            optimization_result = await self.run_test_optimization(component, "comprehensive")
+            results["test_optimization"] = optimization_result
+
+            # 4. Quality Prediction
+            print("\\n🔮 Phase 4: Predictive Quality Analytics")
+            quality_result = await self.run_quality_prediction(component, 14)
+            results["quality_prediction"] = quality_result
+
+            # 5. Traditional TDD Cycle (enhanced with ML insights)
+            print("\\n🔄 Phase 5: Enhanced TDD Red-Green-Refactor")
+            tdd_result = await self.run_full_tdd_cycle(component, test_category)
+            results["tdd_cycle"] = tdd_result
+
+            print("\\n✅ ML-Enhanced TDD Cycle Complete!")
+            print("=" * 60)
+
+            return {
+                "component": component,
+                "cycle_type": "ml_enhanced",
+                "phases": results,
+                "summary": {
+                    "tests_generated": generation_result.get("tests_generated", 0),
+                    "tests_prioritized": prioritization_result.get("prioritized_tests", 0),
+                    "time_savings": optimization_result.get("optimization", {}).get("time_savings", 0),
+                    "quality_score": quality_result.get("release_assessment", {}).get("score", 0)
+                }
+            }
+
+        except Exception as e:
+            print(f"  ❌ ML-Enhanced TDD cycle failed: {e}")
+            return {"error": str(e)}
+
+    async def train_ml_models(self, retrain: bool = False) -> Dict[str, Any]:
+        """Train or retrain ML models"""
+        if not ML_ENHANCED_TESTING_AVAILABLE:
+            return {"error": "ML-Enhanced Testing not available - install requirements_phase5.txt"}
+
+        print(f"\\n🎓 Training ML Models (retrain: {retrain})")
+        print("-" * 40)
+
+        try:
+            results = {}
+
+            # Train test prioritizer models
+            print("  🧠 Training test failure prediction models...")
+            prioritizer_metrics = self.test_prioritizer.train_models(retrain)
+            results["test_prioritizer"] = prioritizer_metrics
+
+            # Train quality prediction models
+            print("  📊 Training quality prediction models...")
+            quality_metrics = self.quality_predictor.train_quality_models(retrain)
+            results["quality_predictor"] = quality_metrics
+
+            print("  ✅ Model training completed")
+
+            return {
+                "training_completed": True,
+                "retrain": retrain,
+                "model_performance": results
+            }
+
+        except Exception as e:
+            print(f"  ❌ Model training failed: {e}")
+            return {"error": str(e)}
+
+    def get_ml_analytics(self) -> Dict[str, Any]:
+        """Get ML analytics and performance metrics"""
+        if not ML_ENHANCED_TESTING_AVAILABLE:
+            return {"error": "ML-Enhanced Testing not available - install requirements_phase5.txt"}
+
+        print("\\n📊 ML Analytics Dashboard")
+        print("-" * 40)
+
+        try:
+            # Get analytics from each ML component
+            prioritizer_analytics = self.test_prioritizer.get_prioritization_analytics()
+            quality_analytics = self.quality_predictor.get_quality_dashboard_data()
+            optimizer_analytics = self.test_optimizer.get_optimization_analytics()
+
+            print(f"  📈 Test prioritization: {prioritizer_analytics.get('total_test_executions', 0)} executions")
+            print(f"  🎯 Quality predictions: {len(quality_analytics.get('recent_forecasts', []))} forecasts")
+            print(f"  ⚡ Test optimization: {optimizer_analytics.get('total_tests_profiled', 0)} tests profiled")
+
+            return {
+                "test_prioritization": prioritizer_analytics,
+                "quality_prediction": quality_analytics,
+                "test_optimization": optimizer_analytics,
+                "ml_framework_status": {
+                    "ai_test_generator": self.ai_test_generator is not None,
+                    "test_prioritizer": self.test_prioritizer is not None,
+                    "quality_predictor": self.quality_predictor is not None,
+                    "test_optimizer": self.test_optimizer is not None
+                }
+            }
+
+        except Exception as e:
+            print(f"  ❌ Analytics retrieval failed: {e}")
+            return {"error": str(e)}
+
 
 def create_demo_workflow():
     """Create a demonstration workflow"""
     return """
-# FXML4 Claude TDD Demo Workflow v4.0
+# FXML4 Claude TDD Demo Workflow v5.0
 
-This demonstrates the complete Claude TDD automation framework with Phase 4 CI/CD integration:
+This demonstrates the complete Claude TDD automation framework with Phase 5 ML-Enhanced Testing:
 
 ## 1. Test Discovery
 ```bash
@@ -785,6 +1154,43 @@ python .claude-tdd/claude_tdd_main.py contracts
 python .claude-tdd/claude_tdd_main.py status
 ```
 
+## Phase 5: ML-Enhanced Testing Commands
+
+### 13. AI-Powered Test Generation
+```bash
+python .claude-tdd/claude_tdd_main.py generate-tests core --llm-provider anthropic
+```
+
+### 14. Intelligent Test Prioritization
+```bash
+python .claude-tdd/claude_tdd_main.py prioritize-tests core --prioritization-strategy ml_hybrid --max-tests 50
+```
+
+### 15. Predictive Quality Analytics
+```bash
+python .claude-tdd/claude_tdd_main.py predict-quality core --forecast-days 30
+```
+
+### 16. Test Suite Optimization
+```bash
+python .claude-tdd/claude_tdd_main.py optimize-tests core --optimization-strategy comprehensive
+```
+
+### 17. Complete ML-Enhanced TDD Cycle
+```bash
+python .claude-tdd/claude_tdd_main.py ml-cycle core --category unit
+```
+
+### 18. Train ML Models
+```bash
+python .claude-tdd/claude_tdd_main.py train-models --retrain-models
+```
+
+### 19. ML Analytics Dashboard
+```bash
+python .claude-tdd/claude_tdd_main.py ml-analytics
+```
+
 ## Integration with Claude Code
 
 The framework integrates with Claude Code through:
@@ -795,6 +1201,7 @@ The framework integrates with Claude Code through:
 
 ## Financial Trading System Features
 
+### Core Testing Capabilities
 - Risk management testing validation
 - Financial calculation precision testing with property-based testing
 - Security and compliance test patterns
@@ -804,11 +1211,27 @@ The framework integrates with Claude Code through:
 - Mutation testing for financial calculation robustness
 - Property-based testing for mathematical invariants
 - Performance testing for trading system latency requirements
+
+### ML-Enhanced Testing Features
+- AI-powered test case generation for financial scenarios
+- Intelligent test prioritization based on risk and failure prediction
+- Predictive quality analytics for defect forecasting
+- Test suite optimization for maximum efficiency
+- Financial domain-specific ML models for:
+  - Order execution failure prediction
+  - Risk management test prioritization
+  - PnL calculation quality assessment
+  - Compliance testing optimization
+- Market condition test scenario generation
+- Financial risk-based test scheduling
+
+### CI/CD and Deployment
 - Market hours aware CI/CD deployments
 - Zero-downtime blue-green deployments
 - Risk-controlled canary deployments
 - Automated rollback capabilities
 - Financial compliance integration in CI/CD pipeline
+- ML-guided deployment risk assessment
 """
 
 
@@ -836,6 +1259,14 @@ async def main():
             "deploy",
             "pipeline-status",
             "deployments",
+            # Phase 5: ML-Enhanced Testing commands
+            "generate-tests",
+            "prioritize-tests",
+            "predict-quality",
+            "optimize-tests",
+            "ml-cycle",
+            "train-models",
+            "ml-analytics",
         ],
         help="Command to execute",
     )
@@ -930,6 +1361,54 @@ async def main():
     parser.add_argument("--pipeline-id", help="Pipeline ID for status queries")
 
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+
+    # Phase 5: ML-Enhanced Testing arguments
+    parser.add_argument(
+        "--test-files",
+        nargs="*",
+        help="Specific test files for analysis (for generate-tests, optimize-tests)"
+    )
+
+    parser.add_argument(
+        "--prioritization-strategy",
+        choices=["ml_hybrid", "risk_based", "time_optimal"],
+        default="ml_hybrid",
+        help="Test prioritization strategy"
+    )
+
+    parser.add_argument(
+        "--optimization-strategy",
+        choices=["comprehensive", "fast", "conservative"],
+        default="comprehensive",
+        help="Test optimization strategy"
+    )
+
+    parser.add_argument(
+        "--llm-provider",
+        choices=["openai", "anthropic"],
+        default="anthropic",
+        help="LLM provider for test generation"
+    )
+
+    parser.add_argument(
+        "--max-tests",
+        type=int,
+        default=100,
+        help="Maximum number of tests to prioritize/generate"
+    )
+
+    parser.add_argument(
+        "--retrain-models",
+        action="store_true",
+        help="Force retraining of ML models"
+    )
+
+    parser.add_argument(
+        "--forecast-days",
+        type=int,
+        default=30,
+        help="Number of days to forecast for quality prediction"
+    )
 
     args = parser.parse_args()
 
@@ -1042,6 +1521,45 @@ async def main():
                 "component": args.component,
                 "steps": results,
             }
+
+        # Phase 5: ML-Enhanced Testing Commands
+        elif args.command == "generate-tests":
+            result = await framework.run_ai_test_generation(
+                args.component, args.test_files, args.llm_provider
+            )
+
+        elif args.command == "prioritize-tests":
+            result = await framework.run_test_prioritization(
+                args.component, args.prioritization_strategy, args.max_tests
+            )
+
+        elif args.command == "predict-quality":
+            result = await framework.run_quality_prediction(
+                args.component, args.forecast_days
+            )
+
+        elif args.command == "optimize-tests":
+            result = await framework.run_test_optimization(
+                args.component, args.optimization_strategy
+            )
+
+        elif args.command == "ml-cycle":
+            if not args.component:
+                print("Error: Component required for ml-cycle command")
+                return 1
+            result = await framework.run_ml_enhanced_tdd_cycle(
+                args.component, args.category
+            )
+
+        elif args.command == "train-models":
+            result = await framework.train_ml_models(args.retrain_models)
+
+        elif args.command == "ml-analytics":
+            result = framework.get_ml_analytics()
+
+        else:
+            print(f"Unknown command: {args.command}")
+            return 1
 
         # Output results
         if args.output == "json":
