@@ -29,3 +29,9 @@ class InsufficientPermissionsError(AuthenticationError):
     """Raised when user lacks required permissions."""
 
     pass
+
+
+class SessionError(AuthenticationError):
+    """Raised when there are session-related errors."""
+
+    pass

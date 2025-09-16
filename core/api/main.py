@@ -22,6 +22,7 @@ from fxml4.api.routers import (
     data_router,
     legacy_auth_router,
     performance_router,
+    session_audit_router,
     signals_router,
     user_crud_tdd_router,
 )
@@ -120,6 +121,10 @@ if user_crud_tdd_router:
 # Include TDD-validated API key management routes
 if api_key_management_router:
     app.include_router(api_key_management_router)
+
+# Include TDD-validated session management and audit logging routes
+if session_audit_router:
+    app.include_router(session_audit_router)
 
 # Include functional routes (only if they loaded successfully)
 if data_router:

@@ -25,6 +25,12 @@ try:
 except ImportError:
     api_key_management_router = None
 
+# Import TDD-validated session and audit router
+try:
+    from .session_audit import router as session_audit_router
+except ImportError:
+    session_audit_router = None
+
 # Import other routers conditionally to avoid import errors during development
 try:
     from .data import router as data_router
@@ -56,4 +62,5 @@ __all__ = [
     "auth_tdd_router",
     "user_crud_tdd_router",
     "api_key_management_router",
+    "session_audit_router",
 ]
