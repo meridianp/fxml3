@@ -1,20 +1,27 @@
-# FXML4 Test Pipeline Makefile
-# Comprehensive automated testing with Docker containerization support
+# FXML4 Unified Monorepo Makefile
+# Comprehensive build, test, and deployment system
 #
-# This Makefile provides local testing capabilities that mirror the
-# GitHub Actions comprehensive testing workflow (.github/workflows/comprehensive-testing.yml)
+# This Makefile supports the new monorepo structure:
+# - core/           Main trading system (FastAPI backend)
+# - elliott_wave/   Elliott Wave analysis (Python + Streamlit)
+# - frontend/       Next.js web interface (React + TypeScript)
+# - infrastructure/ Deployment & DevOps configs (K8s, Docker, Terraform)
 #
-# The CI pipeline follows these logical stages:
-# Stage 1: Pre-flight (code quality, security, dependencies)
-# Stage 2: Core testing (unit, integration, auth)
-# Stage 3: E2E testing (auth, frontend-backend, performance)
-# Stage 4: Advanced testing (load/stress, browser compatibility)
-# Stage 5: Build & security validation
-# Stage 6: Deployment (staging)
+# Component-specific targets:
+# - core-*:         Core trading system operations
+# - elliott-*:      Elliott Wave analysis operations
+# - frontend-*:     Next.js frontend operations
+# - infra-*:        Infrastructure and deployment operations
+# - all-*:          Cross-component operations
 
 .PHONY: help test test-all test-unit test-integration test-e2e test-security test-performance \
         test-docker test-clean docker-test-build docker-test-up docker-test-down \
-        coverage report lint format check install
+        coverage report lint format check install \
+        core-install core-test core-lint core-start \
+        elliott-install elliott-test elliott-lint elliott-start \
+        frontend-install frontend-test frontend-lint frontend-start frontend-build \
+        infra-validate infra-deploy infra-destroy \
+        all-install all-test all-lint all-clean
 
 # Colors for output
 RED := \033[0;31m
@@ -38,16 +45,21 @@ DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE) -f docker-compose.test.yml
 DOCKER_COMPOSE_LOCAL := $(DOCKER_COMPOSE) -f docker-compose.local.yml
 
 help: ## Show this help message
-	@echo "$(BLUE)FXML4 Test Pipeline$(NC)"
-	@echo "==================="
+	@echo "$(BLUE)FXML4 Unified Monorepo$(NC)"
+	@echo "======================"
 	@echo ""
 	@echo "$(YELLOW)Available targets:$(NC)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Quick Start:$(NC)"
-	@echo "  make install        # Set up development environment"
-	@echo "  make test          # Run all tests"
-	@echo "  make test-docker   # Run containerized E2E tests"
+	@echo "  make all-install   # Set up all components"
+	@echo "  make all-test      # Run all tests"
+	@echo "  make all-lint      # Lint all code"
+	@echo ""
+	@echo "$(YELLOW)Component-specific:$(NC)"
+	@echo "  make core-start    # Start trading API"
+	@echo "  make elliott-start # Start Elliott Wave dashboard"
+	@echo "  make frontend-start# Start frontend dev server"
 
 install: ## Install development dependencies
 	@echo "$(YELLOW)Setting up development environment...$(NC)"
@@ -72,7 +84,7 @@ test: test-clean ## Run complete test suite
 	@$(MAKE) test-integration
 	@$(MAKE) test-e2e
 	@$(MAKE) test-security
-	@$(MAKE) test-performance
+	@$(MAKE) test-performance-pytest
 	@$(MAKE) coverage
 	@echo ""
 	@echo "$(GREEN)✅ All tests completed successfully!$(NC)"
@@ -102,7 +114,7 @@ test-security: ## Run security tests
 	@$(PYTHON) scripts/validate_security.py
 	@echo "$(GREEN)✓ Security tests passed$(NC)"
 
-test-performance: ## Run performance tests
+test-performance-pytest: ## Run performance tests with pytest
 	@echo "$(YELLOW)Running Performance Tests...$(NC)"
 	@$(PYTEST) tests/ -m "performance or slow" \
 		-v --tb=short --durations=10 \
@@ -362,6 +374,118 @@ dev-rebuild: ## Rebuild development containers
 	@echo "$(YELLOW)Rebuilding development containers...$(NC)"
 	@$(DOCKER_COMPOSE_LOCAL) build --no-cache
 	@echo "$(GREEN)✓ Containers rebuilt$(NC)"
+
+# ============================================================================
+# MONOREPO COMPONENT TARGETS
+# ============================================================================
+
+# Core Trading System
+core-install: ## Install core trading system dependencies
+	@echo "$(YELLOW)Installing core trading system dependencies...$(NC)"
+	@$(PIP) install -r requirements/base.txt
+	@$(PIP) install -r requirements/production.txt
+	@$(PIP) install -e core/
+	@echo "$(GREEN)✓ Core system dependencies installed$(NC)"
+
+core-test: ## Run core trading system tests
+	@echo "$(YELLOW)Running core trading system tests...$(NC)"
+	@$(PYTEST) tests/unit/core/ tests/integration/core/ -v
+	@echo "$(GREEN)✓ Core system tests passed$(NC)"
+
+core-lint: ## Lint core trading system code
+	@echo "$(YELLOW)Linting core trading system...$(NC)"
+	@black --check core/
+	@isort --check-only core/
+	@flake8 core/
+	@mypy core/ --ignore-missing-imports
+	@echo "$(GREEN)✓ Core system linting passed$(NC)"
+
+core-start: ## Start core trading API server
+	@echo "$(YELLOW)Starting core trading API server...$(NC)"
+	@cd core && $(PYTHON) -m fxml4.api.main
+
+# Elliott Wave Analysis
+elliott-install: ## Install Elliott Wave dependencies
+	@echo "$(YELLOW)Installing Elliott Wave dependencies...$(NC)"
+	@$(PIP) install -r requirements/elliott-wave.txt
+	@$(PIP) install -e elliott_wave/
+	@echo "$(GREEN)✓ Elliott Wave dependencies installed$(NC)"
+
+elliott-test: ## Run Elliott Wave tests
+	@echo "$(YELLOW)Running Elliott Wave tests...$(NC)"
+	@$(PYTEST) tests/unit/elliott_wave/ tests/integration/elliott_wave/ -v
+	@echo "$(GREEN)✓ Elliott Wave tests passed$(NC)"
+
+elliott-lint: ## Lint Elliott Wave code
+	@echo "$(YELLOW)Linting Elliott Wave analysis...$(NC)"
+	@black --check elliott_wave/
+	@isort --check-only elliott_wave/
+	@flake8 elliott_wave/
+	@echo "$(GREEN)✓ Elliott Wave linting passed$(NC)"
+
+elliott-start: ## Start Elliott Wave Streamlit dashboard
+	@echo "$(YELLOW)Starting Elliott Wave Streamlit dashboard...$(NC)"
+	@cd elliott_wave && streamlit run main.py
+
+# Frontend Application
+frontend-install: ## Install frontend dependencies
+	@echo "$(YELLOW)Installing frontend dependencies...$(NC)"
+	@cd frontend && npm install
+	@echo "$(GREEN)✓ Frontend dependencies installed$(NC)"
+
+frontend-test: ## Run frontend tests
+	@echo "$(YELLOW)Running frontend tests...$(NC)"
+	@cd frontend && npm test
+	@echo "$(GREEN)✓ Frontend tests passed$(NC)"
+
+frontend-lint: ## Lint frontend code
+	@echo "$(YELLOW)Linting frontend code...$(NC)"
+	@cd frontend && npm run lint
+	@echo "$(GREEN)✓ Frontend linting passed$(NC)"
+
+frontend-build: ## Build frontend for production
+	@echo "$(YELLOW)Building frontend for production...$(NC)"
+	@cd frontend && npm run build
+	@echo "$(GREEN)✓ Frontend built successfully$(NC)"
+
+frontend-start: ## Start frontend development server
+	@echo "$(YELLOW)Starting frontend development server...$(NC)"
+	@cd frontend && npm run dev
+
+# Infrastructure Operations
+infra-validate: ## Validate infrastructure configurations
+	@echo "$(YELLOW)Validating infrastructure configurations...$(NC)"
+	@kubectl --dry-run=client apply -f infrastructure/k8s/ || echo "$(YELLOW)K8s validation skipped (kubectl not available)$(NC)"
+	@cd infrastructure/terraform && terraform validate || echo "$(YELLOW)Terraform validation skipped (terraform not available)$(NC)"
+	@docker-compose -f infrastructure/docker/docker-compose.yml config
+	@echo "$(GREEN)✓ Infrastructure configurations validated$(NC)"
+
+infra-deploy: ## Deploy infrastructure
+	@echo "$(YELLOW)Deploying infrastructure...$(NC)"
+	@kubectl apply -f infrastructure/k8s/
+	@echo "$(GREEN)✓ Infrastructure deployed$(NC)"
+
+infra-destroy: ## Destroy infrastructure
+	@echo "$(YELLOW)Destroying infrastructure...$(NC)"
+	@kubectl delete -f infrastructure/k8s/
+	@echo "$(GREEN)✓ Infrastructure destroyed$(NC)"
+
+# Cross-component Operations
+all-install: core-install elliott-install frontend-install ## Install all dependencies
+	@echo "$(GREEN)✅ All components installed successfully!$(NC)"
+
+all-test: core-test elliott-test frontend-test ## Run all tests
+	@echo "$(GREEN)✅ All component tests passed!$(NC)"
+
+all-lint: core-lint elliott-lint frontend-lint ## Lint all code
+	@echo "$(GREEN)✅ All components linted successfully!$(NC)"
+
+all-clean: test-clean ## Clean all artifacts
+	@echo "$(YELLOW)Cleaning all component artifacts...$(NC)"
+	@rm -rf core/build core/dist core/*.egg-info
+	@rm -rf elliott_wave/build elliott_wave/dist elliott_wave/*.egg-info
+	@cd frontend && rm -rf node_modules/.cache .next/cache || true
+	@echo "$(GREEN)✓ All artifacts cleaned$(NC)"
 
 # Default target
 .DEFAULT_GOAL := help

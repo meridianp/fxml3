@@ -1,4 +1,4 @@
-name: FXML4 Production CI/CD Pipeline
+name: FXML4 Unified Monorepo CI/CD Pipeline
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-lint-${{ hashFiles('requirements-dev.txt') }}
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('requirements/development.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-lint-
             ${{ runner.os }}-pip-
@@ -40,7 +40,7 @@ jobs:
       - name: Install linting dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install black==24.8.0 flake8==7.1.1 isort>=5.12.0 mypy>=1.3.0
+          pip install -r requirements/development.txt
 
       - name: Run Black (Code Formatting)
         run: black --check --diff .
@@ -49,10 +49,14 @@ jobs:
         run: isort --check-only --diff .
 
       - name: Run Flake8 (Linting)
-        run: flake8 --max-line-length=88 --exclude=archive,fxml4_redesign,tests .
+        run: flake8 --max-line-length=88 --exclude=archive,legacy,frontend/node_modules .
 
-      - name: Run MyPy (Type Checking)
-        run: mypy fxml4 --ignore-missing-imports
+      - name: Run MyPy (Type Checking - Core)
+        run: mypy core/ --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Run MyPy (Type Checking - Elliott Wave)
+        run: mypy elliott_wave/ --ignore-missing-imports
         continue-on-error: true
 
   # Stage 2: Unit Tests (Fast - Core Business Logic)
@@ -77,7 +81,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-test-${{ hashFiles('requirements-dev.txt', 'requirements-test.txt') }}
+          key: ${{ runner.os }}-pip-test-${{ hashFiles('requirements/base.txt', 'requirements/development.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-test-
             ${{ runner.os }}-pip-
@@ -85,16 +89,24 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install -r requirements-test.txt
+          pip install -r requirements/base.txt
+          pip install -r requirements/development.txt
           pip install -e .
 
-      - name: Run Unit Tests
+      - name: Run Unit Tests - Core
         run: |
-          pytest tests/ -m "unit and not slow and not requires_ib and not requires_fxcm" \
+          pytest tests/unit/core/ -m "unit and not slow and not requires_ib and not requires_fxcm" \
             -v --tb=short --maxfail=5 \
-            --junit-xml=junit-unit.xml \
-            --cov=fxml4 --cov-report=xml:coverage-unit.xml \
+            --junit-xml=junit-unit-core.xml \
+            --cov=core --cov-report=xml:coverage-unit-core.xml \
+            --cov-report=term-missing --cov-fail-under=60
+
+      - name: Run Unit Tests - Elliott Wave
+        run: |
+          pytest tests/unit/elliott_wave/ -m "unit and not slow" \
+            -v --tb=short --maxfail=5 \
+            --junit-xml=junit-unit-elliott.xml \
+            --cov=elliott_wave --cov-report=xml:coverage-unit-elliott.xml \
             --cov-report=term-missing --cov-fail-under=60
 
       - name: Upload Unit Test Results
@@ -103,14 +115,63 @@ jobs:
         with:
           name: unit-test-results
           path: |
-            junit-unit.xml
-            coverage-unit.xml
+            junit-unit-core.xml
+            junit-unit-elliott.xml
+            coverage-unit-core.xml
+            coverage-unit-elliott.xml
 
-  # Stage 3: Integration Tests (Slower - External Dependencies)
+  # Stage 3A: Frontend Tests
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    strategy:
+      fail-fast: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run frontend linting
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm test
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Upload frontend build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-build
+          path: frontend/.next/
+
+  # Stage 3B: Integration Tests (Slower - External Dependencies)
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: unit-tests
+    needs: [unit-tests, frontend-tests]
     strategy:
       fail-fast: true
 
@@ -167,7 +228,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-integration-${{ hashFiles('requirements-dev.txt', 'requirements-test.txt') }}
+          key: ${{ runner.os }}-pip-integration-${{ hashFiles('requirements/base.txt', 'requirements/development.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-integration-
             ${{ runner.os }}-pip-test-
@@ -176,8 +237,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install -r requirements-test.txt
+          pip install -r requirements/base.txt
+          pip install -r requirements/development.txt
           pip install -e .
 
       - name: Wait for services
@@ -186,7 +247,7 @@ jobs:
           timeout 60s bash -c 'until nc -z localhost 6380; do sleep 1; done'
           timeout 60s bash -c 'until nc -z localhost 5673; do sleep 1; done'
 
-      - name: Run Integration Tests
+      - name: Run Integration Tests - Core
         env:
           FXML4_DATABASE_HOST: localhost
           FXML4_DATABASE_PORT: 5433
@@ -200,9 +261,22 @@ jobs:
           FXML4_RABBITMQ_USER: fxml4_test
           FXML4_RABBITMQ_PASSWORD: test_password
         run: |
-          pytest tests/ -m "integration and not requires_ib and not requires_fxcm" \
+          pytest tests/integration/core/ -m "integration and not requires_ib and not requires_fxcm" \
             -v --tb=short --maxfail=3 \
-            --junit-xml=junit-integration.xml \
+            --junit-xml=junit-integration-core.xml \
+            --timeout=300
+
+      - name: Run Integration Tests - Elliott Wave
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5433
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: fxml4_test
+          FXML4_DATABASE_PASSWORD: test_password
+        run: |
+          pytest tests/integration/elliott_wave/ -m "integration" \
+            -v --tb=short --maxfail=3 \
+            --junit-xml=junit-integration-elliott.xml \
             --timeout=300
 
       - name: Upload Integration Test Results
@@ -210,7 +284,9 @@ jobs:
         if: always()
         with:
           name: integration-test-results
-          path: junit-integration.xml
+          path: |
+            junit-integration-core.xml
+            junit-integration-elliott.xml
 
   # Stage 4: Security & E2E Tests (Comprehensive)
   security-e2e-tests:
@@ -234,7 +310,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-security-${{ hashFiles('requirements-dev.txt', 'requirements-test.txt') }}
+          key: ${{ runner.os }}-pip-security-${{ hashFiles('requirements/base.txt', 'requirements/development.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-security-
             ${{ runner.os }}-pip-
@@ -242,8 +318,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install -r requirements-test.txt
+          pip install -r requirements/base.txt
+          pip install -r requirements/development.txt
           pip install -e .
 
       - name: Set up Docker Buildx
@@ -286,8 +362,8 @@ jobs:
   publish:
     name: Build & Publish Docker Images
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, integration-tests, security-e2e-tests]
-    if: always() && (needs.lint.result == 'success' && needs.unit-tests.result == 'success' && needs.integration-tests.result == 'success' && needs.security-e2e-tests.result == 'success')
+    needs: [lint, unit-tests, frontend-tests, integration-tests, security-e2e-tests]
+    if: always() && (needs.lint.result == 'success' && needs.unit-tests.result == 'success' && needs.frontend-tests.result == 'success' && needs.integration-tests.result == 'success' && needs.security-e2e-tests.result == 'success')
 
     permissions:
       contents: read
@@ -299,7 +375,7 @@ jobs:
 
     strategy:
       matrix:
-        service: [api, dashboard, worker, training]
+        service: [api, dashboard, worker, training, frontend]
 
     steps:
       - name: Checkout repository
@@ -360,10 +436,12 @@ jobs:
           DOCKER_IMAGE_DASHBOARD: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dashboard:latest
           DOCKER_IMAGE_WORKER: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:latest
           DOCKER_IMAGE_TRAINING: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-training:latest
+          DOCKER_IMAGE_FRONTEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest
         run: |
           echo "🚀 Deploying to production with images:"
-          echo "  API: $DOCKER_IMAGE_API"
-          echo "  Dashboard: $DOCKER_IMAGE_DASHBOARD"
+          echo "  API (Core): $DOCKER_IMAGE_API"
+          echo "  Dashboard (Elliott Wave): $DOCKER_IMAGE_DASHBOARD"
+          echo "  Frontend (Next.js): $DOCKER_IMAGE_FRONTEND"
           echo "  Worker: $DOCKER_IMAGE_WORKER"
           echo "  Training: $DOCKER_IMAGE_TRAINING"
 
@@ -390,7 +468,7 @@ jobs:
   summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [lint, unit-tests, integration-tests, security-e2e-tests, publish, deploy]
+    needs: [lint, unit-tests, frontend-tests, integration-tests, security-e2e-tests, publish, deploy]
     if: always()
 
     steps:
@@ -401,6 +479,7 @@ jobs:
           echo "## Results" >> $GITHUB_STEP_SUMMARY
           echo "- **Linting:** ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Unit Tests:** ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend Tests:** ${{ needs.frontend-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Integration Tests:** ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Security & E2E Tests:** ${{ needs.security-e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Build & Publish:** ${{ needs.publish.result }}" >> $GITHUB_STEP_SUMMARY

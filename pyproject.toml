@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fxml4"
-version = "0.1.0"
-description = "Advanced Forex Trading Platform with ML, Elliott Wave Analysis, and Multi-Broker FIX Integration"
+version = "0.2.0"
+description = "Unified Forex Trading Platform: Core Trading System + Elliott Wave Analysis + Frontend UI"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
