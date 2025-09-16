@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fxml4.api.events import setup_events
 from fxml4.api.middleware.security import SecurityMiddleware
 from fxml4.api.routers import (
+    api_key_management_router,
     auth_tdd_router,
     backtest_router,
     core_router,
@@ -115,6 +116,10 @@ if auth_tdd_router:
 # Include TDD-validated user CRUD routes
 if user_crud_tdd_router:
     app.include_router(user_crud_tdd_router)
+
+# Include TDD-validated API key management routes
+if api_key_management_router:
+    app.include_router(api_key_management_router)
 
 # Include functional routes (only if they loaded successfully)
 if data_router:

@@ -19,6 +19,12 @@ try:
 except ImportError:
     user_crud_tdd_router = None
 
+# Import TDD-validated API key management router
+try:
+    from .api_key_management import router as api_key_management_router
+except ImportError:
+    api_key_management_router = None
+
 # Import other routers conditionally to avoid import errors during development
 try:
     from .data import router as data_router
@@ -49,4 +55,5 @@ __all__ = [
     "legacy_auth_router",
     "auth_tdd_router",
     "user_crud_tdd_router",
+    "api_key_management_router",
 ]
