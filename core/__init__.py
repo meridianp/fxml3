@@ -1,1 +1,1 @@
-"""Package initialization."""
+"""FXML4 core modules."""
