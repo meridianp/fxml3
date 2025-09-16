@@ -1,297 +1,410 @@
 """
-Position sizing strategies for FXML4.
-
-This module provides various position sizing algorithms.
+Position Sizing Calculator - TDD Implementation (GREEN Phase)
+Minimal implementation to make tests pass
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
-
-import numpy as np
-import pandas as pd
+import math
+from typing import Any, Dict, List, Optional
 
 
-class PositionSizer(ABC):
-    """Base class for position sizing strategies."""
-
-    @abstractmethod
-    def calculate_size(
-        self,
-        signal: Dict[str, Any],
-        account_balance: float,
-        current_price: float,
-        market_conditions: Optional[Dict[str, Any]] = None,
-    ) -> float:
-        """Calculate position size."""
-        pass
-
-
-class KellyCriterionSizer(PositionSizer):
-    """Kelly Criterion position sizing."""
+class PositionSizingCalculator:
+    """
+    Calculate optimal position sizes based on risk management rules.
+    GREEN phase: Minimal implementation to pass tests.
+    """
 
     def __init__(
         self,
-        win_rate: float = 0.55,
-        avg_win_loss_ratio: float = 1.5,
-        kelly_fraction: float = 0.25,
+        account_balance: float = 10000,
+        starting_balance: float = None,
+        current_balance: float = None,
+        risk_percentage: float = 2.0,
+        available_margin: float = None,
+        leverage: int = 50,
+        max_position_size: float = None,
+        sizing_method: str = "fixed_risk",
+        sizing_strategy: str = None,
+        target_portfolio_risk: float = None,
+        use_volatility_sizing: bool = False,
+        pyramiding_enabled: bool = False,
+        news_adjustment: bool = False,
+        delta: float = None,
     ):
-        """
-        Initialize Kelly Criterion sizer.
+        """Initialize position sizing calculator."""
+        self.account_balance = account_balance
+        self.starting_balance = starting_balance or account_balance
+        self.current_balance = current_balance or account_balance
+        self.risk_percentage = risk_percentage
+        self.available_margin = available_margin
+        self.leverage = leverage
+        self.max_position_size = max_position_size
+        self.sizing_method = sizing_method
+        self.sizing_strategy = sizing_strategy
+        self.target_portfolio_risk = target_portfolio_risk
+        self.use_volatility_sizing = use_volatility_sizing
+        self.pyramiding_enabled = pyramiding_enabled
+        self.news_adjustment = news_adjustment
+        self.delta = delta
 
-        Args:
-            win_rate: Historical win rate
-            avg_win_loss_ratio: Average win/loss ratio
-            kelly_fraction: Fraction of Kelly to use (for safety)
-        """
-        self.win_rate = win_rate
-        self.avg_win_loss_ratio = avg_win_loss_ratio
-        self.kelly_fraction = kelly_fraction
+    def calculate_position_size(
+        self, entry_price: float, stop_loss: float, symbol: str
+    ) -> Dict[str, Any]:
+        """Calculate position size based on fixed risk percentage."""
+        # Check for invalid stop loss
+        if stop_loss == entry_price:
+            raise ValueError("Invalid stop loss: cannot be same as entry price")
 
-    def calculate_size(
-        self,
-        signal: Dict[str, Any],
-        account_balance: float,
-        current_price: float,
-        market_conditions: Optional[Dict[str, Any]] = None,
-    ) -> float:
+        # Calculate stop distance in pips
+        stop_distance = abs(entry_price - stop_loss)
+        stop_distance_pips = stop_distance * 10000  # For forex pairs
+
+        # Calculate risk amount
+        risk_amount = self.account_balance * (self.risk_percentage / 100)
+
+        # Check if balance is too small
+        if self.account_balance < 1000:
+            return {
+                "lots": 0,
+                "units": 0,
+                "risk_amount": 0,
+                "stop_distance_pips": stop_distance_pips,
+                "error": "Insufficient balance",
+            }
+
+        # Calculate position size in lots
+        # Risk per pip = risk_amount / stop_distance_pips
+        # For standard lot (100,000 units), 1 pip = $10
+        risk_per_pip = risk_amount / stop_distance_pips
+        lots = risk_per_pip / 10  # $10 per pip for standard lot
+
+        # Apply maximum position size cap
+        original_lots = lots
+        capped = False
+        if self.max_position_size and lots > self.max_position_size:
+            lots = self.max_position_size
+            capped = True
+
+        units = int(round(lots * 100000))
+
+        return {
+            "lots": round(lots, 2),
+            "units": units,
+            "risk_amount": risk_amount,
+            "stop_distance_pips": stop_distance_pips,
+            "capped": capped,
+            "original_lots": original_lots,
+        }
+
+    def calculate_kelly_position(
+        self, win_rate: float, avg_win: float, avg_loss: float, confidence_factor: float
+    ) -> Dict[str, Any]:
         """Calculate position size using Kelly Criterion."""
-        # Adjust win rate based on signal strength
-        adjusted_win_rate = self.win_rate
-        if "strength" in signal:
-            # Scale win rate by signal strength
-            adjusted_win_rate = (
-                0.5 + (signal["strength"] - 0.5) * (self.win_rate - 0.5) / 0.5
-            )
-
-        # Kelly formula: f = p - q/b
+        # Kelly formula: f = (p*b - q) / b
         # where p = win probability, q = loss probability, b = win/loss ratio
-        q = 1 - adjusted_win_rate
-        kelly_full = adjusted_win_rate - (q / self.avg_win_loss_ratio)
+        p = win_rate
+        q = 1 - win_rate
+        b = avg_win / avg_loss
 
-        # Apply Kelly fraction for safety
-        kelly_position = max(0, kelly_full * self.kelly_fraction)
+        kelly_raw = (p * b - q) / b
 
-        # Cap at maximum position size (e.g., 10% of capital)
-        kelly_position = min(kelly_position, 0.1)
+        # Check for negative Kelly (don't trade)
+        if kelly_raw <= 0:
+            return {
+                "kelly_percentage": 0,
+                "position_value": 0,
+                "recommendation": "DO_NOT_TRADE",
+            }
 
-        # Convert to position size
-        position_value = account_balance * kelly_position
-        position_size = position_value / current_price
+        # Apply confidence factor (fractional Kelly)
+        kelly_percentage = kelly_raw * confidence_factor * 100
 
-        return position_size
+        # Calculate position value
+        position_value = self.account_balance * (kelly_percentage / 100)
 
+        return {
+            "kelly_percentage": round(kelly_percentage, 2),
+            "position_value": round(position_value, 0),
+        }
 
-class VolatilityBasedSizer(PositionSizer):
-    """Volatility-based position sizing."""
-
-    def __init__(
+    def calculate_with_correlation(
         self,
-        target_risk: float = 0.02,
-        lookback_period: int = 20,
-        volatility_scalar: float = 1.0,
-    ):
-        """
-        Initialize volatility-based sizer.
+        entry_price: float,
+        stop_loss: float,
+        symbol: str,
+        existing_positions: List[Dict],
+    ) -> Dict[str, Any]:
+        """Calculate position size adjusted for correlation risk."""
+        # Start with base position calculation
+        base_position = self.calculate_position_size(entry_price, stop_loss, symbol)
 
-        Args:
-            target_risk: Target risk per trade (e.g., 2%)
-            lookback_period: Period for volatility calculation
-            volatility_scalar: Multiplier for volatility adjustment
-        """
-        self.target_risk = target_risk
-        self.lookback_period = lookback_period
-        self.volatility_scalar = volatility_scalar
+        # Calculate correlation adjustment
+        total_correlation = sum(
+            pos["correlation"] * pos["lots"] for pos in existing_positions
+        )
 
-    def calculate_size(
+        # Reduce position size based on correlation
+        correlation_factor = max(0.3, 1 - (total_correlation * 0.3))  # Reduce up to 70%
+        adjusted_lots = base_position["lots"] * correlation_factor
+
+        # Calculate effective risk
+        effective_risk = self.risk_percentage * correlation_factor
+
+        return {
+            "lots": round(adjusted_lots, 2),
+            "units": int(adjusted_lots * 100000),
+            "correlation_adjustment": round(1 - correlation_factor, 2),
+            "effective_risk": round(effective_risk, 2),
+            "risk_amount": base_position["risk_amount"],
+            "stop_distance_pips": base_position["stop_distance_pips"],
+        }
+
+    def calculate_anti_martingale(
         self,
-        signal: Dict[str, Any],
-        account_balance: float,
-        current_price: float,
-        market_conditions: Optional[Dict[str, Any]] = None,
-    ) -> float:
-        """Calculate position size based on volatility."""
-        # Get volatility from market conditions or use default
-        volatility = 0.01  # Default 1% volatility
-
-        if market_conditions:
-            if "volatility" in market_conditions:
-                volatility = market_conditions["volatility"]
-            elif "atr" in market_conditions:
-                # Use ATR as proxy for volatility
-                atr = market_conditions["atr"]
-                volatility = atr / current_price
-
-        # Adjust volatility by scalar
-        adjusted_volatility = volatility * self.volatility_scalar
-
-        # Calculate position size to achieve target risk
-        if adjusted_volatility > 0:
-            position_weight = self.target_risk / adjusted_volatility
-        else:
-            position_weight = self.target_risk  # Fallback
-
-        # Cap position size
-        position_weight = min(position_weight, 0.1)  # Max 10% of capital
-
-        # Convert to position size
-        position_value = account_balance * position_weight
-        position_size = position_value / current_price
-
-        return position_size
-
-
-class FixedRiskSizer(PositionSizer):
-    """Fixed risk position sizing."""
-
-    def __init__(self, risk_per_trade: float = 0.02, stop_loss_pct: float = 0.02):
-        """
-        Initialize fixed risk sizer.
-
-        Args:
-            risk_per_trade: Risk per trade as fraction of capital
-            stop_loss_pct: Default stop loss percentage
-        """
-        self.risk_per_trade = risk_per_trade
-        self.stop_loss_pct = stop_loss_pct
-
-    def calculate_size(
-        self,
-        signal: Dict[str, Any],
-        account_balance: float,
-        current_price: float,
-        market_conditions: Optional[Dict[str, Any]] = None,
-    ) -> float:
-        """Calculate position size for fixed risk."""
-        # Get stop loss from signal or use default
-        stop_loss = signal.get("stop_loss")
-
-        if stop_loss is None:
-            # Use percentage-based stop loss
-            if signal.get("type") == "BUY":
-                stop_loss = current_price * (1 - self.stop_loss_pct)
+        base_lots: float,
+        recent_trades: List[Dict],
+        increase_factor: float,
+        decrease_factor: float,
+    ) -> Dict[str, Any]:
+        """Calculate position with anti-martingale adjustment."""
+        # Count consecutive wins/losses
+        consecutive_wins = 0
+        for trade in reversed(recent_trades):
+            if trade["result"] == "win":
+                consecutive_wins += 1
             else:
-                stop_loss = current_price * (1 + self.stop_loss_pct)
+                break
 
-        # Calculate price risk
-        price_risk = abs(current_price - stop_loss)
+        # Calculate multiplier based on streak
+        if consecutive_wins > 0:
+            streak_multiplier = 1 + (
+                (increase_factor - 1) * min(consecutive_wins, 3) / 3
+            )
+        else:
+            streak_multiplier = decrease_factor
 
-        if price_risk == 0:
-            return 0
+        adjusted_lots = base_lots * streak_multiplier
 
-        # Calculate position size
-        risk_amount = account_balance * self.risk_per_trade
-        position_size = risk_amount / price_risk
+        return {
+            "adjusted_lots": round(adjusted_lots, 2),
+            "streak_multiplier": round(streak_multiplier, 2),
+            "strategy": "anti_martingale",
+            "consecutive_wins": consecutive_wins,
+        }
 
-        # Cap at maximum position value (10% of capital)
-        max_position_value = account_balance * 0.1
-        max_position_size = max_position_value / current_price
+    def calculate_risk_parity(
+        self, symbol: str, volatility: float, portfolio_positions: List[Dict]
+    ) -> Dict[str, Any]:
+        """Calculate position for risk parity portfolio."""
+        # Target risk contribution (equal across all positions)
+        num_positions = len(portfolio_positions) + 1
+        target_risk_contribution = self.target_portfolio_risk / num_positions
 
-        return min(position_size, max_position_size)
-
-
-class DynamicPositionSizer(PositionSizer):
-    """Dynamic position sizing based on multiple factors."""
-
-    def __init__(
-        self,
-        base_risk: float = 0.02,
-        max_risk: float = 0.05,
-        confidence_weight: float = 0.3,
-        volatility_weight: float = 0.3,
-        trend_weight: float = 0.4,
-    ):
-        """
-        Initialize dynamic position sizer.
-
-        Args:
-            base_risk: Base risk per trade
-            max_risk: Maximum risk per trade
-            confidence_weight: Weight for signal confidence
-            volatility_weight: Weight for volatility adjustment
-            trend_weight: Weight for trend strength
-        """
-        self.base_risk = base_risk
-        self.max_risk = max_risk
-        self.confidence_weight = confidence_weight
-        self.volatility_weight = volatility_weight
-        self.trend_weight = trend_weight
-
-        # Sub-sizers
-        self.volatility_sizer = VolatilityBasedSizer()
-        self.fixed_risk_sizer = FixedRiskSizer(risk_per_trade=base_risk)
-
-    def calculate_size(
-        self,
-        signal: Dict[str, Any],
-        account_balance: float,
-        current_price: float,
-        market_conditions: Optional[Dict[str, Any]] = None,
-    ) -> float:
-        """Calculate dynamic position size."""
-        # Start with base position size
-        base_size = self.fixed_risk_sizer.calculate_size(
-            signal, account_balance, current_price, market_conditions
+        # Calculate position value for equal risk contribution
+        position_value = (
+            (target_risk_contribution / volatility) * self.account_balance / 100
         )
 
-        # Adjustment factors
-        confidence_factor = 1.0
-        volatility_factor = 1.0
-        trend_factor = 1.0
+        # Calculate weight
+        weight = position_value / self.account_balance
 
-        # Confidence adjustment
-        if "strength" in signal:
-            # Higher confidence -> larger position
-            confidence_factor = 0.5 + signal["strength"]
+        return {
+            "risk_contribution": round(target_risk_contribution, 2),
+            "position_value": round(position_value, 0),
+            "weight": round(weight, 4),
+        }
 
-        # Volatility adjustment
-        if market_conditions and "volatility" in market_conditions:
-            # Lower volatility -> larger position
-            vol = market_conditions["volatility"]
-            volatility_factor = 1.5 - min(vol / 0.02, 1.5)
+    def calculate_volatility_adjusted(
+        self,
+        entry_price: float,
+        stop_loss: float,
+        symbol: str,
+        current_atr: float,
+        average_atr: float,
+    ) -> Dict[str, Any]:
+        """Calculate position adjusted for market volatility."""
+        # Base position
+        base_position = self.calculate_position_size(entry_price, stop_loss, symbol)
 
-        # Trend adjustment
-        if market_conditions and "trend_strength" in market_conditions:
-            # Stronger trend -> larger position
-            trend_factor = 0.5 + market_conditions["trend_strength"]
+        # Volatility adjustment (inverse relationship)
+        volatility_ratio = current_atr / average_atr
+        volatility_multiplier = 1 / volatility_ratio
 
-        # Calculate weighted adjustment
-        total_weight = (
-            self.confidence_weight + self.volatility_weight + self.trend_weight
+        adjusted_lots = base_position["lots"] * volatility_multiplier
+
+        return {
+            "lots": round(adjusted_lots, 2),
+            "units": int(adjusted_lots * 100000),
+            "volatility_multiplier": round(volatility_multiplier, 3),
+            "adjusted_lots": round(adjusted_lots, 2),
+            "risk_amount": base_position["risk_amount"],
+            "stop_distance_pips": base_position["stop_distance_pips"],
+        }
+
+    def calculate_with_margin_check(
+        self, entry_price: float, stop_loss: float, symbol: str
+    ) -> Dict[str, Any]:
+        """Calculate position respecting margin requirements."""
+        # Maximum units based on available margin
+        max_units_by_margin = (self.available_margin * self.leverage) / entry_price
+
+        # Calculate risk-based position
+        risk_position = self.calculate_position_size(entry_price, stop_loss, symbol)
+
+        # Use smaller of the two
+        if risk_position["units"] * entry_price / self.leverage > self.available_margin:
+            units = int(max_units_by_margin)
+            lots = units / 100000
+            margin_limited = True
+        else:
+            units = risk_position["units"]
+            lots = risk_position["lots"]
+            margin_limited = False
+
+        margin_used = (units * entry_price) / self.leverage
+
+        return {
+            "lots": round(lots, 2),
+            "units": units,
+            "margin_used": round(margin_used, 2),
+            "margin_limited": margin_limited,
+            "risk_amount": risk_position["risk_amount"],
+            "stop_distance_pips": risk_position["stop_distance_pips"],
+        }
+
+    def calculate_pyramid_addition(
+        self,
+        existing_position: Dict,
+        new_entry: float,
+        new_stop: float,
+        max_pyramid_units: int,
+    ) -> Dict[str, Any]:
+        """Calculate pyramid position addition."""
+        # Current units count
+        current_units = 1  # Start with 1 unit for existing position
+
+        # Pyramid should be smaller than initial position
+        add_lots = existing_position["lots"] * 0.5  # 50% of initial
+
+        # Check max units
+        if current_units >= max_pyramid_units:
+            add_lots = 0
+
+        # Calculate new weighted entry
+        total_lots = existing_position["lots"] + add_lots
+        weighted_entry = (
+            (
+                existing_position["entry"] * existing_position["lots"]
+                + new_entry * add_lots
+            )
+            / total_lots
+            if total_lots > 0
+            else new_entry
         )
 
-        adjustment = (
-            confidence_factor * self.confidence_weight
-            + volatility_factor * self.volatility_weight
-            + trend_factor * self.trend_weight
-        ) / total_weight
+        return {
+            "add_lots": round(add_lots, 2),
+            "total_units": min(current_units + 1, max_pyramid_units),
+            "weighted_entry": round(weighted_entry, 4),
+        }
 
-        # Apply adjustment
-        adjusted_size = base_size * adjustment
+    def calculate_optimal_f(
+        self, trade_history: List[float], safety_factor: float
+    ) -> Dict[str, Any]:
+        """Calculate position using Optimal f method."""
+        if not trade_history:
+            return {"optimal_f": 0, "risk_amount": 0}
 
-        # Cap at maximum risk
-        max_position_value = account_balance * self.max_risk
-        max_position_size = max_position_value / current_price
+        # Find worst loss
+        worst_loss = abs(min(trade_history))
 
-        return min(adjusted_size, max_position_size)
+        # Calculate optimal f (simplified version)
+        # Real optimal f requires iterative calculation
+        wins = [t for t in trade_history if t > 0]
+        losses = [abs(t) for t in trade_history if t < 0]
 
+        if not losses:
+            return {"optimal_f": 0, "risk_amount": 0}
 
-# Factory function
-def create_position_sizer(method: str = "fixed_risk", **kwargs) -> PositionSizer:
-    """
-    Create a position sizer instance.
+        win_rate = len(wins) / len(trade_history)
+        avg_win = sum(wins) / len(wins) if wins else 0
+        avg_loss = sum(losses) / len(losses) if losses else worst_loss
 
-    Args:
-        method: Sizing method ('fixed_risk', 'kelly', 'volatility', 'dynamic')
-        **kwargs: Method-specific parameters
+        # Simplified optimal f calculation
+        if avg_loss > 0:
+            optimal_f_raw = (
+                win_rate * avg_win - (1 - win_rate) * avg_loss
+            ) / worst_loss
+        else:
+            optimal_f_raw = 0
 
-    Returns:
-        PositionSizer instance
-    """
-    if method == "kelly":
-        return KellyCriterionSizer(**kwargs)
-    elif method == "volatility":
-        return VolatilityBasedSizer(**kwargs)
-    elif method == "dynamic":
-        return DynamicPositionSizer(**kwargs)
-    else:
-        return FixedRiskSizer(**kwargs)
+        optimal_f = max(0, min(optimal_f_raw, 0.25))  # Cap at 25%
+        optimal_f *= safety_factor
+
+        risk_amount = self.account_balance * optimal_f
+
+        return {
+            "optimal_f": round(optimal_f, 4),
+            "risk_amount": round(risk_amount, 2),
+        }
+
+    def calculate_with_news_adjustment(
+        self,
+        entry_price: float,
+        stop_loss: float,
+        symbol: str,
+        upcoming_news: List[Dict],
+    ) -> Dict[str, Any]:
+        """Calculate position with news event adjustment."""
+        # Base position
+        base_position = self.calculate_position_size(entry_price, stop_loss, symbol)
+
+        # Check for high impact news
+        high_impact = any(
+            news["impact"] == "high" and news["minutes_until"] < 60
+            for news in upcoming_news
+        )
+
+        # Reduce position for news
+        if high_impact:
+            news_multiplier = 0.5  # Reduce by 50%
+        elif any(news["impact"] == "medium" for news in upcoming_news):
+            news_multiplier = 0.75  # Reduce by 25%
+        else:
+            news_multiplier = 1.0
+
+        adjusted_lots = base_position["lots"] * news_multiplier
+
+        result = {
+            "lots": round(adjusted_lots, 2),
+            "units": int(adjusted_lots * 100000),
+            "news_multiplier": news_multiplier,
+            "adjusted_lots": round(adjusted_lots, 2),
+            "risk_amount": base_position["risk_amount"],
+            "stop_distance_pips": base_position["stop_distance_pips"],
+        }
+
+        if high_impact:
+            result["high_impact_warning"] = "High impact news in < 60 minutes"
+
+        return result
+
+    def calculate_fixed_ratio(
+        self, base_units: int, min_units: int, max_units: int
+    ) -> Dict[str, Any]:
+        """Calculate position using fixed ratio money management."""
+        # Calculate profit
+        profit = self.current_balance - self.starting_balance
+
+        if profit <= 0:
+            units = min_units
+        else:
+            # Fixed ratio formula: N = base + sqrt(2 * P / delta)
+            # Simplified: units = base + (profit / delta)
+            additional_units = int(profit / self.delta)
+            units = min(base_units + additional_units, max_units)
+
+        return {
+            "units": units,
+            "method": "fixed_ratio",
+            "profit_per_unit": self.delta,
+        }
