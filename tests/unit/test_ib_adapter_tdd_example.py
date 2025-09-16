@@ -10,7 +10,8 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 # Import the IB adapter we're testing
-from core.brokers.adapters.ib_adapter_tdd import IBAdapter
+# from core.brokers.adapters.ib_adapter_tdd import IBAdapter  # GREEN phase
+from core.brokers.adapters.ib_adapter_refactored import IBAdapter  # REFACTOR phase
 
 
 class TestIBAdapterTDD:
@@ -146,8 +147,10 @@ class TestIBAdapterTDD:
         adapter = IBAdapter(auto_reconnect=True)
         adapter.connected = False
 
-        # Mock the connect method
-        with patch.object(adapter, "_connect_to_gateway") as mock_connect:
+        # Mock the connect method - patch the connection_manager's method
+        with patch.object(
+            adapter.connection_manager, "_attempt_connection"
+        ) as mock_connect:
             mock_connect.side_effect = [False, False, True]  # Fail twice, then succeed
 
             # Act
@@ -167,7 +170,7 @@ class TestIBAdapterTDD:
 
         # Mock current time to Saturday (market closed)
         saturday = datetime(2025, 9, 21, 12, 0, 0)  # Saturday noon
-        with patch("core.brokers.adapters.ib_adapter_tdd.datetime") as mock_dt:
+        with patch("core.brokers.adapters.ib_adapter_refactored.datetime") as mock_dt:
             mock_dt.now.return_value = saturday
 
             order = {
