@@ -22,6 +22,7 @@ from fxml4.api.routers import (
     legacy_auth_router,
     performance_router,
     signals_router,
+    user_crud_tdd_router,
 )
 from fxml4.config import get_config
 
@@ -110,6 +111,10 @@ app.include_router(legacy_auth_router)
 # Include TDD-validated authentication routes
 if auth_tdd_router:
     app.include_router(auth_tdd_router)
+
+# Include TDD-validated user CRUD routes
+if user_crud_tdd_router:
+    app.include_router(user_crud_tdd_router)
 
 # Include functional routes (only if they loaded successfully)
 if data_router:

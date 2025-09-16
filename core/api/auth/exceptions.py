@@ -23,3 +23,9 @@ class InvalidCredentialsError(AuthenticationError):
     """Raised when credentials are invalid."""
 
     pass
+
+
+class InsufficientPermissionsError(AuthenticationError):
+    """Raised when user lacks required permissions."""
+
+    pass
