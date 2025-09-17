@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any, AsyncGenerator, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import numpy as np
 import pytest
 import pytest_asyncio
 from faker import Faker
@@ -324,3 +325,4 @@ def pytest_configure(config):
         "markers", "green: marks tests in GREEN phase (minimal passing code)"
     )
     config.addinivalue_line("markers", "refactor: marks tests in REFACTOR phase")
+    config.addinivalue_line("markers", "risk: marks tests related to risk management")
