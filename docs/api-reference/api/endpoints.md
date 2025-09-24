@@ -12,9 +12,104 @@ http://localhost:8000
 
 You can configure the host and port in the `config/default.yaml` file.
 
-## Authentication
+## Authentication - Sprint 1 Enhanced Security
 
-Currently, the API does not require authentication. Authentication will be added in a future release.
+### JWT Authentication with 2FA Support
+
+The API implements enterprise-grade authentication with comprehensive security features:
+
+#### Security Exception Handling
+The authentication system includes enhanced exception classes:
+- `TokenRotationError`: Handles JWT token rotation failures
+- `SecurityAuditError`: Manages security audit operation failures
+- `TwoFactorRequiredError`: Enforces 2FA authentication when required
+- `TokenExpiredError`: Manages expired token scenarios
+- `InsufficientPermissionsError`: Handles authorization failures
+
+#### Authentication Flow
+
+**Standard Login:**
+```bash
+POST /auth/login
+Content-Type: application/json
+
+{
+  "username": "trader@example.com",
+  "password": "secure_password"
+}
+```
+
+**Response (2FA Required):**
+```json
+{
+  "error": "TwoFactorRequiredError",
+  "message": "Two-factor authentication required",
+  "temp_token": "temp_jwt_token_here",
+  "expires_in": 300
+}
+```
+
+**2FA Completion:**
+```bash
+POST /auth/2fa/verify
+Authorization: Bearer {temp_token}
+Content-Type: application/json
+
+{
+  "code": "123456"
+}
+```
+
+**Successful Authentication Response:**
+```json
+{
+  "access_token": "jwt_access_token",
+  "refresh_token": "jwt_refresh_token",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "user_id": "uuid",
+  "permissions": ["trading", "data_access"]
+}
+```
+
+#### Token Management
+
+**Token Refresh:**
+```bash
+POST /auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "jwt_refresh_token"
+}
+```
+
+#### Error Responses
+
+**Token Rotation Error (500):**
+```json
+{
+  "error": "TokenRotationError",
+  "message": "Failed to rotate authentication token",
+  "audit_id": "audit_12345"
+}
+```
+
+**Security Audit Error (500):**
+```json
+{
+  "error": "SecurityAuditError",
+  "message": "Security audit operation failed",
+  "incident_id": "sec_incident_67890"
+}
+```
+
+### Request Headers
+All authenticated requests must include:
+```
+Authorization: Bearer {access_token}
+X-API-Version: v1
+```
 
 ## API Endpoints
 
@@ -34,13 +129,114 @@ Check if the API server is running and healthy.
 }
 ```
 
-### Get Market Data
+### WebSocket Real-Time Market Data - Sprint 1 Implementation
+
+#### WebSocket Connection
+
+```
+WS /ws/market-data
+```
+
+Establish WebSocket connection for real-time market data streaming with sub-millisecond latency.
+
+**Connection Headers:**
+```
+Authorization: Bearer {access_token}
+Upgrade: websocket
+Connection: Upgrade
+```
+
+**Connection Confirmation:**
+```json
+{
+  "type": "connection_confirmed",
+  "client_id": "client_abc123",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "status": "connected"
+}
+```
+
+#### Subscribe to Symbol
+
+**Client Message:**
+```json
+{
+  "type": "subscribe",
+  "symbol": "EURUSD",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Subscription Confirmation:**
+```json
+{
+  "type": "subscription_confirmed",
+  "symbol": "EURUSD",
+  "client_id": "client_abc123",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### Real-Time Price Updates
+
+```json
+{
+  "type": "price_update",
+  "symbol": "EURUSD",
+  "bid": 1.0955,
+  "ask": 1.0957,
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "volume": 1000,
+  "latency_ms": 0.8
+}
+```
+
+#### Unsubscribe from Symbol
+
+```json
+{
+  "type": "unsubscribe",
+  "symbol": "EURUSD",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### Error Handling
+
+**Invalid Symbol:**
+```json
+{
+  "type": "error",
+  "error_code": "INVALID_SYMBOL",
+  "message": "Symbol INVALID not supported",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Data Validation Error:**
+```json
+{
+  "type": "validation_error",
+  "errors": ["Invalid bid price: -1.0", "Ask price cannot be NaN"],
+  "symbol": "EURUSD",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### Connection Management Features
+
+- **Automatic Reconnection**: Exponential backoff with max 3 attempts
+- **Data Buffering**: 100-message buffer per symbol for reconnection recovery
+- **Connection Health**: Sub-millisecond latency monitoring
+- **Feed Failover**: Automatic switching between data sources
+
+### Get Historical Market Data
 
 ```
 POST /data
 ```
 
-Fetch market data for a specified symbol and timeframe.
+Fetch historical market data for a specified symbol and timeframe.
 
 **Request Body:**
 
@@ -343,18 +539,63 @@ Compare multiple backtests.
 
 ## Error Handling
 
-The API returns standard HTTP status codes:
+The API returns standard HTTP status codes with enhanced security error handling:
 
+### Standard HTTP Status Codes
 - 200: Success
 - 400: Bad Request
+- 401: Unauthorized (authentication required)
+- 403: Forbidden (insufficient permissions)
 - 404: Not Found
+- 422: Validation Error
+- 429: Rate Limit Exceeded
 - 500: Internal Server Error
 
-Error responses include a detail message:
+### Authentication Error Responses
 
+**Invalid Credentials (401):**
 ```json
 {
-  "detail": "Error message describing the issue"
+  "error": "InvalidCredentialsError",
+  "message": "Invalid username or password",
+  "auth_attempt_id": "attempt_123"
+}
+```
+
+**Token Expired (401):**
+```json
+{
+  "error": "TokenExpiredError",
+  "message": "Access token has expired",
+  "expired_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Insufficient Permissions (403):**
+```json
+{
+  "error": "InsufficientPermissionsError",
+  "message": "User lacks required trading permissions",
+  "required_permissions": ["trading.execute"]
+}
+```
+
+**Session Error (401):**
+```json
+{
+  "error": "SessionError",
+  "message": "User session has been invalidated",
+  "reason": "concurrent_login_detected"
+}
+```
+
+### Standard Error Response
+```json
+{
+  "detail": "Error message describing the issue",
+  "error_code": "SPECIFIC_ERROR_CODE",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "request_id": "req_abc123"
 }
 ```
 

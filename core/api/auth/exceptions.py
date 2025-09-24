@@ -35,3 +35,15 @@ class SessionError(AuthenticationError):
     """Raised when there are session-related errors."""
 
     pass
+
+
+class TokenRotationError(AuthenticationError):
+    """Raised when token rotation fails."""
+
+    pass
+
+
+class SecurityAuditError(AuthenticationError):
+    """Raised when security audit operations fail."""
+
+    pass
