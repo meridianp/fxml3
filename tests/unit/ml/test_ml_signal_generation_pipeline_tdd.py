@@ -24,29 +24,29 @@ Accuracy Requirements:
 - Risk metrics accuracy: Financial-grade precision
 """
 
-import uuid
-import time
 import asyncio
-from datetime import datetime, timezone, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional, Any, Tuple
-from unittest.mock import Mock, patch, AsyncMock
-import threading
 import queue
+import threading
+import time
+import uuid
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
+from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
 
-from core.ml.ml_trading_pipeline import MLTradingPipeline
-from core.ml.signal_generator import SignalGenerator
-from core.ml.signal_aggregator import SignalAggregator
 from core.features.feature_engineering import UnifiedFeatureEngineer
-
+from core.ml.ml_trading_pipeline import MLTradingPipeline
+from core.ml.signal_aggregator import SignalAggregator
+from core.ml.signal_generator import SignalGenerator
 
 # ============================================================================
 # Mock Objects and Fixtures for TDD Testing
 # ============================================================================
+
 
 class MockMarketDataGenerator:
     """Generate realistic market data for ML pipeline testing."""
@@ -61,8 +61,11 @@ class MockMarketDataGenerator:
 
         # Start price and generate realistic price movement
         base_price = 1.2000
-        dates = pd.date_range(start=datetime.now() - timedelta(hours=self.bars),
-                             periods=self.bars, freq='H')
+        dates = pd.date_range(
+            start=datetime.now() - timedelta(hours=self.bars),
+            periods=self.bars,
+            freq="H",
+        )
 
         # Generate price series with realistic volatility
         returns = np.random.normal(0, 0.001, self.bars)  # 0.1% hourly volatility
@@ -76,18 +79,20 @@ class MockMarketDataGenerator:
 
             high = price * (1 + volatility)
             low = price * (1 - volatility)
-            open_price = prices[i-1] if i > 0 else price
+            open_price = prices[i - 1] if i > 0 else price
             volume = np.random.randint(1000000, 5000000)  # Random volume
 
-            data.append({
-                'timestamp': date,
-                'symbol': self.symbol,
-                'open': open_price,
-                'high': high,
-                'low': low,
-                'close': price,
-                'volume': volume
-            })
+            data.append(
+                {
+                    "timestamp": date,
+                    "symbol": self.symbol,
+                    "open": open_price,
+                    "high": high,
+                    "low": low,
+                    "close": price,
+                    "volume": volume,
+                }
+            )
 
         return pd.DataFrame(data)
 
@@ -95,7 +100,11 @@ class MockMarketDataGenerator:
 class MockMLModel:
     """Mock ML model for testing predictions."""
 
-    def __init__(self, model_name: str = "random_forest", confidence_range: Tuple[float, float] = (0.5, 0.95)):
+    def __init__(
+        self,
+        model_name: str = "random_forest",
+        confidence_range: Tuple[float, float] = (0.5, 0.95),
+    ):
         self.model_name = model_name
         self.confidence_range = confidence_range
         self.prediction_count = 0
@@ -121,14 +130,14 @@ class MockMLModel:
             signal = "HOLD"
 
         return {
-            'signal': signal,
-            'confidence': confidence,
-            'model': self.model_name,
-            'probabilities': {
-                'BUY': max(0.1, signal_prob + np.random.normal(0, 0.1)),
-                'SELL': max(0.1, (1 - signal_prob) + np.random.normal(0, 0.1)),
-                'HOLD': max(0.1, np.random.uniform(0.2, 0.4))
-            }
+            "signal": signal,
+            "confidence": confidence,
+            "model": self.model_name,
+            "probabilities": {
+                "BUY": max(0.1, signal_prob + np.random.normal(0, 0.1)),
+                "SELL": max(0.1, (1 - signal_prob) + np.random.normal(0, 0.1)),
+                "HOLD": max(0.1, np.random.uniform(0.2, 0.4)),
+            },
         }
 
 
@@ -143,17 +152,17 @@ def mock_market_data():
 def ml_pipeline():
     """Create ML trading pipeline for testing."""
     config = {
-        'confidence_threshold': 0.65,
-        'feature_config': {
-            'technical_indicators': True,
-            'statistical_features': True,
-            'elliott_wave_features': True
+        "confidence_threshold": 0.65,
+        "feature_config": {
+            "technical_indicators": True,
+            "statistical_features": True,
+            "elliott_wave_features": True,
         },
-        'model_config': {
-            'ensemble_models': ['random_forest', 'gradient_boost', 'neural_network'],
-            'prediction_horizon': '1h',
-            'update_frequency': 'realtime'
-        }
+        "model_config": {
+            "ensemble_models": ["random_forest", "gradient_boost", "neural_network"],
+            "prediction_horizon": "1h",
+            "update_frequency": "realtime",
+        },
     }
     return MLTradingPipeline(config)
 
@@ -162,10 +171,10 @@ def ml_pipeline():
 def feature_engineer():
     """Create feature engineering component."""
     config = {
-        'basic_indicators': ['sma', 'ema', 'rsi', 'macd', 'bollinger'],
-        'ma_periods': [21, 50, 200],
-        'advanced_features': True,
-        'elliott_wave_features': True
+        "basic_indicators": ["sma", "ema", "rsi", "macd", "bollinger"],
+        "ma_periods": [21, 50, 200],
+        "advanced_features": True,
+        "elliott_wave_features": True,
     }
     return UnifiedFeatureEngineer(config)
 
@@ -179,12 +188,13 @@ def signal_generator():
 @pytest.fixture
 def signal_aggregator():
     """Create signal aggregator component."""
-    return SignalAggregator({'method': 'weighted_voting'})
+    return SignalAggregator({"method": "weighted_voting"})
 
 
 # ============================================================================
 # TDD Test Class 1: Feature Extraction Performance and Accuracy
 # ============================================================================
+
 
 class TestMLFeatureExtractionPerformance:
     """
@@ -199,7 +209,9 @@ class TestMLFeatureExtractionPerformance:
 
     @pytest.mark.tdd
     @pytest.mark.red
-    def test_feature_extraction_performance_benchmark(self, feature_engineer, mock_market_data):
+    def test_feature_extraction_performance_benchmark(
+        self, feature_engineer, mock_market_data
+    ):
         """
         RED: Feature extraction must complete within 200ms for 1000 data points.
 
@@ -216,7 +228,9 @@ class TestMLFeatureExtractionPerformance:
             try:
                 features = feature_engineer.generate_features(mock_market_data)
 
-                extraction_time = (time.perf_counter() - start_time) * 1000  # milliseconds
+                extraction_time = (
+                    time.perf_counter() - start_time
+                ) * 1000  # milliseconds
                 extraction_times.append(extraction_time)
 
                 # Verify features were generated
@@ -226,15 +240,21 @@ class TestMLFeatureExtractionPerformance:
 
             except AttributeError:
                 # Expected in RED phase - generate_features method might not exist
-                pytest.fail("Feature extraction capability not implemented - required for ML pipeline")
+                pytest.fail(
+                    "Feature extraction capability not implemented - required for ML pipeline"
+                )
 
         # Assert - Performance requirements (will fail until optimized)
         if extraction_times:
             avg_time = sum(extraction_times) / len(extraction_times)
             max_time = max(extraction_times)
 
-            assert avg_time < 200, f"Average extraction time {avg_time:.2f}ms exceeds 200ms requirement"
-            assert max_time < 500, f"Maximum extraction time {max_time:.2f}ms exceeds 500ms limit"
+            assert (
+                avg_time < 200
+            ), f"Average extraction time {avg_time:.2f}ms exceeds 200ms requirement"
+            assert (
+                max_time < 500
+            ), f"Maximum extraction time {max_time:.2f}ms exceeds 500ms limit"
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -245,36 +265,42 @@ class TestMLFeatureExtractionPerformance:
         Accuracy Requirement: ±0.001% maximum error in calculations
         """
         # Arrange - Create test data with known values
-        test_data = pd.DataFrame({
-            'timestamp': pd.date_range('2024-01-01', periods=100, freq='1H'),
-            'symbol': ['EURUSD'] * 100,
-            'open': [1.2000] * 100,
-            'high': [1.2010] * 100,
-            'low': [1.1990] * 100,
-            'close': [1.2005] * 100,
-            'volume': [1000000] * 100
-        })
+        test_data = pd.DataFrame(
+            {
+                "timestamp": pd.date_range("2024-01-01", periods=100, freq="1H"),
+                "symbol": ["EURUSD"] * 100,
+                "open": [1.2000] * 100,
+                "high": [1.2010] * 100,
+                "low": [1.1990] * 100,
+                "close": [1.2005] * 100,
+                "volume": [1000000] * 100,
+            }
+        )
 
         try:
             features = feature_engineer.generate_features(test_data)
 
             # Test SMA calculation precision
-            if 'sma_21' in features.columns:
-                expected_sma = test_data['close'].rolling(21).mean()
-                actual_sma = features['sma_21']
+            if "sma_21" in features.columns:
+                expected_sma = test_data["close"].rolling(21).mean()
+                actual_sma = features["sma_21"]
 
                 # Calculate maximum relative error
                 max_error = abs((actual_sma - expected_sma) / expected_sma).max()
-                assert max_error < 0.00001, f"SMA precision error {max_error:.6f} exceeds 0.001% tolerance"
+                assert (
+                    max_error < 0.00001
+                ), f"SMA precision error {max_error:.6f} exceeds 0.001% tolerance"
 
             # Test RSI calculation bounds
-            if 'rsi_14' in features.columns:
-                rsi_values = features['rsi_14'].dropna()
-                assert (rsi_values >= 0).all() and (rsi_values <= 100).all(), "RSI values outside valid range [0,100]"
+            if "rsi_14" in features.columns:
+                rsi_values = features["rsi_14"].dropna()
+                assert (rsi_values >= 0).all() and (
+                    rsi_values <= 100
+                ).all(), "RSI values outside valid range [0,100]"
 
             # Test MACD signal alignment
-            if 'macd' in features.columns and 'macd_signal' in features.columns:
-                macd_diff = features['macd'] - features['macd_signal']
+            if "macd" in features.columns and "macd_signal" in features.columns:
+                macd_diff = features["macd"] - features["macd_signal"]
                 assert macd_diff.notna().sum() > 0, "MACD signal calculation failed"
 
         except (AttributeError, KeyError):
@@ -289,8 +315,9 @@ class TestMLFeatureExtractionPerformance:
 
         Memory Requirement: No memory leaks in continuous feature extraction
         """
-        import psutil
         import os
+
+        import psutil
 
         # Arrange - Get initial memory usage
         process = psutil.Process(os.getpid())
@@ -311,6 +338,7 @@ class TestMLFeatureExtractionPerformance:
                 # Force garbage collection periodically
                 if cycle % 20 == 0:
                     import gc
+
                     gc.collect()
 
                     # Check memory usage
@@ -319,8 +347,9 @@ class TestMLFeatureExtractionPerformance:
 
                     # Allow some memory growth but not unbounded
                     max_allowed_increase = 100  # MB
-                    assert memory_increase < max_allowed_increase, \
-                        f"Memory leak detected: {memory_increase:.1f}MB increase after {cycle} cycles"
+                    assert (
+                        memory_increase < max_allowed_increase
+                    ), f"Memory leak detected: {memory_increase:.1f}MB increase after {cycle} cycles"
 
         except AttributeError:
             # Expected in RED phase
@@ -334,11 +363,11 @@ class TestMLFeatureExtractionPerformance:
 
         Concurrency Requirement: Multiple threads extracting features simultaneously
         """
-        import threading
         import queue
+        import threading
 
         # Arrange - Create market data for multiple symbols
-        symbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD']
+        symbols = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"]
         market_data_sets = {}
 
         for symbol in symbols:
@@ -373,8 +402,9 @@ class TestMLFeatureExtractionPerformance:
 
         # Assert - All extractions should succeed
         try:
-            assert results_queue.qsize() == len(symbols), \
-                f"Expected {len(symbols)} successful extractions, got {results_queue.qsize()}"
+            assert results_queue.qsize() == len(
+                symbols
+            ), f"Expected {len(symbols)} successful extractions, got {results_queue.qsize()}"
 
             # Verify no data corruption between concurrent operations
             results = []
@@ -383,7 +413,9 @@ class TestMLFeatureExtractionPerformance:
 
             # Check that all symbols were processed
             processed_symbols = [result[0] for result in results]
-            assert set(processed_symbols) == set(symbols), "Missing symbols in concurrent processing"
+            assert set(processed_symbols) == set(
+                symbols
+            ), "Missing symbols in concurrent processing"
 
             # Check performance consistency across threads
             extraction_times = [result[2] for result in results]
@@ -396,7 +428,9 @@ class TestMLFeatureExtractionPerformance:
             if error_count > 0:
                 first_error = errors_queue.get()
                 if "AttributeError" in first_error[1]:
-                    pytest.fail("Concurrent feature extraction not implemented - required for multi-symbol trading")
+                    pytest.fail(
+                        "Concurrent feature extraction not implemented - required for multi-symbol trading"
+                    )
                 else:
                     pytest.fail(f"Thread safety issues detected: {first_error[1]}")
 
@@ -404,6 +438,7 @@ class TestMLFeatureExtractionPerformance:
 # ============================================================================
 # TDD Test Class 2: ML Model Prediction Reliability and Performance
 # ============================================================================
+
 
 class TestMLModelPredictionReliability:
     """
@@ -437,25 +472,33 @@ class TestMLModelPredictionReliability:
                 # This will fail in RED phase - predict_ensemble method doesn't exist
                 prediction = ml_pipeline.model_predictor.predict_ensemble(test_features)
 
-                prediction_time = (time.perf_counter() - start_time) * 1000  # milliseconds
+                prediction_time = (
+                    time.perf_counter() - start_time
+                ) * 1000  # milliseconds
                 prediction_times.append(prediction_time)
 
                 # Verify prediction format
-                assert 'signal' in prediction
-                assert 'confidence' in prediction
-                assert prediction['confidence'] >= 0 and prediction['confidence'] <= 1
+                assert "signal" in prediction
+                assert "confidence" in prediction
+                assert prediction["confidence"] >= 0 and prediction["confidence"] <= 1
 
             except AttributeError:
                 # Expected in RED phase - model predictor doesn't exist
-                pytest.fail("Model prediction capability not implemented - required for trading signals")
+                pytest.fail(
+                    "Model prediction capability not implemented - required for trading signals"
+                )
 
         # Assert - Performance requirements (will fail until optimized)
         if prediction_times:
             avg_time = sum(prediction_times) / len(prediction_times)
             p95_time = np.percentile(prediction_times, 95)
 
-            assert avg_time < 50, f"Average prediction time {avg_time:.2f}ms exceeds 50ms requirement"
-            assert p95_time < 100, f"P95 prediction time {p95_time:.2f}ms exceeds 100ms SLA"
+            assert (
+                avg_time < 50
+            ), f"Average prediction time {avg_time:.2f}ms exceeds 50ms requirement"
+            assert (
+                p95_time < 100
+            ), f"P95 prediction time {p95_time:.2f}ms exceeds 100ms SLA"
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -479,14 +522,18 @@ class TestMLModelPredictionReliability:
             # Assert - All predictions should be identical
             first_prediction = predictions[0]
             for i, pred in enumerate(predictions[1:], 2):
-                assert pred['signal'] == first_prediction['signal'], \
-                    f"Signal inconsistency: prediction {i} = {pred['signal']}, expected {first_prediction['signal']}"
-                assert abs(pred['confidence'] - first_prediction['confidence']) < 1e-10, \
-                    f"Confidence inconsistency: prediction {i} = {pred['confidence']:.10f}, expected {first_prediction['confidence']:.10f}"
+                assert (
+                    pred["signal"] == first_prediction["signal"]
+                ), f"Signal inconsistency: prediction {i} = {pred['signal']}, expected {first_prediction['signal']}"
+                assert (
+                    abs(pred["confidence"] - first_prediction["confidence"]) < 1e-10
+                ), f"Confidence inconsistency: prediction {i} = {pred['confidence']:.10f}, expected {first_prediction['confidence']:.10f}"
 
         except AttributeError:
             # Expected in RED phase
-            pytest.fail("Model prediction reproducibility not implemented - regulatory compliance failure")
+            pytest.fail(
+                "Model prediction reproducibility not implemented - regulatory compliance failure"
+            )
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -498,7 +545,7 @@ class TestMLModelPredictionReliability:
         """
         # Arrange - Generate predictions across confidence ranges
         test_cases = []
-        confidence_buckets = {'high': [], 'medium': [], 'low': []}
+        confidence_buckets = {"high": [], "medium": [], "low": []}
 
         try:
             for i in range(1000):
@@ -509,34 +556,48 @@ class TestMLModelPredictionReliability:
                 test_cases.append(prediction)
 
                 # Bucket by confidence level
-                confidence = prediction['confidence']
+                confidence = prediction["confidence"]
                 if confidence >= 0.8:
-                    confidence_buckets['high'].append(prediction)
+                    confidence_buckets["high"].append(prediction)
                 elif confidence >= 0.6:
-                    confidence_buckets['medium'].append(prediction)
+                    confidence_buckets["medium"].append(prediction)
                 else:
-                    confidence_buckets['low'].append(prediction)
+                    confidence_buckets["low"].append(prediction)
 
             # Assert - Confidence distribution should be meaningful
-            assert len(confidence_buckets['high']) > 0, "No high-confidence predictions generated"
-            assert len(confidence_buckets['medium']) > 0, "No medium-confidence predictions generated"
-            assert len(confidence_buckets['low']) > 0, "No low-confidence predictions generated"
+            assert (
+                len(confidence_buckets["high"]) > 0
+            ), "No high-confidence predictions generated"
+            assert (
+                len(confidence_buckets["medium"]) > 0
+            ), "No medium-confidence predictions generated"
+            assert (
+                len(confidence_buckets["low"]) > 0
+            ), "No low-confidence predictions generated"
 
             # Check confidence score ranges
-            high_confidences = [p['confidence'] for p in confidence_buckets['high']]
-            medium_confidences = [p['confidence'] for p in confidence_buckets['medium']]
-            low_confidences = [p['confidence'] for p in confidence_buckets['low']]
+            high_confidences = [p["confidence"] for p in confidence_buckets["high"]]
+            medium_confidences = [p["confidence"] for p in confidence_buckets["medium"]]
+            low_confidences = [p["confidence"] for p in confidence_buckets["low"]]
 
-            assert min(high_confidences) >= 0.8, "High-confidence bucket contains low-confidence predictions"
-            assert max(low_confidences) < 0.6, "Low-confidence bucket contains high-confidence predictions"
+            assert (
+                min(high_confidences) >= 0.8
+            ), "High-confidence bucket contains low-confidence predictions"
+            assert (
+                max(low_confidences) < 0.6
+            ), "Low-confidence bucket contains high-confidence predictions"
 
         except AttributeError:
             # Expected in RED phase
-            pytest.fail("Confidence score calibration not implemented - risk management failure")
+            pytest.fail(
+                "Confidence score calibration not implemented - risk management failure"
+            )
 
     @pytest.mark.tdd
     @pytest.mark.red
-    async def test_real_time_pipeline_integration_performance(self, ml_pipeline, mock_market_data):
+    async def test_real_time_pipeline_integration_performance(
+        self, ml_pipeline, mock_market_data
+    ):
         """
         RED: Complete ML pipeline must process market data in real-time.
 
@@ -549,7 +610,9 @@ class TestMLModelPredictionReliability:
         try:
             # Act - Process market data through complete pipeline
             for i in range(0, len(mock_market_data), 100):  # Process in chunks
-                chunk = mock_market_data.iloc[max(0, i-200):i+100]  # Rolling window
+                chunk = mock_market_data.iloc[
+                    max(0, i - 200) : i + 100
+                ]  # Rolling window
 
                 if len(chunk) < 50:  # Need minimum data for features
                     continue
@@ -559,10 +622,12 @@ class TestMLModelPredictionReliability:
                 # This will fail in RED phase - process_market_data method doesn't exist
                 signal = await ml_pipeline.process_market_data(chunk)
 
-                processing_time = (time.perf_counter() - start_time) * 1000  # milliseconds
+                processing_time = (
+                    time.perf_counter() - start_time
+                ) * 1000  # milliseconds
                 processing_times.append(processing_time)
 
-                if signal and signal.get('confidence', 0) > 0.5:
+                if signal and signal.get("confidence", 0) > 0.5:
                     processed_signals.append(signal)
 
             # Assert - Pipeline performance requirements
@@ -572,24 +637,35 @@ class TestMLModelPredictionReliability:
                 avg_time = sum(processing_times) / len(processing_times)
                 max_time = max(processing_times)
 
-                assert avg_time < 1000, f"Average pipeline processing {avg_time:.2f}ms exceeds 1s requirement"
-                assert max_time < 2000, f"Maximum processing time {max_time:.2f}ms exceeds 2s limit"
+                assert (
+                    avg_time < 1000
+                ), f"Average pipeline processing {avg_time:.2f}ms exceeds 1s requirement"
+                assert (
+                    max_time < 2000
+                ), f"Maximum processing time {max_time:.2f}ms exceeds 2s limit"
 
             # Verify signal quality
             for signal in processed_signals[:10]:  # Check first 10 signals
-                assert 'symbol' in signal, "Signal missing symbol field"
-                assert 'action' in signal, "Signal missing action field"
-                assert 'confidence' in signal, "Signal missing confidence field"
-                assert signal['action'] in ['BUY', 'SELL', 'HOLD'], f"Invalid signal action: {signal['action']}"
+                assert "symbol" in signal, "Signal missing symbol field"
+                assert "action" in signal, "Signal missing action field"
+                assert "confidence" in signal, "Signal missing confidence field"
+                assert signal["action"] in [
+                    "BUY",
+                    "SELL",
+                    "HOLD",
+                ], f"Invalid signal action: {signal['action']}"
 
         except AttributeError:
             # Expected in RED phase - pipeline integration not implemented
-            pytest.fail("Real-time ML pipeline integration not implemented - trading system failure")
+            pytest.fail(
+                "Real-time ML pipeline integration not implemented - trading system failure"
+            )
 
 
 # ============================================================================
 # TDD Test Class 3: Signal Generation and Risk Management Integration
 # ============================================================================
+
 
 class TestMLSignalGenerationRiskManagement:
     """
@@ -616,10 +692,10 @@ class TestMLSignalGenerationRiskManagement:
 
         for i in range(batch_size):
             prediction = {
-                'signal': 'BUY' if i % 3 == 0 else ('SELL' if i % 3 == 1 else 'HOLD'),
-                'confidence': 0.5 + (i % 50) / 100,  # Varying confidence 0.5-0.99
-                'model': f'model_{i % 5}',
-                'probabilities': {'BUY': 0.4, 'SELL': 0.3, 'HOLD': 0.3}
+                "signal": "BUY" if i % 3 == 0 else ("SELL" if i % 3 == 1 else "HOLD"),
+                "confidence": 0.5 + (i % 50) / 100,  # Varying confidence 0.5-0.99
+                "model": f"model_{i % 5}",
+                "probabilities": {"BUY": 0.4, "SELL": 0.3, "HOLD": 0.3},
             }
             predictions.append(prediction)
 
@@ -630,9 +706,9 @@ class TestMLSignalGenerationRiskManagement:
         for i, prediction in enumerate(predictions):
             try:
                 signal = signal_generator.generate_signal(
-                    symbol=f'PAIR{i % 10:03d}',
+                    symbol=f"PAIR{i % 10:03d}",
                     prediction=prediction,
-                    current_price=1.2000 + (i % 1000) / 10000
+                    current_price=1.2000 + (i % 1000) / 10000,
                 )
                 generated_signals.append(signal)
 
@@ -645,8 +721,12 @@ class TestMLSignalGenerationRiskManagement:
         throughput = len(generated_signals) / duration  # signals per second
 
         # Assert - Throughput requirements
-        assert throughput >= 1000, f"Signal generation throughput {throughput:.0f}/sec below 1000 requirement"
-        assert len(generated_signals) == batch_size, f"Expected {batch_size} signals, got {len(generated_signals)}"
+        assert (
+            throughput >= 1000
+        ), f"Signal generation throughput {throughput:.0f}/sec below 1000 requirement"
+        assert (
+            len(generated_signals) == batch_size
+        ), f"Expected {batch_size} signals, got {len(generated_signals)}"
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -658,46 +738,58 @@ class TestMLSignalGenerationRiskManagement:
         """
         # Arrange - Create prediction with risk metrics
         prediction = {
-            'signal': 'BUY',
-            'confidence': 0.85,
-            'model': 'ensemble',
-            'probabilities': {'BUY': 0.7, 'SELL': 0.2, 'HOLD': 0.1}
+            "signal": "BUY",
+            "confidence": 0.85,
+            "model": "ensemble",
+            "probabilities": {"BUY": 0.7, "SELL": 0.2, "HOLD": 0.1},
         }
 
         risk_metrics = {
-            'portfolio_var': 0.012,  # 1.2% VaR
-            'max_drawdown': 0.025,   # 2.5% drawdown
-            'sharpe_ratio': 1.4,     # Good Sharpe ratio
-            'volatility': 0.15       # 15% volatility
+            "portfolio_var": 0.012,  # 1.2% VaR
+            "max_drawdown": 0.025,  # 2.5% drawdown
+            "sharpe_ratio": 1.4,  # Good Sharpe ratio
+            "volatility": 0.15,  # 15% volatility
         }
 
         try:
             # Act - Generate signal with risk adjustments
-            signal = signal_generator.generate_signal('EURUSD', prediction, 1.2500)
-            risk_adjusted_signal = signal_generator.apply_risk_adjustment(signal, risk_metrics)
+            signal = signal_generator.generate_signal("EURUSD", prediction, 1.2500)
+            risk_adjusted_signal = signal_generator.apply_risk_adjustment(
+                signal, risk_metrics
+            )
 
             # Assert - Risk parameters must be present
-            required_risk_fields = ['position_size', 'stop_loss', 'take_profit']
+            required_risk_fields = ["position_size", "stop_loss", "take_profit"]
             for field in required_risk_fields:
                 assert field in risk_adjusted_signal, f"Missing risk field: {field}"
 
             # Verify position sizing logic
-            assert risk_adjusted_signal['position_size'] > 0, "Position size must be positive"
-            assert risk_adjusted_signal['position_size'] <= 200000, "Position size exceeds maximum limit"
+            assert (
+                risk_adjusted_signal["position_size"] > 0
+            ), "Position size must be positive"
+            assert (
+                risk_adjusted_signal["position_size"] <= 200000
+            ), "Position size exceeds maximum limit"
 
             # Verify stop-loss and take-profit levels
-            if risk_adjusted_signal['stop_loss']:
-                current_price = risk_adjusted_signal['price']
-                stop_loss = risk_adjusted_signal['stop_loss']
+            if risk_adjusted_signal["stop_loss"]:
+                current_price = risk_adjusted_signal["price"]
+                stop_loss = risk_adjusted_signal["stop_loss"]
 
-                if signal['action'] == 'BUY':
-                    assert stop_loss < current_price, "Buy stop-loss should be below current price"
-                elif signal['action'] == 'SELL':
-                    assert stop_loss > current_price, "Sell stop-loss should be above current price"
+                if signal["action"] == "BUY":
+                    assert (
+                        stop_loss < current_price
+                    ), "Buy stop-loss should be below current price"
+                elif signal["action"] == "SELL":
+                    assert (
+                        stop_loss > current_price
+                    ), "Sell stop-loss should be above current price"
 
         except AttributeError:
             # Expected in RED phase
-            pytest.fail("Risk-adjusted signal generation not implemented - financial risk exposure")
+            pytest.fail(
+                "Risk-adjusted signal generation not implemented - financial risk exposure"
+            )
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -709,11 +801,31 @@ class TestMLSignalGenerationRiskManagement:
         """
         # Arrange - Create signals from different models
         model_signals = [
-            {'symbol': 'GBPUSD', 'action': 'BUY', 'confidence': 0.85, 'model': 'random_forest'},
-            {'symbol': 'GBPUSD', 'action': 'BUY', 'confidence': 0.78, 'model': 'gradient_boost'},
-            {'symbol': 'GBPUSD', 'action': 'HOLD', 'confidence': 0.65, 'model': 'neural_network'},
-            {'symbol': 'GBPUSD', 'action': 'BUY', 'confidence': 0.72, 'model': 'svm'},
-            {'symbol': 'GBPUSD', 'action': 'SELL', 'confidence': 0.60, 'model': 'logistic_regression'}
+            {
+                "symbol": "GBPUSD",
+                "action": "BUY",
+                "confidence": 0.85,
+                "model": "random_forest",
+            },
+            {
+                "symbol": "GBPUSD",
+                "action": "BUY",
+                "confidence": 0.78,
+                "model": "gradient_boost",
+            },
+            {
+                "symbol": "GBPUSD",
+                "action": "HOLD",
+                "confidence": 0.65,
+                "model": "neural_network",
+            },
+            {"symbol": "GBPUSD", "action": "BUY", "confidence": 0.72, "model": "svm"},
+            {
+                "symbol": "GBPUSD",
+                "action": "SELL",
+                "confidence": 0.60,
+                "model": "logistic_regression",
+            },
         ]
 
         try:
@@ -721,25 +833,35 @@ class TestMLSignalGenerationRiskManagement:
             aggregated_signal = signal_aggregator.aggregate_signals(model_signals)
 
             # Assert - Aggregation quality checks
-            assert 'symbol' in aggregated_signal, "Aggregated signal missing symbol"
-            assert 'action' in aggregated_signal, "Aggregated signal missing action"
-            assert 'confidence' in aggregated_signal, "Aggregated signal missing confidence"
-            assert 'signal_count' in aggregated_signal, "Aggregated signal missing count"
-            assert 'action_distribution' in aggregated_signal, "Missing action distribution"
+            assert "symbol" in aggregated_signal, "Aggregated signal missing symbol"
+            assert "action" in aggregated_signal, "Aggregated signal missing action"
+            assert (
+                "confidence" in aggregated_signal
+            ), "Aggregated signal missing confidence"
+            assert (
+                "signal_count" in aggregated_signal
+            ), "Aggregated signal missing count"
+            assert (
+                "action_distribution" in aggregated_signal
+            ), "Missing action distribution"
 
             # Verify aggregation logic
-            assert aggregated_signal['signal_count'] == len(model_signals)
-            assert aggregated_signal['action'] in ['BUY', 'SELL', 'HOLD']
-            assert 0 <= aggregated_signal['confidence'] <= 1
+            assert aggregated_signal["signal_count"] == len(model_signals)
+            assert aggregated_signal["action"] in ["BUY", "SELL", "HOLD"]
+            assert 0 <= aggregated_signal["confidence"] <= 1
 
             # Check that majority vote was applied correctly
-            action_counts = aggregated_signal['action_distribution']
+            action_counts = aggregated_signal["action_distribution"]
             most_voted_action = max(action_counts, key=action_counts.get)
-            assert aggregated_signal['action'] == most_voted_action, "Aggregation didn't follow majority vote"
+            assert (
+                aggregated_signal["action"] == most_voted_action
+            ), "Aggregation didn't follow majority vote"
 
         except AttributeError:
             # Expected in RED phase
-            pytest.fail("Multi-model signal aggregation not implemented - ensemble trading failure")
+            pytest.fail(
+                "Multi-model signal aggregation not implemented - ensemble trading failure"
+            )
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -752,30 +874,42 @@ class TestMLSignalGenerationRiskManagement:
         # Arrange - Create various signal scenarios including edge cases
         test_scenarios = [
             {
-                'name': 'high_confidence_valid',
-                'prediction': {'signal': 'BUY', 'confidence': 0.95, 'model': 'ensemble'},
-                'expected_pass': True
+                "name": "high_confidence_valid",
+                "prediction": {
+                    "signal": "BUY",
+                    "confidence": 0.95,
+                    "model": "ensemble",
+                },
+                "expected_pass": True,
             },
             {
-                'name': 'low_confidence_filtered',
-                'prediction': {'signal': 'BUY', 'confidence': 0.45, 'model': 'weak_model'},
-                'expected_pass': False
+                "name": "low_confidence_filtered",
+                "prediction": {
+                    "signal": "BUY",
+                    "confidence": 0.45,
+                    "model": "weak_model",
+                },
+                "expected_pass": False,
             },
             {
-                'name': 'invalid_signal_type',
-                'prediction': {'signal': 'INVALID', 'confidence': 0.85, 'model': 'test'},
-                'expected_pass': False
+                "name": "invalid_signal_type",
+                "prediction": {
+                    "signal": "INVALID",
+                    "confidence": 0.85,
+                    "model": "test",
+                },
+                "expected_pass": False,
             },
             {
-                'name': 'confidence_out_of_bounds',
-                'prediction': {'signal': 'SELL', 'confidence': 1.5, 'model': 'broken'},
-                'expected_pass': False
+                "name": "confidence_out_of_bounds",
+                "prediction": {"signal": "SELL", "confidence": 1.5, "model": "broken"},
+                "expected_pass": False,
             },
             {
-                'name': 'missing_required_fields',
-                'prediction': {'confidence': 0.75},  # Missing signal field
-                'expected_pass': False
-            }
+                "name": "missing_required_fields",
+                "prediction": {"confidence": 0.75},  # Missing signal field
+                "expected_pass": False,
+            },
         ]
 
         try:
@@ -785,29 +919,41 @@ class TestMLSignalGenerationRiskManagement:
             for scenario in test_scenarios:
                 try:
                     # This will fail in RED phase - signal validation not implemented
-                    is_valid = ml_pipeline.signal_generator.validate_signal(scenario['prediction'])
+                    is_valid = ml_pipeline.signal_generator.validate_signal(
+                        scenario["prediction"]
+                    )
 
-                    if is_valid and scenario['expected_pass']:
+                    if is_valid and scenario["expected_pass"]:
                         signal = ml_pipeline.signal_generator.generate_signal(
-                            'TESTPAIR', scenario['prediction'], 1.2000
+                            "TESTPAIR", scenario["prediction"], 1.2000
                         )
-                        validated_signals.append((scenario['name'], signal))
-                    elif not is_valid and not scenario['expected_pass']:
-                        validated_signals.append((scenario['name'], None))  # Correctly filtered
+                        validated_signals.append((scenario["name"], signal))
+                    elif not is_valid and not scenario["expected_pass"]:
+                        validated_signals.append(
+                            (scenario["name"], None)
+                        )  # Correctly filtered
                     else:
-                        pytest.fail(f"Signal validation failed for scenario: {scenario['name']}")
+                        pytest.fail(
+                            f"Signal validation failed for scenario: {scenario['name']}"
+                        )
 
                 except Exception as e:
-                    if scenario['expected_pass']:
+                    if scenario["expected_pass"]:
                         pytest.fail(f"Valid signal rejected: {scenario['name']} - {e}")
 
             # Assert - Validation results
-            assert len(validated_signals) == len(test_scenarios), "Not all scenarios were processed"
+            assert len(validated_signals) == len(
+                test_scenarios
+            ), "Not all scenarios were processed"
 
             # Check that dangerous signals were filtered
             valid_signals = [item for item in validated_signals if item[1] is not None]
-            assert len(valid_signals) == 1, "Only high-confidence valid signal should pass"
+            assert (
+                len(valid_signals) == 1
+            ), "Only high-confidence valid signal should pass"
 
         except AttributeError:
             # Expected in RED phase
-            pytest.fail("Real-time signal filtering and validation not implemented - trading safety failure")
+            pytest.fail(
+                "Real-time signal filtering and validation not implemented - trading safety failure"
+            )

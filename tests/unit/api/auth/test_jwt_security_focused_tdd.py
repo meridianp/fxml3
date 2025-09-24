@@ -24,20 +24,25 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from unittest.mock import Mock, patch
 
-import pytest
 import jwt as pyjwt
+import pytest
 from fastapi import HTTPException, status
 
 from core.api.auth.jwt_service import JWTService
 from core.api.auth.models import (
-    User, UserRole, Permission, TokenPair,
-    TokenValidationResult, InvalidTokenError, TokenExpiredError
+    InvalidTokenError,
+    Permission,
+    TokenExpiredError,
+    TokenPair,
+    TokenValidationResult,
+    User,
+    UserRole,
 )
-
 
 # ============================================================================
 # Mock Objects and Fixtures for TDD Testing
 # ============================================================================
+
 
 class MockUser:
     """Mock user for testing - matches the existing User model."""
@@ -66,7 +71,7 @@ def jwt_service():
         secret_key="test-secret-key-fxml4-auth-system-secure-jwt-signing",
         algorithm="HS256",
         access_token_expire_minutes=15,
-        refresh_token_expire_days=7
+        refresh_token_expire_days=7,
     )
 
 
@@ -85,13 +90,14 @@ def sample_jwt_payload():
         "aud": "fxml4-trading-system",
         "type": "access",
         "is_active": True,
-        "is_verified": True
+        "is_verified": True,
     }
 
 
 # ============================================================================
 # TDD Test Class 1: JWT Token Security and Management
 # ============================================================================
+
 
 class TestJWTTokenSecurity:
     """
@@ -173,25 +179,29 @@ class TestJWTTokenSecurity:
         access_token = token_pair.access_token
 
         # Assert - Token should be properly formatted JWT
-        assert len(access_token.split('.')) == 3  # JWT has 3 parts: header.payload.signature
+        assert (
+            len(access_token.split(".")) == 3
+        )  # JWT has 3 parts: header.payload.signature
 
         # Decode token to check structure (without verification for testing)
         try:
             decoded = pyjwt.decode(
                 access_token,
-                options={"verify_signature": False}  # Skip signature verification for structure test
+                options={
+                    "verify_signature": False
+                },  # Skip signature verification for structure test
             )
 
             # Required security claims
-            required_claims = ['sub', 'iss', 'aud', 'iat', 'exp', 'jti']
+            required_claims = ["sub", "iss", "aud", "iat", "exp", "jti"]
             for claim in required_claims:
                 assert claim in decoded, f"Missing required claim: {claim}"
 
             # User information claims
-            assert decoded['sub'] == mock_user.user_id
-            assert decoded['username'] == mock_user.username
-            assert decoded['role'] == mock_user.role.value
-            assert decoded['type'] == 'access'
+            assert decoded["sub"] == mock_user.user_id
+            assert decoded["username"] == mock_user.username
+            assert decoded["role"] == mock_user.role.value
+            assert decoded["type"] == "access"
 
         except Exception as e:
             # May fail in RED phase if token structure is incorrect
@@ -208,7 +218,7 @@ class TestJWTTokenSecurity:
         # Arrange - Create token with very short expiry
         short_lived_service = JWTService(
             secret_key="test-secret-key-ftml4-auth-system-secure-jwt-signing",
-            access_token_expire_minutes=0.01  # 0.6 seconds
+            access_token_expire_minutes=0.01,  # 0.6 seconds
         )
 
         token_pair = short_lived_service.generate_token_pair(mock_user)
@@ -247,7 +257,7 @@ class TestJWTTokenSecurity:
         for token in tokens:
             try:
                 decoded = pyjwt.decode(token, options={"verify_signature": False})
-                jtis.append(decoded.get('jti'))
+                jtis.append(decoded.get("jti"))
             except:
                 pass
 
@@ -263,6 +273,7 @@ class TestJWTTokenSecurity:
 # ============================================================================
 # TDD Test Class 2: Authentication Performance and Compliance
 # ============================================================================
+
 
 class TestAuthenticationPerformanceCompliance:
     """
@@ -284,7 +295,9 @@ class TestAuthenticationPerformanceCompliance:
         Performance Requirement: Support for multiple concurrent traders
         """
         # Arrange - Create multiple mock users
-        users = [MockUser(user_id=f"trader_{i}", username=f"trader_{i}") for i in range(50)]
+        users = [
+            MockUser(user_id=f"trader_{i}", username=f"trader_{i}") for i in range(50)
+        ]
 
         # Act - Measure concurrent token generation
         start_time = time.time()
@@ -315,20 +328,19 @@ class TestAuthenticationPerformanceCompliance:
         # Decode token for audit claim verification
         try:
             decoded = pyjwt.decode(
-                token_pair.access_token,
-                options={"verify_signature": False}
+                token_pair.access_token, options={"verify_signature": False}
             )
 
             # Assert - Audit-required claims present
             audit_claims = {
-                'sub': 'subject_identifier',
-                'iss': 'issuer_identification',
-                'aud': 'audience_scope',
-                'iat': 'issued_at_timestamp',
-                'exp': 'expiration_timestamp',
-                'username': 'user_identification',
-                'role': 'authorization_level',
-                'permissions': 'specific_permissions'
+                "sub": "subject_identifier",
+                "iss": "issuer_identification",
+                "aud": "audience_scope",
+                "iat": "issued_at_timestamp",
+                "exp": "expiration_timestamp",
+                "username": "user_identification",
+                "role": "authorization_level",
+                "permissions": "specific_permissions",
             }
 
             missing_claims = []
@@ -354,7 +366,9 @@ class TestAuthenticationPerformanceCompliance:
 
         # Act - Try to rotate tokens (this will fail in RED phase)
         try:
-            rotated_token_pair = jwt_service.rotate_tokens(original_token_pair.refresh_token)
+            rotated_token_pair = jwt_service.rotate_tokens(
+                original_token_pair.refresh_token
+            )
 
             # Assert - New tokens should be different
             assert rotated_token_pair.access_token != original_token_pair.access_token
@@ -362,7 +376,9 @@ class TestAuthenticationPerformanceCompliance:
 
         except AttributeError:
             # Expected in RED phase - rotate_tokens method doesn't exist yet
-            pytest.fail("Token rotation capability not implemented - required for security")
+            pytest.fail(
+                "Token rotation capability not implemented - required for security"
+            )
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -385,7 +401,9 @@ class TestAuthenticationPerformanceCompliance:
 
         except AttributeError:
             # Expected in RED phase - revoke_token method doesn't exist yet
-            pytest.fail("Token revocation capability not implemented - required for security")
+            pytest.fail(
+                "Token revocation capability not implemented - required for security"
+            )
 
     @pytest.mark.tdd
     @pytest.mark.red
@@ -402,7 +420,7 @@ class TestAuthenticationPerformanceCompliance:
         invalid_token = pyjwt.encode(
             invalid_issuer_payload,
             "test-secret-key-fxml4-auth-system-secure-jwt-signing",
-            algorithm="HS256"
+            algorithm="HS256",
         )
 
         # This should fail validation (will fail in RED phase if not implemented)
@@ -420,7 +438,7 @@ class TestAuthenticationPerformanceCompliance:
         invalid_token = pyjwt.encode(
             invalid_audience_payload,
             "test-secret-key-fxml4-auth-system-secure-jwt-signing",
-            algorithm="HS256"
+            algorithm="HS256",
         )
 
         try:

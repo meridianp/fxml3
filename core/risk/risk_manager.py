@@ -30,14 +30,23 @@ class RiskManager:
         stop_loss_pips: float,
         pip_value: float,
         account_balance: float = None,
-        **kwargs
+        **kwargs,
     ) -> int:
-        """Calculate position size based on risk parameters."""
-        # Position size = Risk Amount / (Stop Loss Pips × Pip Value)
-        position_size = risk_amount / (stop_loss_pips * pip_value)
+        """Calculate position size based on risk parameters.
 
-        # Convert to units (standard lots = 100,000 units)
-        position_size_units = int(position_size * 100000)
+        Formula: Position Size (lots) = Risk Amount / (Stop Loss Pips × Pip Value per lot)
+        Then convert lots to units: Position Size (units) = lots × 100,000
+
+        Args:
+            risk_amount: Amount willing to risk ($)
+            stop_loss_pips: Stop loss distance in pips
+            pip_value: Value of 1 pip for 1 standard lot ($)
+        """
+        # Calculate position size in lots
+        position_size_lots = risk_amount / (stop_loss_pips * pip_value)
+
+        # Convert to units and round down
+        position_size_units = int(position_size_lots * 100000)
 
         # Apply maximum position limit
         max_position = self.config["max_position_size"]
@@ -75,9 +84,7 @@ class RiskManager:
 
         return int(base_size * adjustment_factor)
 
-    def calculate_total_margin_required(
-        self, positions: List[Dict[str, Any]]
-    ) -> float:
+    def calculate_total_margin_required(self, positions: List[Dict[str, Any]]) -> float:
         """Calculate total margin requirement for positions."""
         total_margin = 0
         margin_requirement = self.config.get("margin_requirement", 0.02)
@@ -94,9 +101,7 @@ class RiskManager:
 
         return total_margin
 
-    def validate_leverage(
-        self, account_equity: float, position_value: float
-    ) -> bool:
+    def validate_leverage(self, account_equity: float, position_value: float) -> bool:
         """Validate if leverage is within limits."""
         leverage = position_value / account_equity
         max_leverage = self.config.get("leverage_limit", 50)
@@ -169,7 +174,9 @@ class RiskManager:
 
         # Calculate mean of returns beyond VaR
         tail_returns = portfolio_returns[portfolio_returns <= var_threshold]
-        expected_shortfall_return = tail_returns.mean() if len(tail_returns) > 0 else var_threshold
+        expected_shortfall_return = (
+            tail_returns.mean() if len(tail_returns) > 0 else var_threshold
+        )
 
         # Convert to dollar value
         expected_shortfall = abs(expected_shortfall_return * portfolio_value)
@@ -189,14 +196,20 @@ class RiskManager:
             for j, row2 in portfolio.iterrows():
                 if i < j:  # Avoid duplicates
                     symbol1, symbol2 = row1["symbol"], row2["symbol"]
-                    if symbol1 in correlation_matrix.index and symbol2 in correlation_matrix.columns:
+                    if (
+                        symbol1 in correlation_matrix.index
+                        and symbol2 in correlation_matrix.columns
+                    ):
                         corr = correlation_matrix.loc[symbol1, symbol2]
                         if abs(corr) > 0.7:  # High correlation threshold
-                            concentrated_exposures.append({
-                                "pair": (symbol1, symbol2),
-                                "correlation": corr,
-                                "combined_exposure": abs(row1["position_size"]) + abs(row2["position_size"])
-                            })
+                            concentrated_exposures.append(
+                                {
+                                    "pair": (symbol1, symbol2),
+                                    "correlation": corr,
+                                    "combined_exposure": abs(row1["position_size"])
+                                    + abs(row2["position_size"]),
+                                }
+                            )
 
         # Calculate diversification ratio
         n_positions = len(portfolio)
@@ -207,7 +220,10 @@ class RiskManager:
             for j in range(i + 1, n_positions):
                 symbol1 = portfolio.iloc[i]["symbol"]
                 symbol2 = portfolio.iloc[j]["symbol"]
-                if symbol1 in correlation_matrix.index and symbol2 in correlation_matrix.columns:
+                if (
+                    symbol1 in correlation_matrix.index
+                    and symbol2 in correlation_matrix.columns
+                ):
                     avg_correlation += abs(correlation_matrix.loc[symbol1, symbol2])
                     count += 1
 
@@ -220,9 +236,7 @@ class RiskManager:
             "average_correlation": avg_correlation,
         }
 
-    def calculate_drawdown_statistics(
-        self, equity_curve: pd.Series
-    ) -> Dict[str, Any]:
+    def calculate_drawdown_statistics(self, equity_curve: pd.Series) -> Dict[str, Any]:
         """Calculate drawdown statistics from equity curve."""
         # Calculate running maximum
         running_max = equity_curve.expanding().max()
@@ -237,7 +251,9 @@ class RiskManager:
         # Current drawdown from peak
         current_peak = running_max.iloc[-1]
         current_value = equity_curve.iloc[-1]
-        current_drawdown = (current_value - current_peak) / current_peak if current_peak > 0 else 0
+        current_drawdown = (
+            (current_value - current_peak) / current_peak if current_peak > 0 else 0
+        )
 
         # Drawdown duration
         in_drawdown = equity_curve < running_max
@@ -260,7 +276,11 @@ class RiskManager:
             "max_drawdown": max_drawdown,
             "current_drawdown": current_drawdown,
             "drawdown_duration": max_duration,
-            "recovery_required": abs(current_drawdown / (1 + current_drawdown)) if current_drawdown < 0 else 0,
+            "recovery_required": (
+                abs(current_drawdown / (1 + current_drawdown))
+                if current_drawdown < 0
+                else 0
+            ),
         }
 
     def generate_stress_scenarios(
@@ -288,9 +308,10 @@ class RiskManager:
 
                 # Generate stressed returns
                 stressed_returns = np.random.normal(
-                    mean_returns[col] + stress_direction * stress_level * std_returns[col],
+                    mean_returns[col]
+                    + stress_direction * stress_level * std_returns[col],
                     std_returns[col] * 1.5,  # Increased volatility
-                    20
+                    20,
                 )
 
                 scenario[col] = stressed_returns
@@ -327,11 +348,13 @@ class RiskManager:
                     portfolio_return += position_weight * position_return
 
             scenario_pnl = initial_portfolio_value * portfolio_return
-            scenario_results.append({
-                "scenario": i + 1,
-                "portfolio_return": portfolio_return,
-                "pnl": scenario_pnl,
-            })
+            scenario_results.append(
+                {
+                    "scenario": i + 1,
+                    "portfolio_return": portfolio_return,
+                    "pnl": scenario_pnl,
+                }
+            )
 
         # Find worst and best cases
         pnls = [r["pnl"] for r in scenario_results]
@@ -358,14 +381,18 @@ class RiskManager:
 
         # Risk per trade
         if "stop_loss" in proposed_trade:
-            risk_per_trade = abs(proposed_trade["price"] - proposed_trade["stop_loss"]) * proposed_trade["quantity"]
+            risk_per_trade = (
+                abs(proposed_trade["price"] - proposed_trade["stop_loss"])
+                * proposed_trade["quantity"]
+            )
         else:
             risk_per_trade = trade_value * 0.02  # Default 2% risk
 
         # Check various limits
         limit_checks = {
             "position_size": trade_value <= self.config["max_position_size"],
-            "risk_per_trade": risk_per_trade <= account_balance * self.config["max_portfolio_risk"],
+            "risk_per_trade": risk_per_trade
+            <= account_balance * self.config["max_portfolio_risk"],
             "leverage": trade_value / account_balance <= self.config["leverage_limit"],
         }
 
@@ -392,7 +419,9 @@ class RiskManager:
         position_value = new_position["market_value"]
         concentration_ratio = abs(position_value) / total_portfolio_value
 
-        exceeds_limit = concentration_ratio > self.config["position_concentration_limit"]
+        exceeds_limit = (
+            concentration_ratio > self.config["position_concentration_limit"]
+        )
 
         return {
             "exceeds_limit": exceeds_limit,
@@ -442,25 +471,29 @@ class RiskManager:
         # Check for margin warnings
         portfolio_value = portfolio["market_value"].sum()
         new_equity = account_equity + total_impact
-        margin_usage = portfolio_value / new_equity if new_equity > 0 else float('inf')
+        margin_usage = portfolio_value / new_equity if new_equity > 0 else float("inf")
 
         if margin_usage > 0.8:  # 80% margin usage
-            alerts.append({
-                "type": "MARGIN_WARNING",
-                "severity": "HIGH" if margin_usage > 0.9 else "MEDIUM",
-                "message": f"Margin usage at {margin_usage:.1%}",
-                "timestamp": datetime.now(),
-            })
+            alerts.append(
+                {
+                    "type": "MARGIN_WARNING",
+                    "severity": "HIGH" if margin_usage > 0.9 else "MEDIUM",
+                    "message": f"Margin usage at {margin_usage:.1%}",
+                    "timestamp": datetime.now(),
+                }
+            )
 
         # Check for large losses
         loss_pct = abs(total_impact) / account_equity if total_impact < 0 else 0
         if loss_pct > 0.05:  # 5% loss
-            alerts.append({
-                "type": "LARGE_LOSS",
-                "severity": "CRITICAL" if loss_pct > 0.1 else "HIGH",
-                "message": f"Portfolio loss of {loss_pct:.1%}",
-                "timestamp": datetime.now(),
-            })
+            alerts.append(
+                {
+                    "type": "LARGE_LOSS",
+                    "severity": "CRITICAL" if loss_pct > 0.1 else "HIGH",
+                    "message": f"Portfolio loss of {loss_pct:.1%}",
+                    "timestamp": datetime.now(),
+                }
+            )
 
         return alerts
 
@@ -480,24 +513,36 @@ class RiskManager:
             # Position risk = Position Size × Volatility
             position_risk = abs(position["position_size"]) * volatility
 
-            position_risks.append({
-                "symbol": symbol,
-                "position_size": position["position_size"],
-                "volatility": volatility,
-                "risk_contribution": position_risk,
-                "risk_percentage": position_risk / abs(position["position_size"]) if position["position_size"] != 0 else 0,
-            })
+            position_risks.append(
+                {
+                    "symbol": symbol,
+                    "position_size": position["position_size"],
+                    "volatility": volatility,
+                    "risk_contribution": position_risk,
+                    "risk_percentage": (
+                        position_risk / abs(position["position_size"])
+                        if position["position_size"] != 0
+                        else 0
+                    ),
+                }
+            )
 
             total_risk += position_risk
 
         # Normalize risk contributions
         for risk in position_risks:
-            risk["portfolio_risk_contribution"] = risk["risk_contribution"] / total_risk if total_risk > 0 else 0
+            risk["portfolio_risk_contribution"] = (
+                risk["risk_contribution"] / total_risk if total_risk > 0 else 0
+            )
 
         return {
             "position_risks": position_risks,
             "total_portfolio_risk": total_risk,
-            "risk_concentration": max(p["portfolio_risk_contribution"] for p in position_risks) if position_risks else 0,
+            "risk_concentration": (
+                max(p["portfolio_risk_contribution"] for p in position_risks)
+                if position_risks
+                else 0
+            ),
         }
 
     def generate_leverage_compliance_report(
@@ -542,19 +587,19 @@ class RiskManager:
 
         for _, position in portfolio.iterrows():
             if abs(position["market_value"]) >= reporting_threshold:
-                reportable.append({
-                    "symbol": position["symbol"],
-                    "position_size": position["position_size"],
-                    "market_value": position["market_value"],
-                    "reporting_required": True,
-                    "threshold": reporting_threshold,
-                })
+                reportable.append(
+                    {
+                        "symbol": position["symbol"],
+                        "position_size": position["position_size"],
+                        "market_value": position["market_value"],
+                        "reporting_required": True,
+                        "threshold": reporting_threshold,
+                    }
+                )
 
         return reportable
 
-    def calculate_total_portfolio_risk(
-        self, portfolio: pd.DataFrame
-    ) -> float:
+    def calculate_total_portfolio_risk(self, portfolio: pd.DataFrame) -> float:
         """Calculate total portfolio risk metric."""
         # Simple risk calculation based on position sizes and assumed volatility
         total_risk = 0
