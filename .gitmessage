@@ -1,0 +1,50 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+
+# --- COMMIT FORMAT ---
+# <type>(<scope>): <subject>
+#
+# Types:
+# feat:     A new feature
+# fix:      A bug fix
+# docs:     Documentation only changes
+# style:    Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+# refactor: A code change that neither fixes a bug nor adds a feature
+# perf:     A code change that improves performance
+# test:     Adding missing tests or correcting existing tests
+# build:    Changes that affect the build system or external dependencies
+# ci:       Changes to our CI configuration files and scripts
+# chore:    Other changes that don't modify src or test files
+# revert:   Reverts a previous commit
+#
+# Scope (optional):
+# api, core, ui, docs, tests, config, etc.
+#
+# Subject:
+# - Use imperative, present tense: "change" not "changed" nor "changes"
+# - Don't capitalize first letter
+# - No dot (.) at the end
+# - Limit to 50 characters
+#
+# Body (optional):
+# - Explain what and why vs. how
+# - Include motivation for the change
+# - Contrast with previous behavior
+# - Wrap at 72 characters
+#
+# Footer (optional):
+# - Reference issues: "Closes #123", "Fixes #456"
+# - Breaking changes: "BREAKING CHANGE: <description>"
+# - Co-authored-by: Name <email@example.com>
+#
+# Examples:
+# feat(api): add user authentication endpoint
+# fix(core): resolve memory leak in trading engine
+# docs: update installation instructions
+# style(ui): format dashboard components
+# refactor(ml): extract feature engineering to separate module
+# test(trading): add integration tests for order execution
+# ci: update GitHub Actions workflow for deployment

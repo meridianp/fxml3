@@ -1,0 +1,54 @@
+[gitflow]
+# FXML4 GitFlow Configuration
+# This file defines the branch naming conventions and merge strategies for the project
+
+[gitflow.branch]
+# Main branches
+main = main
+develop = develop
+
+# Supporting branches
+feature = feature/
+bugfix = bugfix/
+release = release/
+hotfix = hotfix/
+support = support/
+
+[gitflow.prefix]
+# Version tag format
+versiontag = v
+
+[gitflow.merge]
+# Merge strategy for each branch type
+# Options: merge, squash, rebase
+feature = squash
+bugfix = squash
+release = merge
+hotfix = merge
+
+[gitflow.origin]
+# Remote repository settings
+remote = origin
+push_on_finish = true
+
+[gitflow.hooks]
+# Enable/disable hooks
+pre_commit = true
+post_checkout = true
+post_merge = true
+
+[gitflow.versioning]
+# Semantic versioning configuration
+scheme = semver
+increment_develop = patch
+increment_release = minor
+increment_hotfix = patch
+
+# Branch protection settings (for documentation)
+[gitflow.protection]
+main_protected = true
+develop_protected = true
+require_reviews = 2
+dismiss_stale_reviews = true
+require_code_owner_reviews = true
+restrict_pushes = true

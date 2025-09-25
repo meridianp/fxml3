@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# FXML4 Post-checkout Hook
+# Runs after checking out branches to provide helpful information
+
+PREV_HEAD=$1
+NEW_HEAD=$2
+BRANCH_CHECKOUT=$3
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Get current branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+# Function to print colored output
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_tip() {
+    echo -e "${YELLOW}💡${NC} $1"
+}
+
+# Only run for branch checkouts, not file checkouts
+if [ "$BRANCH_CHECKOUT" = "1" ]; then
+    echo ""
+    print_success "Switched to branch: $CURRENT_BRANCH"
+
+    # Provide branch-specific guidance
+    case "$CURRENT_BRANCH" in
+        main)
+            print_info "You're on the MAIN branch - production-ready code only!"
+            print_tip "To start new work: git checkout develop && git checkout -b feature/your-feature"
+            ;;
+        develop)
+            print_info "You're on the DEVELOP branch - integration branch for features"
+            print_tip "To start a feature: git checkout -b feature/your-feature-name"
+            print_tip "To start a bugfix: git checkout -b bugfix/your-bugfix-name"
+            ;;
+        feature/*)
+            print_info "Working on feature branch: $CURRENT_BRANCH"
+            print_tip "Remember to regularly rebase with develop: git rebase develop"
+            print_tip "When ready: create PR to merge into develop"
+            ;;
+        bugfix/*)
+            print_info "Working on bugfix branch: $CURRENT_BRANCH"
+            print_tip "When ready: create PR to merge into develop"
+            ;;
+        hotfix/*)
+            print_info "Working on HOTFIX branch: $CURRENT_BRANCH"
+            print_tip "Hotfixes should be created from and merged to MAIN"
+            print_tip "Don't forget to merge back to develop after main"
+            ;;
+        release/*)
+            print_info "Working on RELEASE branch: $CURRENT_BRANCH"
+            print_tip "Only bug fixes and release preparations allowed"
+            print_tip "When ready: merge to main and tag the release"
+            ;;
+        *)
+            print_info "Custom branch: $CURRENT_BRANCH"
+            ;;
+    esac
+
+    # Check if dependencies might need updating
+    if [ -f "package.json" ] && [ -d "node_modules" ]; then
+        if [ "package.json" -nt "node_modules" ]; then
+            print_tip "package.json seems newer than node_modules - consider running 'npm install'"
+        fi
+    fi
+
+    if [ -f "requirements.txt" ] && [ -d "venv" ]; then
+        if [ "requirements.txt" -nt "venv/pyvenv.cfg" ]; then
+            print_tip "requirements.txt might be newer - consider running 'pip install -r requirements.txt'"
+        fi
+    fi
+
+    # Show if there are unpushed commits
+    UNPUSHED=$(git log @{u}.. --oneline 2>/dev/null | wc -l)
+    if [ "$UNPUSHED" -gt 0 ] 2>/dev/null; then
+        print_tip "You have $UNPUSHED unpushed commits on this branch"
+    fi
+
+    echo ""
+fi
