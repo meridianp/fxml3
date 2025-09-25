@@ -196,9 +196,7 @@ markdown_extensions:
   - pymdownx.caret
   - pymdownx.critic
   - pymdownx.details
-  - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.emoji
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
@@ -209,11 +207,7 @@ markdown_extensions:
       repo: fxml4
   - pymdownx.mark
   - pymdownx.smartsymbols
-  - pymdownx.superfences:
-      custom_fences:
-        - name: mermaid
-          class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:
@@ -228,31 +222,93 @@ markdown_extensions:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
   - minify:
       minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+
+  # Enhanced mkdocstrings with griffe integration
   - mkdocstrings:
+      enabled: true
+      custom_templates: templates
       default_handler: python
       handlers:
         python:
-          rendering:
-            show_source: true
+          import:
+            - https://docs.python.org/3/objects.inv
+            - https://mkdocstrings.github.io/objects.inv
+          options:
+            # General options
             show_root_heading: true
-            show_root_toc_entry: true
+            show_root_full_path: false
+            show_root_members_full_path: false
             show_object_full_path: false
             show_category_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+
+            # Members options
+            inherited_members: true
             members_order: source
-          selection:
-            filters:
-              - "!^_"
-              - "^__init__$"
+            filters: ["!^_[^_]", "^__init__$"]
+            group_by_category: true
+            show_submodules: true
+
+            # Docstrings options
+            docstring_style: google
+            docstring_options:
+              ignore_init_summary: true
+            docstring_section_style: table
+
+            # Signatures options
+            show_signature_annotations: true
+            show_return_annotation: true
+            signature_crossrefs: true
+
+            # Additional options
+            show_source: true
+            show_bases: true
+            show_inheritance_diagram: false
+
+          # Griffe configuration
+          paths: [core/, elliott_wave/]
           setup_commands:
             - import sys
-            - sys.path.append(".")
+            - import os
+            - sys.path.insert(0, os.path.abspath('.'))
+            - sys.path.insert(0, os.path.abspath('./core'))
+            - sys.path.insert(0, os.path.abspath('./elliott_wave'))
+
+  # Git information with enhanced options
   - git-revision-date-localized:
       enable_creation_date: true
+      creation_date_localized: true
       type: timeago
+      timezone: UTC
+      locale: en
+      fallback_to_build_date: true
+
+  # Enhanced tags plugin
   - tags:
       tags_file: tags.md
+      tags_extra_files:
+        - api.md
+        - performance.md
+        - compliance.md
+
+  # Additional plugins for enhanced documentation
+  - awesome-pages:
+      filename: .pages
+      collapse_single_pages: true
+      strict: false
+
+  - redirects:
+      redirect_maps:
+        'api.md': 'api-reference/index.md'
+        'installation.md': 'getting-started/installation.md'
 
 extra:
   version:
