@@ -1,0 +1,91 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: fxml4-production
+  annotations:
+    config.kubernetes.io/local-config: "true"
+
+namespace: fxml4
+
+namePrefix: prod-
+
+commonLabels:
+  environment: production
+  app.kubernetes.io/instance: fxml4-prod
+
+bases:
+- ../../base
+
+# Production resource scaling
+replicas:
+- name: fxml4-api
+  count: 5
+- name: fxml4-dashboard
+  count: 3
+- name: prometheus
+  count: 2
+- name: grafana
+  count: 2
+
+# Production images with specific tags
+images:
+- name: fxml4/api
+  newName: fxml4/api
+  newTag: v1.0.0
+- name: fxml4/dashboard
+  newName: fxml4/dashboard
+  newTag: v1.0.0
+
+# Production ConfigMap overrides
+configMapGenerator:
+- name: fxml4-config
+  behavior: merge
+  literals:
+  - api-url: "https://api.fxml4.com"
+  - ws-url: "wss://ws.fxml4.com"
+  - nextauth-url: "https://fxml4.com"
+  - enable-debug-mode: "false"
+  - log-level: "info"
+  - max-concurrent-trades: "100"
+  - rate-limit-requests: "10000"
+  - enable-monitoring: "true"
+  - enable-alerting: "true"
+
+# Production-specific transformations
+patchesJson6902:
+# Increase resource limits for production
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: fxml4-api
+  patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: "2Gi"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: "1000m"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: "1Gi"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: "500m"
+
+# Add production security context
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: fxml4-dashboard
+  patch: |-
+    - op: add
+      path: /spec/template/spec/securityContext/seccompProfile
+      value:
+        type: RuntimeDefault
+    - op: add
+      path: /spec/template/spec/containers/0/securityContext/seccompProfile
+      value:
+        type: RuntimeDefault

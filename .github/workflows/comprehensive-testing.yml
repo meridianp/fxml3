@@ -63,7 +63,7 @@ jobs:
           black --check .
           isort --check-only .
           flake8 .
-          mypy fxml4 --ignore-missing-imports
+          mypy core api --ignore-missing-imports
 
   security-scan:
     name: "Stage 1b: Security Scan"
@@ -167,7 +167,7 @@ jobs:
           pytest tests/ -m "unit and not slow and not requires_ib and not requires_fxcm" \
             -v --tb=short \
             --junit-xml=test-results/unit-results.xml \
-            --cov=fxml4 --cov-report=xml:test-results/unit-coverage.xml \
+            --cov=core --cov=api --cov-report=xml:test-results/unit-coverage.xml \
             --cov-report=term-missing
 
       - name: Upload unit test results
@@ -617,11 +617,11 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: fxml4-ui/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Playwright
         run: |
-          cd fxml4-ui
+          cd frontend
           npm ci
           npx playwright install
 
@@ -635,7 +635,7 @@ jobs:
 
       - name: Run Playwright browser tests
         run: |
-          cd fxml4-ui
+          cd frontend
           npx playwright test --reporter=junit
         timeout-minutes: 20
 
@@ -645,8 +645,8 @@ jobs:
         with:
           name: playwright-test-results
           path: |
-            fxml4-ui/test-results/
-            fxml4-ui/playwright-report/
+            frontend/test-results/
+            frontend/playwright-report/
 
       - name: Clean up services
         if: always()
@@ -790,7 +790,7 @@ jobs:
 
       - name: Generate API documentation
         run: |
-          python fxml4/api/docs_generator.py
+          python core/api/docs_generator.py
 
       - name: Validate system architecture
         run: |

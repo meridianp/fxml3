@@ -1,0 +1,58 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: fxml4-development
+  annotations:
+    config.kubernetes.io/local-config: "true"
+
+namespace: fxml4-dev
+
+namePrefix: dev-
+
+commonLabels:
+  environment: development
+  app.kubernetes.io/instance: fxml4-dev
+
+bases:
+- ../../base
+
+# Development resource scaling
+replicas:
+- name: fxml4-api
+  count: 1
+- name: fxml4-dashboard
+  count: 1
+- name: postgres
+  count: 1
+- name: redis
+  count: 1
+
+# Development images
+images:
+- name: fxml4/api
+  newName: fxml4/api
+  newTag: dev-latest
+- name: fxml4/dashboard
+  newName: fxml4/dashboard
+  newTag: dev-latest
+
+# Development ConfigMap overrides
+configMapGenerator:
+- name: fxml4-config
+  behavior: merge
+  literals:
+  - api-url: "http://api.fxml4-dev.local"
+  - ws-url: "ws://ws.fxml4-dev.local"
+  - nextauth-url: "http://dashboard.fxml4-dev.local"
+  - enable-debug-mode: "true"
+  - log-level: "debug"
+  - cache-ttl: "60"
+
+# Development Secret overrides
+secretGenerator:
+- name: fxml4-secrets
+  behavior: merge
+  literals:
+  - secret-key: "dev-secret-key-not-for-production"
+  - jwt-secret-key: "dev-jwt-secret-key"

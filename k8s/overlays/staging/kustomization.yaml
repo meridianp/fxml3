@@ -1,0 +1,83 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: fxml4-staging
+  annotations:
+    config.kubernetes.io/local-config: "true"
+
+namespace: fxml4-staging
+
+namePrefix: staging-
+
+commonLabels:
+  environment: staging
+  app.kubernetes.io/instance: fxml4-staging
+
+bases:
+- ../../base
+
+# Staging resource scaling (between dev and prod)
+replicas:
+- name: fxml4-api
+  count: 2
+- name: fxml4-dashboard
+  count: 2
+- name: postgres
+  count: 1
+- name: redis
+  count: 1
+
+# Staging images with staging tags
+images:
+- name: fxml4/api
+  newName: fxml4/api
+  newTag: staging-latest
+- name: fxml4/dashboard
+  newName: fxml4/dashboard
+  newTag: staging-latest
+
+# Staging ConfigMap overrides
+configMapGenerator:
+- name: fxml4-config
+  behavior: merge
+  literals:
+  - api-url: "https://staging-api.fxml4.com"
+  - ws-url: "wss://staging-ws.fxml4.com"
+  - nextauth-url: "https://staging.fxml4.com"
+  - enable-debug-mode: "true"
+  - log-level: "info"
+  - cache-ttl: "300"
+  - max-concurrent-trades: "50"
+  - rate-limit-requests: "5000"
+  - enable-monitoring: "true"
+
+# Staging Secret overrides
+secretGenerator:
+- name: fxml4-secrets
+  behavior: merge
+  literals:
+  - secret-key: "staging-secret-key-change-in-production"
+  - jwt-secret-key: "staging-jwt-secret-key"
+
+# Staging-specific resource adjustments
+patchesJson6902:
+# Moderate resource limits for staging
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: fxml4-api
+  patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: "1Gi"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: "500m"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: "512Mi"
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: "250m"
