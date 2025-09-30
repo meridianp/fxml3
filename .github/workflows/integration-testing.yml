@@ -1,0 +1,437 @@
+# FXML4 Integration Testing Pipeline
+# Purpose: Comprehensive testing including integration, E2E, and performance tests
+# Target: 15-25 minutes for complete validation
+# Triggers: Push to main/develop, scheduled nightly, manual dispatch
+
+name: Integration Testing
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run comprehensive tests nightly at 2 AM UTC (avoid market hours)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test-suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - integration
+          - e2e
+          - performance
+          - mutation
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+  POSTGRES_VERSION: '15'
+  REDIS_VERSION: '7'
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =============================================================================
+  # STAGE 1: INTEGRATION TESTS - Target: 8-12 minutes
+  # =============================================================================
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: inputs.test-suite == 'all' || inputs.test-suite == 'integration' || github.event_name != 'workflow_dispatch'
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: fxml4_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fxml4_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Wait for services
+        run: |
+          timeout 30 bash -c 'until pg_isready -h localhost -p 5432; do sleep 1; done'
+          timeout 30 bash -c 'until redis-cli -h localhost ping; do sleep 1; done'
+
+      - name: Initialize test database
+        env:
+          DATABASE_URL: postgresql://fxml4_test:test_password@localhost:5432/fxml4_test
+        run: |
+          python scripts/manage_db.py init
+          python scripts/manage_db.py migrate
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgresql://fxml4_test:test_password@localhost:5432/fxml4_test
+          REDIS_URL: redis://localhost:6379/0
+          TEST_ENV: integration
+        run: |
+          pytest tests/integration/ \
+            -v \
+            --tb=short \
+            --cov=core \
+            --cov=api \
+            --cov-report=xml:coverage-integration.xml \
+            --cov-report=term \
+            --junit-xml=test-results-integration.xml \
+            --maxfail=5
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            coverage-integration.xml
+            test-results-integration.xml
+          retention-days: 30
+
+  # =============================================================================
+  # STAGE 2: E2E TESTS - Target: 10-15 minutes
+  # =============================================================================
+
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: inputs.test-suite == 'all' || inputs.test-suite == 'e2e' || github.event_name != 'workflow_dispatch'
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: fxml4_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fxml4_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Install Node dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Initialize test database
+        env:
+          DATABASE_URL: postgresql://fxml4_test:test_password@localhost:5432/fxml4_test
+        run: |
+          python scripts/manage_db.py init
+          python scripts/manage_db.py migrate
+
+      - name: Start API server
+        env:
+          DATABASE_URL: postgresql://fxml4_test:test_password@localhost:5432/fxml4_test
+          REDIS_URL: redis://localhost:6379/0
+          TEST_ENV: e2e
+        run: |
+          uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -s http://localhost:8000/health; do sleep 2; done'
+
+      - name: Start frontend server
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: |
+          npm run build
+          npm run start &
+          timeout 60 bash -c 'until curl -s http://localhost:3000; do sleep 2; done'
+
+      - name: Run E2E tests
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run test:e2e
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 30
+
+      - name: Upload E2E screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-screenshots
+          path: frontend/test-results/**/screenshots/
+          retention-days: 7
+
+  # =============================================================================
+  # STAGE 3: PERFORMANCE TESTS - Target: 5-8 minutes
+  # =============================================================================
+
+  performance-tests:
+    name: Performance & Load Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: inputs.test-suite == 'all' || inputs.test-suite == 'performance' || github.event_name != 'workflow_dispatch'
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: fxml4_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: fxml4_test
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install locust pytest-benchmark
+          pip install -e .
+
+      - name: Initialize database
+        env:
+          DATABASE_URL: postgresql://fxml4_test:test_password@localhost:5432/fxml4_test
+        run: |
+          python scripts/manage_db.py init
+          python scripts/manage_db.py migrate
+
+      - name: Run performance benchmarks
+        env:
+          DATABASE_URL: postgresql://fxml4_test:test_password@localhost:5432/fxml4_test
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          pytest tests/performance/ \
+            -v \
+            --benchmark-only \
+            --benchmark-json=benchmark-results.json \
+            --benchmark-compare-fail=mean:10%
+
+      - name: Start API for load testing
+        env:
+          DATABASE_URL: postgresql://fxml4_test:test_password@localhost:5432/fxml4_test
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -s http://localhost:8000/health; do sleep 2; done'
+
+      - name: Run load tests
+        run: |
+          locust \
+            -f tests/load/locustfile.py \
+            --headless \
+            --users 50 \
+            --spawn-rate 10 \
+            --run-time 3m \
+            --host http://localhost:8000 \
+            --html load-test-report.html
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: |
+            benchmark-results.json
+            load-test-report.html
+          retention-days: 30
+
+      - name: Check performance thresholds
+        run: |
+          python scripts/check_performance_thresholds.py benchmark-results.json
+
+  # =============================================================================
+  # STAGE 4: MUTATION TESTING (Nightly only)
+  # =============================================================================
+
+  mutation-tests:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: (inputs.test-suite == 'all' || inputs.test-suite == 'mutation' || github.event_name == 'schedule') && github.event_name != 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install mutmut
+          pip install -e .
+
+      - name: Run mutation testing
+        run: |
+          mutmut run \
+            --paths-to-mutate=core/,api/ \
+            --tests-dir=tests/ \
+            --runner="pytest -x" \
+            --use-coverage
+        continue-on-error: true
+
+      - name: Generate mutation report
+        run: |
+          mutmut results
+          mutmut html
+
+      - name: Upload mutation results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-test-results
+          path: html/
+          retention-days: 30
+
+  # =============================================================================
+  # FINAL: INTEGRATION STATUS
+  # =============================================================================
+
+  integration-status:
+    name: Integration Testing Status
+    runs-on: ubuntu-latest
+    needs: [integration-tests, e2e-tests, performance-tests]
+    if: always() && (inputs.test-suite == 'all' || github.event_name != 'workflow_dispatch')
+
+    steps:
+      - name: Check overall status
+        run: |
+          if [[ "${{ needs.integration-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.performance-tests.result }}" != "success" ]]; then
+            echo "❌ Integration Testing failed"
+            exit 1
+          else
+            echo "✅ Integration Testing passed successfully"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Integration Testing Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E Tests: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance Tests: ${{ needs.performance-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Mutation Tests: ${{ needs.mutation-tests.result || 'skipped' }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Post status to commit
+        uses: actions/github-script@v7
+        if: github.event_name == 'push'
+        with:
+          script: |
+            const status = '${{ needs.integration-tests.result }}' === 'success' &&
+                          '${{ needs.e2e-tests.result }}' === 'success' &&
+                          '${{ needs.performance-tests.result }}' === 'success' ? 'success' : 'failure';
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: status,
+              context: 'Integration Testing Pipeline',
+              description: 'Comprehensive integration and E2E tests'
+            });

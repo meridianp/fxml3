@@ -1,0 +1,476 @@
+name: AI-Enhanced CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      ai_mode:
+        description: "AI assistance mode"
+        required: true
+        default: "full-auto"
+        type: choice
+        options:
+          - "full-auto"
+          - "review-only"
+          - "test-generation"
+          - "security-focused"
+
+env:
+  AI_PROVIDER: openai
+  AI_MODEL: gpt-5
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+jobs:
+  ai-analysis:
+    name: AI Code Analysis & Planning
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    outputs:
+      changed_files: ${{ steps.changes.outputs.changed_files }}
+      test_strategy: ${{ steps.ai-plan.outputs.test_strategy }}
+      security_focus: ${{ steps.ai-plan.outputs.security_focus }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install OpenAI Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Detect changed files
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD)
+          else
+            changed_files=$(git diff --name-only HEAD~1..HEAD)
+          fi
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$changed_files" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: AI-Powered Analysis & Planning
+        id: ai-plan
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Create AI analysis prompt
+          cat > /tmp/ai_prompt.txt << 'EOF'
+          Analyze the changed files in this FXML4 trading system PR:
+
+          Changed files:
+          ${{ steps.changes.outputs.changed_files }}
+
+          Tasks:
+          1. Determine optimal test strategy based on changed components
+          2. Identify security-critical changes requiring extra scrutiny
+          3. Plan quality gate enforcement strategy
+          4. Suggest performance testing requirements
+          5. Output structured JSON plan for CI/CD pipeline
+
+          Focus areas for FXML4:
+          - Trading system components
+          - Broker integrations and FIX protocol
+          - Risk management and compliance
+          - ML models and backtesting
+          - API endpoints and authentication
+          - Database schemas and migrations
+          EOF
+
+          # Run AI analysis
+          codex exec -p fxml4_ci "$(cat /tmp/ai_prompt.txt)" > /tmp/ai_analysis.json
+
+          # Extract key insights
+          test_strategy=$(jq -r '.test_strategy // "comprehensive"' /tmp/ai_analysis.json)
+          security_focus=$(jq -r '.security_focus // "standard"' /tmp/ai_analysis.json)
+
+          echo "test_strategy=$test_strategy" >> $GITHUB_OUTPUT
+          echo "security_focus=$security_focus" >> $GITHUB_OUTPUT
+
+          # Store full analysis
+          cp /tmp/ai_analysis.json reports/ai-analysis-${{ github.run_id }}.json
+
+      - name: Upload AI Analysis Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-analysis-report
+          path: reports/ai-analysis-*.json
+
+  ai-test-generation:
+    name: AI Test Generation & Validation
+    runs-on: ubuntu-latest
+    needs: ai-analysis
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: AI-Powered Test Generation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Generate tests for changed modules
+          changed_files="${{ needs.ai-analysis.outputs.changed_files }}"
+
+          for file in $changed_files; do
+            if [[ $file == *.py ]] && [[ $file == fxml4/* ]]; then
+              echo "Generating tests for $file..."
+              codex exec -p fxml4_ci --sandbox workspace-write \
+                "Generate comprehensive pytest tests for $file covering positive, negative, boundary cases and security scenarios. Target 90% coverage. Follow FXML4 testing patterns."
+            fi
+          done
+
+      - name: Validate Generated Tests
+        run: |
+          # Run generated tests to ensure they work
+          pytest tests/ -v --tb=short --maxfail=5
+
+          # Check coverage
+          pytest --cov=fxml4 --cov-report=json --cov-fail-under=80 tests/
+
+      - name: Upload Test Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.json
+
+  security-scan:
+    name: AI-Enhanced Security Analysis
+    runs-on: ubuntu-latest
+    needs: ai-analysis
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript
+          config: |
+            name: "AI-Enhanced CodeQL Config"
+            disable-default-queries: false
+            queries:
+              - uses: security-extended
+              - uses: security-and-quality
+
+      - name: Setup Python for analysis
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies for analysis
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+
+      - name: Setup Node.js for AI security review
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: AI-Powered Security Review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # AI security analysis prompt
+          cat > /tmp/security_prompt.txt << 'EOF'
+          Perform comprehensive security analysis of this FXML4 trading system PR:
+
+          Focus Areas:
+          1. OWASP Top 10 vulnerabilities
+          2. Financial data protection (PCI DSS considerations)
+          3. Trading system security (order tampering, price manipulation)
+          4. Authentication and authorization flaws
+          5. Broker integration security (FIX protocol, API keys)
+          6. Input validation and injection attacks
+          7. Sensitive data exposure in logs/errors
+          8. Cryptographic implementation issues
+
+          Changed files: ${{ needs.ai-analysis.outputs.changed_files }}
+
+          Output structured security report with:
+          - Risk level (Critical/High/Medium/Low)
+          - Specific vulnerabilities found
+          - Remediation recommendations
+          - Compliance impact assessment
+          EOF
+
+          # Run AI security analysis
+          codex exec -p fxml4_ci "$(cat /tmp/security_prompt.txt)" > reports/ai-security-${{ github.run_id }}.md
+
+      - name: Upload Security Analysis Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-security-report
+          path: reports/ai-security-*.md
+
+  quality-gates:
+    name: AI Quality Gate Enforcement
+    runs-on: ubuntu-latest
+    needs: [ai-analysis, ai-test-generation, security-scan]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Install additional Python dependencies for critical tests
+        run: |
+          pip install aiohttp psycopg2-binary redis pika
+
+      - name: CRITICAL - Mandatory Login Test
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL || 'http://staging-api.fxml4.com' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          echo "🔐 Running MANDATORY LOGIN TEST - CI/CD will fail if login doesn't work"
+          python tests/critical/test_mandatory_login.py $STAGING_URL
+
+          if [ $? -ne 0 ]; then
+            echo "❌ MANDATORY LOGIN TEST FAILED - BLOCKING DEPLOYMENT"
+            exit 1
+          fi
+
+          echo "✅ Mandatory login test passed - users can login successfully"
+
+      - name: CRITICAL - Real Environment Health Check
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL || 'http://staging-api.fxml4.com' }}
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          STAGING_REDIS_URL: ${{ secrets.STAGING_REDIS_URL }}
+          STAGING_RABBITMQ_URL: ${{ secrets.STAGING_RABBITMQ_URL }}
+        run: |
+          echo "🌍 Running REAL ENVIRONMENT TESTS against deployed services"
+          python tests/environments/test_real_environment.py staging
+
+          if [ $? -ne 0 ]; then
+            echo "❌ REAL ENVIRONMENT TEST FAILED - Infrastructure issues detected"
+            exit 1
+          fi
+
+          echo "✅ Real environment tests passed - infrastructure healthy"
+
+      - name: Download previous artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/
+
+      - name: Run Quality Gates
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Load quality gates configuration
+          quality_gates=$(cat .ai/quality-gates.json)
+
+          # Run linting
+          echo "Running backend linting..."
+          flake8 fxml4/ --config=.flake8 --output-file=reports/flake8-report.txt || true
+
+          # Run type checking
+          echo "Running type checking..."
+          mypy fxml4/ --ignore-missing-imports --output=reports/mypy-report.txt || true
+
+          # Check test coverage
+          echo "Checking test coverage..."
+          pytest --cov=fxml4 --cov-report=json --cov-fail-under=80 tests/ || true
+
+          # AI-powered quality assessment
+          codex exec -p fxml4_ci \
+            "Analyze all quality gate results and generate pass/fail decision with detailed reasoning. Consider: test coverage (target 80%), security scan results, linting issues, type check results. Focus on trading system reliability and compliance requirements." \
+            > reports/ai-quality-gates-${{ github.run_id }}.json
+
+      - name: Generate Quality Report
+        run: |
+          # Create comprehensive quality report
+          python scripts/generate_quality_report.py \
+            --coverage-file reports/coverage.json \
+            --security-file reports/ai-security-report/ai-security-*.md \
+            --quality-gates .ai/quality-gates.json \
+            --output reports/quality-report-${{ github.run_id }}.html
+
+      - name: Comment PR with Quality Report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const qualityReport = fs.readFileSync('reports/ai-quality-gates-${{ github.run_id }}.json', 'utf8');
+            const report = JSON.parse(qualityReport);
+
+            const body = `
+            ## 🤖 AI Quality Gate Report
+
+            **Overall Status: ${report.status}**
+
+            ### Coverage Analysis
+            - **Current Coverage:** ${report.coverage.current}%
+            - **Target:** ${report.coverage.target}%
+            - **Status:** ${report.coverage.current >= report.coverage.target ? '✅ PASS' : '❌ FAIL'}
+
+            ### Security Analysis
+            - **Critical Issues:** ${report.security.critical}
+            - **High Issues:** ${report.security.high}
+            - **Status:** ${report.security.critical === 0 ? '✅ PASS' : '❌ FAIL'}
+
+            ### Code Quality
+            - **Linting Issues:** ${report.quality.lint_issues}
+            - **Type Issues:** ${report.quality.type_issues}
+            - **Status:** ${report.quality.lint_issues === 0 && report.quality.type_issues === 0 ? '✅ PASS' : '⚠️ WARNING'}
+
+            ### AI Recommendations
+            ${report.recommendations.map(rec => `- ${rec}`).join('\n')}
+
+            ### Next Steps
+            ${report.status === 'PASS' ?
+              '✅ All quality gates passed! Ready for review.' :
+              '❌ Quality gates failed. Please address issues above.'}
+
+            ---
+            *Generated by OpenAI Codex AI-Enhanced CI/CD*
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Upload Quality Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: reports/
+
+      - name: Fail if quality gates not met
+        run: |
+          # Check if quality gates passed
+          quality_status=$(jq -r '.status' reports/ai-quality-gates-${{ github.run_id }}.json)
+          if [ "$quality_status" != "PASS" ]; then
+            echo "❌ Quality gates failed"
+            exit 1
+          else
+            echo "✅ All quality gates passed"
+          fi
+
+  ai-deployment-planning:
+    name: AI Deployment Planning
+    runs-on: ubuntu-latest
+    needs: [quality-gates]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js & Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: AI Deployment Strategy Planning
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # AI deployment planning prompt
+          cat > /tmp/deployment_prompt.txt << 'EOF'
+          Plan safe deployment strategy for FXML4 trading system changes:
+
+          Context:
+          - Financial trading system with real-time requirements
+          - Multi-broker integration (Interactive Brokers, FXCM)
+          - Regulatory compliance requirements
+          - High availability requirements (99.9% uptime)
+
+          Changed components: ${{ needs.ai-analysis.outputs.changed_files }}
+
+          Generate deployment plan with:
+          1. Risk assessment (High/Medium/Low)
+          2. Deployment strategy (blue-green, canary, rolling)
+          3. Rollback plan and triggers
+          4. Health check requirements
+          5. Monitoring and alerting setup
+          6. Database migration strategy (if applicable)
+          7. Broker connectivity validation steps
+
+          Output structured deployment plan.
+          EOF
+
+          # Generate deployment plan
+          codex exec -p fxml4_ci "$(cat /tmp/deployment_prompt.txt)" > reports/ai-deployment-plan-${{ github.run_id }}.json
+
+      - name: Upload Deployment Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-deployment-plan
+          path: reports/ai-deployment-plan-*.json

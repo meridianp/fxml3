@@ -1,0 +1,447 @@
+# FXML4 Continuous Deployment Pipeline
+# Purpose: Deploy to staging and production environments
+# Target: 8-12 minutes for deployment
+# Safety: Market hours awareness, blue-green deployment, automated rollback
+
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main        # Production deployment
+      - develop     # Staging deployment
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      skip-market-check:
+        description: 'Skip market hours check'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel deployments
+
+jobs:
+  # =============================================================================
+  # STAGE 1: PRE-DEPLOYMENT CHECKS
+  # =============================================================================
+
+  pre-deployment:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      deploy-allowed: ${{ steps.market-check.outputs.allowed }}
+      environment: ${{ steps.determine-env.outputs.environment }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine environment
+        id: determine-env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ inputs.environment }}" == "production" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check market hours (Production only)
+        id: market-check
+        run: |
+          ENV="${{ steps.determine-env.outputs.environment }}"
+          SKIP="${{ inputs.skip-market-check }}"
+
+          if [[ "$ENV" != "production" ]] || [[ "$SKIP" == "true" ]]; then
+            echo "allowed=true" >> $GITHUB_OUTPUT
+            echo "ℹ️  Market hours check skipped (not production or override)"
+            exit 0
+          fi
+
+          # Check if current time is within NYSE trading hours (9:30 AM - 4:00 PM ET)
+          current_hour=$(TZ='America/New_York' date +%H)
+          current_minute=$(TZ='America/New_York' date +%M)
+          current_day=$(date +%u)  # 1=Monday, 7=Sunday
+
+          # Check if weekend
+          if [[ $current_day -ge 6 ]]; then
+            echo "allowed=true" >> $GITHUB_OUTPUT
+            echo "✅ Weekend - deployment allowed"
+            exit 0
+          fi
+
+          # Check if outside trading hours (before 9:30 AM or after 4:00 PM)
+          if [[ $current_hour -lt 9 ]] || [[ $current_hour -gt 16 ]]; then
+            echo "allowed=true" >> $GITHUB_OUTPUT
+            echo "✅ Outside market hours - deployment allowed"
+            exit 0
+          fi
+
+          if [[ $current_hour -eq 9 ]] && [[ $current_minute -lt 30 ]]; then
+            echo "allowed=true" >> $GITHUB_OUTPUT
+            echo "✅ Before market open - deployment allowed"
+            exit 0
+          fi
+
+          # During market hours - block deployment
+          echo "allowed=false" >> $GITHUB_OUTPUT
+          echo "⛔ DEPLOYMENT BLOCKED - NYSE market hours (9:30 AM - 4:00 PM ET)"
+          echo "Current time (ET): $(TZ='America/New_York' date '+%Y-%m-%d %H:%M:%S')"
+          echo "Market closes at: 4:00 PM ET"
+          exit 1
+
+      - name: Generate version tag
+        id: version
+        run: |
+          VERSION=$(git describe --tags --always --abbrev=7)
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          ENV="${{ steps.determine-env.outputs.environment }}"
+
+          if [[ "$ENV" == "production" ]]; then
+            TAG="v${VERSION}"
+          else
+            TAG="${ENV}-${VERSION}-${TIMESTAMP}"
+          fi
+
+          echo "version=${TAG}" >> $GITHUB_OUTPUT
+          echo "📦 Version: ${TAG}"
+
+      - name: Check for required secrets
+        env:
+          ENV: ${{ steps.determine-env.outputs.environment }}
+        run: |
+          MISSING=()
+
+          if [[ -z "${{ secrets.DOCKER_REGISTRY_TOKEN }}" ]]; then
+            MISSING+=("DOCKER_REGISTRY_TOKEN")
+          fi
+
+          if [[ "$ENV" == "production" ]]; then
+            if [[ -z "${{ secrets.PROD_DB_PASSWORD }}" ]]; then
+              MISSING+=("PROD_DB_PASSWORD")
+            fi
+            if [[ -z "${{ secrets.PROD_API_KEY }}" ]]; then
+              MISSING+=("PROD_API_KEY")
+            fi
+          fi
+
+          if [[ ${#MISSING[@]} -gt 0 ]]; then
+            echo "❌ Missing required secrets: ${MISSING[*]}"
+            exit 1
+          fi
+
+          echo "✅ All required secrets present"
+
+  # =============================================================================
+  # STAGE 2: BUILD AND PUSH DOCKER IMAGES
+  # =============================================================================
+
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [pre-deployment]
+    if: needs.pre-deployment.outputs.deploy-allowed == 'true'
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service: [api, worker, dashboard]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=${{ needs.pre-deployment.outputs.version }}
+            type=raw,value=latest,enable=${{ needs.pre-deployment.outputs.environment == 'production' }}
+            type=raw,value=${{ needs.pre-deployment.outputs.environment }}-latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/${{ matrix.service }}.Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.pre-deployment.outputs.version }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            COMMIT_SHA=${{ github.sha }}
+
+  # =============================================================================
+  # STAGE 3: DEPLOY TO KUBERNETES
+  # =============================================================================
+
+  deploy:
+    name: Deploy to ${{ needs.pre-deployment.outputs.environment }}
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, build-and-push]
+    environment:
+      name: ${{ needs.pre-deployment.outputs.environment }}
+      url: ${{ steps.deploy.outputs.url }}
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes context
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Set up Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Update image tags in Kustomize
+        env:
+          ENV: ${{ needs.pre-deployment.outputs.environment }}
+          VERSION: ${{ needs.pre-deployment.outputs.version }}
+        run: |
+          cd k8s/overlays/$ENV
+
+          # Update image tags for all services
+          kustomize edit set image \
+            fxml4/api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:$VERSION \
+            fxml4/worker=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/worker:$VERSION \
+            fxml4/dashboard=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dashboard:$VERSION
+
+      - name: Deploy with blue-green strategy
+        id: deploy
+        env:
+          ENV: ${{ needs.pre-deployment.outputs.environment }}
+        run: |
+          NAMESPACE="fxml4-$ENV"
+
+          # Generate manifests
+          kustomize build k8s/overlays/$ENV > deployment.yaml
+
+          # Create blue-green deployment
+          # 1. Deploy new version as "green"
+          kubectl apply -f deployment.yaml --namespace=$NAMESPACE
+
+          # 2. Wait for green to be ready
+          kubectl rollout status deployment -n $NAMESPACE --timeout=5m
+
+          # 3. Run smoke tests against green
+          GREEN_URL=$(kubectl get service -n $NAMESPACE -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
+          curl -f "http://${GREEN_URL}/health" || exit 1
+
+          # 4. Switch traffic to green (update service selector)
+          kubectl set image deployment/fxml4-api fxml4-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ needs.pre-deployment.outputs.version }} -n $NAMESPACE
+
+          # 5. Wait for rollout
+          kubectl rollout status deployment/fxml4-api -n $NAMESPACE --timeout=5m
+
+          # Get deployment URL
+          if [[ "$ENV" == "production" ]]; then
+            URL="https://fxml4.com"
+          else
+            URL="https://staging.fxml4.com"
+          fi
+
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "✅ Deployment successful: $URL"
+
+      - name: Verify deployment
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          # Wait for service to be fully available
+          sleep 30
+
+          # Health check
+          curl -f "$URL/health" || exit 1
+
+          # Version check
+          DEPLOYED_VERSION=$(curl -s "$URL/version" | jq -r '.version')
+          EXPECTED_VERSION="${{ needs.pre-deployment.outputs.version }}"
+
+          if [[ "$DEPLOYED_VERSION" != "$EXPECTED_VERSION" ]]; then
+            echo "❌ Version mismatch: deployed=$DEPLOYED_VERSION, expected=$EXPECTED_VERSION"
+            exit 1
+          fi
+
+          echo "✅ Deployment verified: version $DEPLOYED_VERSION"
+
+      - name: Run post-deployment smoke tests
+        env:
+          API_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          pytest tests/smoke/ \
+            --base-url="$API_URL" \
+            -v \
+            --tb=short \
+            --maxfail=1
+
+  # =============================================================================
+  # STAGE 4: POST-DEPLOYMENT
+  # =============================================================================
+
+  post-deployment:
+    name: Post-deployment Tasks
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, deploy]
+    if: success()
+
+    steps:
+      - name: Create Git tag (Production only)
+        if: needs.pre-deployment.outputs.environment == 'production'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ needs.pre-deployment.outputs.version }}';
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${version}`,
+              sha: context.sha
+            });
+
+      - name: Create GitHub Release (Production only)
+        if: needs.pre-deployment.outputs.environment == 'production'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ needs.pre-deployment.outputs.version }}';
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: version,
+              name: `Release ${version}`,
+              body: `Automated release for ${version}\n\nDeployed to production: ${{ steps.deploy.outputs.url }}`,
+              draft: false,
+              prerelease: false
+            });
+
+      - name: Notify deployment success
+        run: |
+          echo "## 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ needs.pre-deployment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${{ needs.pre-deployment.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- URL: ${{ needs.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # ROLLBACK ON FAILURE
+  # =============================================================================
+
+  rollback:
+    name: Automated Rollback
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, deploy]
+    if: failure()
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure Kubernetes context
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Rollback deployment
+        env:
+          ENV: ${{ needs.pre-deployment.outputs.environment }}
+        run: |
+          NAMESPACE="fxml4-$ENV"
+
+          echo "🔄 Rolling back deployment in namespace: $NAMESPACE"
+
+          # Rollback all deployments
+          kubectl rollout undo deployment/fxml4-api -n $NAMESPACE
+          kubectl rollout undo deployment/fxml4-worker -n $NAMESPACE
+          kubectl rollout undo deployment/fxml4-dashboard -n $NAMESPACE
+
+          # Wait for rollback to complete
+          kubectl rollout status deployment/fxml4-api -n $NAMESPACE --timeout=5m
+          kubectl rollout status deployment/fxml4-worker -n $NAMESPACE --timeout=5m
+          kubectl rollout status deployment/fxml4-dashboard -n $NAMESPACE --timeout=5m
+
+          echo "✅ Rollback completed successfully"
+
+      - name: Verify rollback
+        env:
+          ENV: ${{ needs.pre-deployment.outputs.environment }}
+        run: |
+          NAMESPACE="fxml4-$ENV"
+
+          # Get service URL
+          if [[ "$ENV" == "production" ]]; then
+            URL="https://fxml4.com"
+          else
+            URL="https://staging.fxml4.com"
+          fi
+
+          # Health check
+          sleep 30
+          curl -f "$URL/health" || exit 1
+
+          echo "✅ Service health check passed after rollback"
+
+      - name: Notify rollback
+        if: always()
+        run: |
+          echo "## ⚠️  Deployment Failed - Rollback Executed" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ needs.pre-deployment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Failed Version: ${{ needs.pre-deployment.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The deployment was automatically rolled back to the previous version." >> $GITHUB_STEP_SUMMARY

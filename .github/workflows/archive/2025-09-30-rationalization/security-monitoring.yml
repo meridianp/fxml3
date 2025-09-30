@@ -1,0 +1,46 @@
+name: Security Monitoring
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'core/**/*.py'
+      - 'requirements*.txt'
+  pull_request:
+    branches: [develop, main]
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install bandit safety pip-audit
+          
+      - name: Run Bandit Security Scan
+        run: |
+          bandit -r core/ -f json -o bandit-report.json || true
+          
+      - name: Check for hardcoded secrets
+        run: |
+          grep -rn "password\|secret\|api_key\|token" --include="*.py" core/ | grep -v "^#" || true
+          
+      - name: Audit dependencies
+        run: |
+          pip-audit --desc || true
+          
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json

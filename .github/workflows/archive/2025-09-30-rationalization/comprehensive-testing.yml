@@ -1,0 +1,999 @@
+name: FXML4 Comprehensive Testing Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # STAGE 1: PRE-FLIGHT CHECKS (Parallel)
+  # ============================================================================
+
+  code-quality:
+    name: "Stage 1a: Code Quality"
+    runs-on: ubuntu-latest
+    outputs:
+      python-cache-key: ${{ steps.cache-keys.outputs.python }}
+      docker-cache-key: ${{ steps.cache-keys.outputs.docker }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Generate cache keys
+        id: cache-keys
+        run: |
+          echo "python=${{ runner.os }}-pip-${{ hashFiles('requirements-dev.txt') }}" >> $GITHUB_OUTPUT
+          echo "docker=${{ runner.os }}-buildx-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ steps.cache-keys.outputs.python }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Run pre-commit hooks
+        run: |
+          pre-commit install
+          pre-commit run --all-files
+
+      - name: Code quality checks
+        run: |
+          black --check .
+          isort --check-only .
+          flake8 .
+          mypy core api --ignore-missing-imports
+
+  security-scan:
+    name: "Stage 1b: Security Scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Custom security validation
+        run: |
+          python scripts/validate_security.py
+
+  dependency-check:
+    name: "Stage 1c: Dependency Check"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Check dependencies
+        run: |
+          pip install --upgrade pip
+          pip install safety pip-audit
+          safety check --json --output safety-report.json || true
+          pip-audit --format=json --output=pip-audit-report.json || true
+
+      - name: Upload dependency reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-reports
+          path: |
+            safety-report.json
+            pip-audit-report.json
+
+  # ============================================================================
+  # STAGE 2: CORE TESTING (Sequential)
+  # ============================================================================
+
+  unit-tests:
+    name: "Stage 2a: Unit Tests"
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-scan, dependency-check]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.code-quality.outputs.python-cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Run unit tests
+        run: |
+          pytest tests/ -m "unit and not slow and not requires_ib and not requires_fxcm" \
+            -v --tb=short \
+            --junit-xml=test-results/unit-results.xml \
+            --cov=core --cov=api --cov-report=xml:test-results/unit-coverage.xml \
+            --cov-report=term-missing
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: test-results/
+
+  integration-tests:
+    name: "Stage 2b: Integration Tests"
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: fxml4_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.code-quality.outputs.python-cache-key }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test database
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+        run: |
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/001_initial_schema.sql
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/006_order_management_schema.sql
+
+      - name: Run integration tests
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          pytest tests/ -m "integration and not requires_ib and not requires_fxcm" \
+            -v --tb=short \
+            --junit-xml=test-results/integration-results.xml
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: test-results/
+
+  security-auth-tests:
+    name: "Stage 2c: Security & Authentication"
+    runs-on: ubuntu-latest
+    needs: integration-tests
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: fxml4_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.code-quality.outputs.python-cache-key }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test database
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+        run: |
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/001_initial_schema.sql
+
+      - name: Run security and authentication tests
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          pytest tests/ -m "security or auth" \
+            -v --tb=short \
+            --junit-xml=test-results/security-results.xml
+
+      - name: Upload security test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-test-results
+          path: test-results/
+
+  # ============================================================================
+  # STAGE 3: END-TO-END TESTING (Sequential)
+  # ============================================================================
+
+  e2e-auth-tests:
+    name: "Stage 3a: E2E Authentication"
+    runs-on: ubuntu-latest
+    needs: security-auth-tests
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ needs.code-quality.outputs.docker-cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build test containers
+        run: |
+          docker-compose -f docker-compose.test.yml build
+
+      - name: Run E2E Authentication Tests
+        run: |
+          ./scripts/run_e2e_auth_tests.sh run
+        timeout-minutes: 15
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-auth-test-results
+          path: test-results/
+
+      - name: Clean up containers
+        if: always()
+        run: |
+          docker-compose -f docker-compose.test.yml down -v --remove-orphans
+
+  frontend-backend-integration:
+    name: "Stage 3b: Frontend-Backend Integration"
+    runs-on: ubuntu-latest
+    needs: e2e-auth-tests
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-integration-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-integration-
+            ${{ runner.os }}-buildx-
+
+      - name: Build integration test containers
+        run: |
+          docker-compose -f docker-compose.integration.yml build
+
+      - name: Run Frontend-Backend Integration Tests
+        run: |
+          ./scripts/run_frontend_backend_integration_tests.sh run
+        timeout-minutes: 25
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-backend-integration-results
+          path: integration-test-results/
+
+      - name: Clean up integration containers
+        if: always()
+        run: |
+          docker-compose -f docker-compose.integration.yml down -v --remove-orphans
+
+  performance-regression:
+    name: "Stage 3c: Performance Regression"
+    runs-on: ubuntu-latest
+    needs: frontend-backend-integration
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: fxml4_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.code-quality.outputs.python-cache-key }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test database
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+        run: |
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/001_initial_schema.sql
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/006_order_management_schema.sql
+
+      - name: Start API for performance testing
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          python scripts/start_fxml4_api.py &
+          sleep 15
+
+      - name: Run Performance Regression Tests
+        env:
+          FXML4_ENV: ci
+          GIT_COMMIT: ${{ github.sha }}
+        run: |
+          ./scripts/run_performance_regression_tests.sh test --api-url http://localhost:8001 --environment ci
+        timeout-minutes: 20
+
+      - name: Upload performance regression results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-regression-results
+          path: performance-regression-results/
+
+  # ============================================================================
+  # STAGE 4: ADVANCED TESTING (Conditional)
+  # ============================================================================
+
+  load-stress-tests:
+    name: "Stage 4a: Load & Stress Tests"
+    runs-on: ubuntu-latest
+    needs: performance-regression
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'performance')
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg14
+        env:
+          POSTGRES_DB: fxml4_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.code-quality.outputs.python-cache-key }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Set up test database
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+        run: |
+          PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d fxml4_test -f db/migrations/001_initial_schema.sql
+
+      - name: Start API for load testing
+        env:
+          FXML4_DATABASE_HOST: localhost
+          FXML4_DATABASE_PORT: 5432
+          FXML4_DATABASE_NAME: fxml4_test
+          FXML4_DATABASE_USER: postgres
+          FXML4_DATABASE_PASSWORD: postgres # pragma: allowlist secret
+          FXML4_JWT_SECRET_KEY: test-secret-key-32-chars-long # pragma: allowlist secret
+        run: |
+          python scripts/start_fxml4_api.py &
+          sleep 10
+
+      - name: Run load and stress tests
+        run: |
+          pytest tests/ -m "performance or slow or stress" \
+            -v --tb=short --durations=10 \
+            --junit-xml=test-results/load-stress-results.xml
+        timeout-minutes: 30
+
+      - name: Upload load test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-stress-test-results
+          path: test-results/
+
+  browser-compatibility:
+    name: "Stage 4b: Browser Compatibility"
+    runs-on: ubuntu-latest
+    needs: performance-regression
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'frontend')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Playwright
+        run: |
+          cd frontend
+          npm ci
+          npx playwright install
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and start services
+        run: |
+          docker-compose -f docker-compose.integration.yml up -d --build
+          sleep 30
+
+      - name: Run Playwright browser tests
+        run: |
+          cd frontend
+          npx playwright test --reporter=junit
+        timeout-minutes: 20
+
+      - name: Upload Playwright results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+
+      - name: Clean up services
+        if: always()
+        run: |
+          docker-compose -f docker-compose.integration.yml down -v --remove-orphans
+
+  # ============================================================================
+  # STAGE 5: BUILD & SECURITY VALIDATION (Parallel)
+  # ============================================================================
+
+  build-validation:
+    name: "Stage 5a: Build Validation"
+    runs-on: ubuntu-latest
+    needs: [load-stress-tests, browser-compatibility]
+    if: always() && (needs.load-stress-tests.result != 'failure' && needs.browser-compatibility.result != 'failure')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-build-
+            ${{ runner.os }}-buildx-
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/api.Dockerfile
+          push: false
+          tags: fxml4-api:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Build Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/worker.Dockerfile
+          push: false
+          tags: fxml4-worker:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Test built images
+        run: |
+          docker run --rm fxml4-api:test python -c "import fxml4; print('API image OK')"
+          docker run --rm fxml4-worker:test python -c "import fxml4; print('Worker image OK')"
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  final-security-audit:
+    name: "Stage 5b: Final Security Audit"
+    runs-on: ubuntu-latest
+    needs: [load-stress-tests, browser-compatibility]
+    if: always() && (needs.load-stress-tests.result != 'failure' && needs.browser-compatibility.result != 'failure')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.code-quality.outputs.python-cache-key }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Run comprehensive security audit
+        run: |
+          python scripts/validate_security.py --comprehensive
+          python scripts/validate_architecture.py --security-focus
+
+      - name: Generate security report
+        run: |
+          mkdir -p security-audit-results
+          echo "# FXML4 Security Audit Report" > security-audit-results/security-report.md
+          echo "Generated: $(date)" >> security-audit-results/security-report.md
+          echo "Git Commit: ${{ github.sha }}" >> security-audit-results/security-report.md
+
+      - name: Upload security audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-results
+          path: security-audit-results/
+
+  documentation-validation:
+    name: "Stage 5c: Documentation"
+    runs-on: ubuntu-latest
+    needs: [load-stress-tests, browser-compatibility]
+    if: always() && (needs.load-stress-tests.result != 'failure' && needs.browser-compatibility.result != 'failure')
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ needs.code-quality.outputs.python-cache-key }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Generate API documentation
+        run: |
+          python core/api/docs_generator.py
+
+      - name: Validate system architecture
+        run: |
+          python scripts/validate_architecture.py
+
+      - name: Generate comprehensive test report
+        run: |
+          mkdir -p documentation-results
+          echo "## FXML4 Comprehensive Testing Report" > documentation-results/test-summary.md
+          echo "Generated: $(date)" >> documentation-results/test-summary.md
+          echo "Branch: ${{ github.ref_name }}" >> documentation-results/test-summary.md
+          echo "Commit: ${{ github.sha }}" >> documentation-results/test-summary.md
+          echo "" >> documentation-results/test-summary.md
+          echo "### Testing Stages Completed" >> documentation-results/test-summary.md
+          echo "- ✅ Pre-flight Checks (Code Quality, Security, Dependencies)" >> documentation-results/test-summary.md
+          echo "- ✅ Core Testing (Unit, Integration, Security/Auth)" >> documentation-results/test-summary.md
+          echo "- ✅ E2E Testing (Auth, Frontend-Backend, Performance)" >> documentation-results/test-summary.md
+          echo "- ✅ Advanced Testing (Load/Stress, Browser Compatibility)" >> documentation-results/test-summary.md
+          echo "- ✅ Build & Security Validation" >> documentation-results/test-summary.md
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-results
+          path: documentation-results/
+
+  # ============================================================================
+  # STAGE 6: DEPLOYMENT (Conditional - main branch only)
+  # ============================================================================
+
+  build-and-push:
+    name: "Stage 6a: Build & Push Images"
+    runs-on: ubuntu-latest
+    needs: [build-validation, final-security-audit, documentation-validation]
+    if: github.ref == 'refs/heads/main' && success()
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/api.Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Build and push Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/worker.Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:latest
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy-staging:
+    name: "Stage 6b: Deploy to Staging"
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Deploy to staging
+        run: |
+          kubectl apply -f k8s/namespace/staging.yaml
+          kubectl apply -f k8s/secrets/staging-secrets.yaml
+          kubectl apply -f k8s/deployments/staging/
+          kubectl rollout status deployment/fxml4-api -n staging --timeout=300s
+
+      - name: Run staging health checks
+        run: |
+          kubectl get pods -n staging
+          kubectl logs -l app=fxml4-api -n staging --tail=50
+
+      - name: Post-deployment validation
+        run: |
+          echo "Staging deployment completed successfully"
+          echo "Environment: staging"
+          echo "Images deployed:"
+          echo "- API: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest"
+          echo "- Worker: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker:latest"
+
+  # ============================================================================
+  # FINAL REPORTING
+  # ============================================================================
+
+  test-summary:
+    name: "📊 Test Summary Report"
+    runs-on: ubuntu-latest
+    needs: [
+      unit-tests, integration-tests, security-auth-tests,
+      e2e-auth-tests, frontend-backend-integration, performance-regression,
+      load-stress-tests, browser-compatibility,
+      build-validation, final-security-audit, documentation-validation
+    ]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-test-results
+
+      - name: Generate comprehensive test summary
+        run: |
+          echo "# FXML4 Comprehensive Testing Pipeline Results" > test-summary.md
+          echo "" >> test-summary.md
+          echo "**Branch:** ${{ github.ref_name }}" >> test-summary.md
+          echo "**Commit:** ${{ github.sha }}" >> test-summary.md
+          echo "**Timestamp:** $(date -u)" >> test-summary.md
+          echo "**Workflow:** ${{ github.run_id }}" >> test-summary.md
+          echo "" >> test-summary.md
+
+          echo "## Stage Results" >> test-summary.md
+          echo "" >> test-summary.md
+          echo "### Stage 1: Pre-flight Checks" >> test-summary.md
+          echo "- Code Quality: ${{ needs.code-quality.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Security Scan: ${{ needs.security-scan.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Dependency Check: ${{ needs.dependency-check.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "" >> test-summary.md
+
+          echo "### Stage 2: Core Testing" >> test-summary.md
+          echo "- Unit Tests: ${{ needs.unit-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Integration Tests: ${{ needs.integration-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Security & Auth: ${{ needs.security-auth-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "" >> test-summary.md
+
+          echo "### Stage 3: E2E Testing" >> test-summary.md
+          echo "- E2E Authentication: ${{ needs.e2e-auth-tests.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Frontend-Backend Integration: ${{ needs.frontend-backend-integration.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Performance Regression: ${{ needs.performance-regression.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "" >> test-summary.md
+
+          echo "### Stage 4: Advanced Testing" >> test-summary.md
+          echo "- Load & Stress Tests: ${{ needs.load-stress-tests.result == 'success' && '✅ PASSED' || needs.load-stress-tests.result == 'skipped' && '⏭️ SKIPPED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Browser Compatibility: ${{ needs.browser-compatibility.result == 'success' && '✅ PASSED' || needs.browser-compatibility.result == 'skipped' && '⏭️ SKIPPED' || '❌ FAILED' }}" >> test-summary.md
+          echo "" >> test-summary.md
+
+          echo "### Stage 5: Build & Security Validation" >> test-summary.md
+          echo "- Build Validation: ${{ needs.build-validation.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Security Audit: ${{ needs.final-security-audit.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "- Documentation: ${{ needs.documentation-validation.result == 'success' && '✅ PASSED' || '❌ FAILED' }}" >> test-summary.md
+          echo "" >> test-summary.md
+
+          echo "## Overall Result" >> test-summary.md
+          if [[ "${{ needs.unit-tests.result }}" == "success" && "${{ needs.integration-tests.result }}" == "success" && "${{ needs.security-auth-tests.result }}" == "success" && "${{ needs.e2e-auth-tests.result }}" == "success" && "${{ needs.frontend-backend-integration.result }}" == "success" && "${{ needs.performance-regression.result }}" == "success" ]]; then
+            echo "🎉 **COMPREHENSIVE TESTING PIPELINE PASSED**" >> test-summary.md
+          else
+            echo "💥 **TESTING PIPELINE FAILED** - Review individual stage results" >> test-summary.md
+          fi
+
+          echo "" >> test-summary.md
+          echo "## Artifacts Generated" >> test-summary.md
+          find all-test-results -name "*.xml" -o -name "*.json" -o -name "*.md" | sort >> test-summary.md
+
+      - name: Upload comprehensive test summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-summary
+          path: test-summary.md
+
+      - name: Display summary
+        run: cat test-summary.md
