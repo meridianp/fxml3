@@ -781,11 +781,20 @@ class TimescaleDBOptimizer:
             "performance_metrics",
         ]
 
+        # Import security validation
+        from core.database.security import validate_table_name, build_analyze_query
+
         for table in tables:
             try:
+                # Validate table name to prevent SQL injection
+                validated_table = validate_table_name(table)
+                query = build_analyze_query(validated_table)
+
                 async with self.pool.acquire() as conn:
-                    await conn.execute(f"ANALYZE {table};")
+                    await conn.execute(query)
                     logger.info(f"✅ Analyzed table: {table}")
+            except ValueError as e:
+                logger.error(f"❌ Invalid table name {table}: {e}")
             except Exception as e:
                 logger.error(f"❌ Failed to analyze {table}: {e}")
 
@@ -799,11 +808,20 @@ class TimescaleDBOptimizer:
             "performance_metrics",
         ]
 
+        # Import security validation
+        from core.database.security import validate_table_name, build_vacuum_query
+
         for table in tables:
             try:
+                # Validate table name to prevent SQL injection
+                validated_table = validate_table_name(table)
+                query = build_vacuum_query(validated_table)
+
                 async with self.pool.acquire() as conn:
-                    await conn.execute(f"VACUUM ANALYZE {table};")
+                    await conn.execute(query)
                     logger.info(f"✅ Vacuumed table: {table}")
+            except ValueError as e:
+                logger.error(f"❌ Invalid table name {table}: {e}")
             except Exception as e:
                 logger.error(f"❌ Failed to vacuum {table}: {e}")
 

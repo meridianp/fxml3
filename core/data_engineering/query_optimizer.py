@@ -400,13 +400,22 @@ class QueryOptimizer:
         """
         await self.initialize()
 
-        try:
-            # Update table statistics
-            await self.pool.execute(f"ANALYZE {table_name}")
+        # Import security validation
+        from core.database.security import validate_table_name, build_analyze_query, escape_identifier
 
-            # Get table size and row count
-            size_query = f"SELECT pg_size_pretty(pg_table_size('{table_name}'))"
-            count_query = f"SELECT COUNT(*) FROM {table_name}"
+        try:
+            # Validate table name to prevent SQL injection
+            validated_table = validate_table_name(table_name)
+            escaped_table = escape_identifier(validated_table)
+
+            # Update table statistics with safe query
+            analyze_query = build_analyze_query(validated_table)
+            await self.pool.execute(analyze_query)
+
+            # Get table size and row count with parameterized queries
+            # Note: PostgreSQL table names in functions need to be properly escaped
+            size_query = f"SELECT pg_size_pretty(pg_table_size({escaped_table}::regclass))"
+            count_query = f"SELECT COUNT(*) FROM {escaped_table}"
 
             size = await self.pool.fetchval(size_query)
             count = await self.pool.fetchval(count_query)
