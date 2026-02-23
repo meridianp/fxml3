@@ -1,0 +1,384 @@
+name: FXML4 CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Job 1: Code Quality and Linting
+  lint-and-format:
+    name: Code Quality & Formatting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run Black code formatter
+      run: |
+        black --check --diff core/ api/ tests/ scripts/
+
+    - name: Run isort import formatter
+      run: |
+        isort --check-only --diff core/ api/ tests/ scripts/
+
+    - name: Run flake8 linter
+      run: |
+        flake8 core/ api/ tests/ scripts/
+
+    - name: Run mypy type checker
+      run: |
+        mypy core/ api/
+
+    - name: Security scan with bandit
+      run: |
+        bandit -r core/ api/ -ll
+
+  # Job 2: Unit and Integration Tests
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_USER: testuser
+          POSTGRES_DB: fxml4_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser -d fxml4_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Set up test environment
+      run: |
+        mkdir -p logs
+        cp .env.example .env.test
+        echo "TESTING=true" >> .env.test
+        echo "DATABASE_URL=postgresql://testuser:testpass@localhost:5432/fxml4_test" >> .env.test
+        echo "REDIS_URL=redis://localhost:6379/15" >> .env.test
+
+    - name: Run unit tests with coverage
+      run: |
+        pytest tests/unit/ -v \
+          --cov=core \
+          --cov=api \
+          --cov-report=xml:coverage.xml \
+          --cov-report=html:htmlcov \
+          --cov-fail-under=85 \
+          --junitxml=junit.xml
+
+    - name: Run integration tests
+      run: |
+        pytest tests/integration/ -v \
+          --cov=core \
+          --cov=api \
+          --cov-append \
+          --cov-report=xml:coverage.xml \
+          --junitxml=junit-integration.xml
+      env:
+        DATABASE_URL: postgresql://testuser:testpass@localhost:5432/fxml4_test
+        REDIS_URL: redis://localhost:6379/15
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: true
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          junit*.xml
+          htmlcov/
+          coverage.xml
+
+  # Job 3: Performance and Load Tests
+  performance-tests:
+    name: Performance & Load Tests
+    runs-on: ubuntu-latest
+    needs: [lint-and-format]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run performance tests
+      run: |
+        pytest tests/ -m "performance" -v \
+          --benchmark-json=benchmark.json \
+          --benchmark-min-rounds=5
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: benchmark.json
+
+  # Job 4: Frontend Tests
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: dashboard/package-lock.json
+
+    - name: Install frontend dependencies
+      working-directory: dashboard
+      run: npm ci
+
+    - name: Run frontend linting
+      working-directory: dashboard
+      run: |
+        npm run lint
+        npm run type-check
+
+    - name: Run frontend tests
+      working-directory: dashboard
+      run: |
+        npm run test:coverage
+
+    - name: Upload frontend coverage
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-coverage
+        path: dashboard/coverage/
+
+  # Job 5: Security Tests
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run OWASP Dependency Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'FXML4'
+        path: '.'
+        format: 'ALL'
+
+    - name: Upload dependency check results
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-check-report
+        path: reports/
+
+  # Job 6: Build and Package
+  build:
+    name: Build & Package
+    runs-on: ubuntu-latest
+    needs: [test, frontend-tests]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: dashboard/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install build wheel
+
+    - name: Build frontend
+      working-directory: dashboard
+      run: |
+        npm ci
+        npm run build
+
+    - name: Build Python package
+      run: |
+        python -m build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts
+        path: |
+          dist/
+          dashboard/out/
+
+  # Job 7: Deploy to Staging (if on develop branch)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, security, performance-tests]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-artifacts
+
+    - name: Deploy to staging environment
+      run: |
+        echo "Deploying to staging environment..."
+        # Add actual deployment commands here
+
+    - name: Run smoke tests on staging
+      run: |
+        echo "Running smoke tests on staging..."
+        # Add smoke test commands here
+
+  # Job 8: Deploy to Production (if on main branch)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, security, performance-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-artifacts
+
+    - name: Deploy to production environment
+      run: |
+        echo "Deploying to production environment..."
+        # Add actual deployment commands here
+
+    - name: Run production smoke tests
+      run: |
+        echo "Running production smoke tests..."
+        # Add production smoke test commands here
+
+    - name: Notify deployment success
+      run: |
+        echo "Production deployment successful!"
+        # Add notification logic here
+
+  # Job 9: Cleanup
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+    - name: Clean up old artifacts
+      run: |
+        echo "Cleaning up old artifacts and temporary resources..."
+        # Add cleanup commands here
